@@ -47,9 +47,26 @@ def conn() -> sqlite3.Connection:
     return c
 
 
+MIGRATIONS = [
+    "ALTER TABLE metrics ADD COLUMN curated INTEGER DEFAULT 0",
+    "ALTER TABLE metrics ADD COLUMN template_id TEXT",
+    "ALTER TABLE metrics ADD COLUMN skill TEXT",
+    "ALTER TABLE metrics ADD COLUMN company TEXT",
+    "ALTER TABLE changes ADD COLUMN status TEXT DEFAULT 'accepted'",
+    "ALTER TABLE changes ADD COLUMN reason TEXT",
+    "ALTER TABLE entries ADD COLUMN gone_at TEXT",  # for removing closed postings later
+    "CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY, metric_id INTEGER, change_id INTEGER, user TEXT, action TEXT, at TEXT)",
+]
+
+
 def init():
     with conn() as c:
         c.executescript(SCHEMA)
+        for m in MIGRATIONS:
+            try:
+                c.execute(m)
+            except sqlite3.OperationalError:
+                pass  # already applied
 
 
 def q(sql, args=()):

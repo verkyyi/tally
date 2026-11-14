@@ -135,6 +135,14 @@ def reset():
     rehold()
 
 
+def curate():
+    """Mark the featured demo metrics as curated template metrics (idempotent)."""
+    for title, tpl, co, skill in (("Gamma · open engineering roles", "eng_roles", "Gamma", "job_board"), ("Papermark · GitHub stars", "github_stars", "Papermark", "github_stars"),
+                                  ("Papermark · launches this quarter", "launches", "Papermark", None), ("Notion · App Store rating", "app_rating", "Notion", "rating"),
+                                  ("Notion · total funding raised", "funding", "Notion", None), ("Papermark · Data Rooms plan price", None, "Papermark", "pricing_page")):
+        print(title, db.run("UPDATE metrics SET curated=1, template_id=?, company=?, skill=? WHERE title=?", (tpl, co, skill, title))[1])
+
+
 def tick():
     for m in db.q("SELECT id,title,telem_monitor_id FROM metrics WHERE telem_monitor_id IS NOT NULL"):
         try:
@@ -145,4 +153,4 @@ def tick():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate}[sys.argv[1]]()

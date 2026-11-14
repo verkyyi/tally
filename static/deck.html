@@ -136,7 +136,8 @@ p.big{font-size:27px;line-height:1.4;color:#4a463c;max-width:30em;margin:0}
   <div style="margin-top:130px"><span class="marks"><i></i><i></i><i></i><i></i></span>
   <h1>Ask for a number.<br><em>Keep</em> it current.</h1>
   <p class="url" style="margin-top:40px" id="end-url"></p>
-  <p class="big" style="margin-top:10px;font-size:22px">github.com/verkyyi/tally</p></div>
+  <p class="big" style="margin-top:10px;font-size:22px">github.com/verkyyi/tally</p>
+  <p style="margin-top:34px;font:600 26px var(--mono)"><span id="f-metrics">—</span> metrics tracked · <span id="f-mon">—</span> changes found by Telem monitors · <span id="f-cost">—</span> est. search cost</p></div>
   <div class="foot"><span>Tally · SearchHack 2026</span><span>Thank you</span></div>
 </section>
 
@@ -161,7 +162,7 @@ const host=location.host; document.getElementById("demo-url").textContent=host+"
   const $=id=>document.getElementById(id), provs=Object.keys(t.by_provider);
   $("t-calls").textContent=t.calls; $("t-prov").textContent=provs.length; $("t-provs").textContent=provs.join(" · ");
   $("t-lat").innerHTML=(t.avg_latency_ms/1000).toFixed(1)+"<small>s</small>"; $("t-cost").textContent="$"+t.est_search_cost.toFixed(2);
-  $("v-metrics").textContent=c.length; $("v-saved").textContent=t.calls_saved_by_sharing;
+  $("v-metrics").textContent=c.length; $("f-metrics").textContent=t.metrics; $("f-mon").textContent=t.monitor_changes; $("f-cost").textContent="$"+t.est_search_cost.toFixed(2); $("v-saved").textContent=t.calls_saved_by_sharing;
 }catch(e){}})();
 </script>
 </body>

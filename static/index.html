@@ -100,6 +100,7 @@ th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var
 <header>
   <a href="/" class="brand"><img src="/static/img/logo.svg" alt=""><b>Tally</b><span>A running tally of the outside world.</span></a>
   <form id="add"><input type="text" id="q" placeholder="Ask for a number: “What does Linear charge for its Business plan?”" autocomplete="off"><button id="addbtn">Add metric</button></form>
+  <form id="pack" style="flex:0 1 300px;min-width:230px"><input type="text" id="company" placeholder="Add competitor: a company name" autocomplete="off"><button id="packbtn" class="ghost">Add 6 tiles</button></form>
   <button class="ghost" id="sync" title="Poll Telem monitor change feeds">Sync</button>
   <div id="acct"></div>
 </header>
@@ -204,7 +205,7 @@ function tileHTML(t){
     <h3><span>${esc(t.title)}</span><span class="kind ${t.live?"live":"late"}">${t.live?"● live":"delayed"}</span></h3>
     ${v?`<div class="val">${v.text}<small>${esc(v.unit)}</small></div>`:`<div class="val none">no value yet</div>`}
     <div class="delta">${d}</div>${spark(t.spark)}
-    <div class="foot"><span>${t.live?"checked "+ago(t.last_checked)+" · ":""}tracked by ${t.followers}${t.monitor?" · ◉ monitor":""}</span>
+    <div class="foot"><span>${t.live?"checked "+ago(t.last_checked)+" · ":""}tracked by ${t.followers}${t.monitor?" · ◉ monitor":""}${t.curated?' · <b style="color:var(--accent);font-weight:600">curated</b>':""}</span>
     ${t.live?`<button class="ghost run" data-id="${t.id}">Run now</button>`:`<button class="ghost golive" data-id="${t.id}">Go live</button>`}</div></div>`;
 }
 function renderBoard(){
@@ -270,8 +271,15 @@ async function openPanel(id){
         ${x.url?`<a href="${esc(x.url)}" target="_blank">${esc(x.title)}</a>`:esc(x.title)}${x.is_new?'<span class="tag new">NEW</span>':""}${x.seeded?'<span class="tag seeded">seeded</span>':""}
         <div class="when">first seen ${ago(x.first_seen_at)}${x.found_via?" · via "+x.found_via:""}</div></li>`).join("")||"<li class='when'>No entries yet.</li>"}</ul>`;
     }
-    h+=`<h4>Changes</h4><ul class="rows">${e.changes.map(c=>`<li>${changeText(c)} ${originTag(c.origin)}<div class="when">${ago(c.at)}</div></li>`).join("")||"<li class='when'>No changes recorded.</li>"}</ul>
-      <h4>How Telem tracks this</h4><div class="when">Search: ${esc(e.search_query)}<br>Monitor: ${esc(e.monitor_query)}${e.telem_monitor_id?"<br>hourly · id "+esc(e.telem_monitor_id):"<br>no monitor yet"}</div>
+    h+=`<h4>Changes</h4><ul class="rows">${e.changes.map(c=>`<li>${changeText(c)} ${originTag(c.origin)}<div class="when">${ago(c.at)} · <a href="#" class="nac" data-c="${c.id}">not a change</a></div></li>`).join("")||"<li class='when'>No changes recorded.</li>"}</ul>
+      <h4>How this number is made</h4>
+      <div class="when">Recipe: ${m.kind=="count"?"gather many entries → count the ledger":"gather one source → read one value"}${m.curated?" · curated template":" · free-form question"}</div>
+      <div style="margin:6px 0">Source: ${e.source_url?`<a href="${esc(e.source_url)}" target="_blank">${esc(e.source_url)}</a>`:"found by search on each run"}</div>
+      <div class="when">Skill: ${e.skill?esc(e.skill)+".md":"general method"}</div>
+      ${e.skill_text?`<pre style="white-space:pre-wrap;font:11px/1.45 var(--mono);background:#fff;border:1px solid var(--line);border-radius:6px;padding:9px;margin:6px 0;max-height:150px;overflow:auto">${esc(e.skill_text)}</pre>`:""}
+      <div class="when" style="margin-top:8px">Last Telem trace</div>
+      <ul class="rows">${e.trace.map(t=>`<li style="font:11px var(--mono)">${esc(t.endpoint)} · ${esc(JSON.parse(t.providers_json||"[]").join(", ")||"—")} · ${(t.latency_ms/1000).toFixed(1)}s · ${ago(t.at)}</li>`).join("")||"<li class='when'>No Telem calls recorded for this metric.</li>"}</ul>
+      <div class="when" style="margin-top:6px">Search: ${esc(e.search_query)}<br>Monitor: ${esc(e.monitor_query)}${e.telem_monitor_id?"<br>hourly · id "+esc(e.telem_monitor_id):"<br>no monitor yet"}</div>
       <h4>Actions</h4>${m.kind=="direct"?`<button class="ghost fb" data-a="wrong_source">Wrong source</button> `:""}${m.on_board?`<button class="ghost fb" data-a="mute">Mute / unmute</button> <button class="ghost unf">Remove from board</button>`:`<button class="ghost fol" data-id="${m.id}">Add to board</button>`}`;
   }
   const p=$("#panel"); p.innerHTML=h; p.classList.add("open");
@@ -288,6 +296,13 @@ $("#add").onsubmit=async ev=>{ev.preventDefault(); const q=$("#q").value.trim();
       :(r.metric.value!=null?"New metric: Telem found the source.":"New metric created — no value found yet."),5000)}
   catch(e){toast(e.message,6000)}
   S.pending=null; $("#addbtn").disabled=false; await loadMe(); refresh()};
+$("#pack").onsubmit=async ev=>{ev.preventDefault(); const c=$("#company").value.trim(); if(!c) return;
+  if(!S.me.user) return signInModal("Sign in to add a competitor. Whatever the catalog already tracks arrives at once.");
+  $("#packbtn").disabled=true; S.pending=`Building the ${c} pack: matching the catalog, then asking Telem for what is new…`; setTab("board");
+  try{const r=await api("/api/packs",{company:c}); $("#company").value="";
+    toast(`${r.company}: ${r.tiles.length} tiles. ${r.matched} reused from the catalog, ${r.created} new${r.skipped?", "+r.skipped+" not available":""}.`,6000)}
+  catch(e){toast(e.message,6000)}
+  S.pending=null; $("#packbtn").disabled=false; await loadMe(); refresh()};
 $("#board").onclick=async ev=>{
   const b=ev.target.closest(".run"), g=ev.target.closest(".golive"), t=ev.target.closest(".tile[data-id]");
   if(g){ev.stopPropagation(); S.me.user?plansModal("This metric is delayed on your plan."):signInModal()}
@@ -300,6 +315,7 @@ $("#board").onclick=async ev=>{
 $("#panel").onclick=async ev=>{
   if(ev.target.closest(".x")) return closePanel();
   if(ev.target.closest("#pup")) return plansModal();
+  const na=ev.target.closest(".nac"); if(na){ev.preventDefault(); try{await api(`/api/changes/${na.dataset.c}/reject`,{}); toast("Marked as not a change. Hidden for everyone who tracks this metric.")}catch(e){} return refresh()}
   if(ev.target.closest("#pin2")) return signInModal();
   const fo=ev.target.closest(".fol"); if(fo){ try{await followMetric(fo.dataset.id)}catch(e){} return }
   if(ev.target.closest(".unf")){ try{await api(`/api/metrics/${S.open}/unfollow`,{}); closePanel(); toast("Removed from your board"); await loadMe(); refresh()}catch(e){} return }

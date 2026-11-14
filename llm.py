@@ -85,13 +85,17 @@ def _pages(pages, cap=14000):
     return "\n\n".join(f"<page url=\"{p['url']}\">\n{(p.get('content') or '')[:cap]}\n</page>" for p in pages)
 
 
-def extract_direct(question, unit, pages):
-    return ask_json(EXTRACT_DIRECT, f"Today is {date.today()}.\nQuestion: {question}\nExpected unit: {unit}\n\n{_pages(pages)}")
+def _with_skill(system, skill):
+    return system + ("\n\nSource skill for this metric. Follow it:\n" + skill if skill else "")
 
 
-def extract_count(question, results, pages=()):
+def extract_direct(question, unit, pages, skill=None):
+    return ask_json(_with_skill(EXTRACT_DIRECT, skill), f"Today is {date.today()}.\nQuestion: {question}\nExpected unit: {unit}\n\n{_pages(pages)}")
+
+
+def extract_count(question, results, pages=(), skill=None):
     res = "\n".join(f"- {r['title']} | {r['url']} | {r['summary'][:400]}" for r in results)
-    d = ask_json(EXTRACT_COUNT, f"Today is {date.today()}.\nQuestion: {question}\n\nSearch results:\n{res}\n\n{_pages(pages)}",
+    d = ask_json(_with_skill(EXTRACT_COUNT, skill), f"Today is {date.today()}.\nQuestion: {question}\n\nSearch results:\n{res}\n\n{_pages(pages)}",
                  max_tokens=16000) or {}
     return [e for e in d.get("entries") or [] if isinstance(e, dict) and e.get("title")]
 

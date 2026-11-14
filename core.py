@@ -1,5 +1,6 @@
 """Tally flows: create, run now, sync from Telem monitors, feedback."""
 import json
+import os
 import re
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
@@ -22,6 +23,16 @@ def norm_url(u):
 
 def domain(u):
     return urlsplit(u or "").netloc.lower().removeprefix("www.")
+
+
+SKILLS = os.path.join(os.path.dirname(__file__), "skills")
+
+
+def skill_text(m):
+    """The source skill a curated metric was made with, or None for the general method."""
+    name = (m or {}).get("skill")
+    path = os.path.join(SKILLS, f"{name}.md") if name and name.replace("_", "").isalnum() else None
+    return open(path).read() if path and os.path.exists(path) else None
 
 
 def metric(mid):
@@ -65,14 +76,14 @@ def resolve_direct(m, exclude_domain=None, fresh=False):
             if domain(r["url"]) != exclude_domain and r["url"] not in urls:
                 urls.append(r["url"])
     pages = [p for p in telem.fetch(urls[:5], m["id"], fresh=fresh) if p["ok"]]
-    ex = llm.extract_direct(m["question"], m.get("unit") or "", pages) if pages else None
+    ex = llm.extract_direct(m["question"], m.get("unit") or "", pages, skill_text(m)) if pages else None
     if not ex or not isinstance(ex.get("value"), (int, float)):
         # The page text had no value (often a script-rendered page). Try what search providers read from it.
         if results is None:
             results, _ = telem.search(m["search_query"] or m["question"], m["id"], auto=True, num_results=5)
         snips = [{"url": r["url"], "content": r["title"] + "\n" + r["summary"]} for r in results
                  if r["summary"] and domain(r["url"]) != exclude_domain][:8]
-        ex = llm.extract_direct(m["question"], m.get("unit") or "", snips) if snips else None
+        ex = llm.extract_direct(m["question"], m.get("unit") or "", snips, skill_text(m)) if snips else None
     if not ex or not isinstance(ex.get("value"), (int, float)):
         return None
     if not ex.get("evidence_url"):
@@ -107,7 +118,7 @@ def find_entries(m):
     urls += [r["url"] for r in results if hint and hint in domain(r["url"])][:2]
     pages = [p for p in telem.fetch(urls[:3], m["id"], fresh=True)] if urls else []
     pages = [p for p in pages if p["ok"]]
-    entries = llm.extract_count(m["question"], results, pages)
+    entries = llm.extract_count(m["question"], results, pages, skill_text(m))
     page_text = " ".join(p["content"] for p in pages)
     for e in entries:
         e["found_via"] = "fetch" if e.get("url") and e["url"] in page_text else "search"
@@ -155,7 +166,7 @@ def create_metric(user, question, overrides=None, skip_match=False):
         return metric(mid), True
 
     d = llm.define(question)
-    d.update({k: v for k, v in overrides.items() if v and k != "no_monitor"})
+    d.update({k: v for k, v in overrides.items() if v and k not in ("no_monitor", "curated", "template_id", "skill", "company")})
     mid, _ = db.run(
         "INSERT INTO metrics(question,title,kind,unit,source_url,search_query,monitor_query,telem_monitor_id,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
         (question, d.get("title") or question[:40], d["kind"], d.get("unit"), d.get("source_url"),
@@ -163,6 +174,10 @@ def create_metric(user, question, overrides=None, skip_match=False):
     follow(user, mid)
     m = metric(mid)
     m["source_hint"] = d.get("source_hint")
+    extra = {k: overrides.get(k) for k in ("curated", "template_id", "skill", "company") if overrides.get(k)}
+    if extra:
+        db.run("UPDATE metrics SET " + ",".join(f"{k}=?" for k in extra) + " WHERE id=?", (*extra.values(), mid))
+        m.update(extra)
 
     if m["kind"] == "direct":
         ex = resolve_direct(m)
@@ -279,7 +294,9 @@ def sync_metric(m):
                 if not isinstance(after, dict) or after.get("status") != "qualified":
                     continue
                 u = _url(after)
-                key = norm_url(u) if u else name.lower()
+                if not u:
+                    continue  # never add an entry on the name alone
+                key = norm_url(u)
                 row = db.one("SELECT id, held_out FROM entries WHERE metric_id=? AND (key=? OR lower(title)=?)", (mid, key, name.lower()))
                 if row and not row["held_out"]:
                     continue
@@ -303,6 +320,35 @@ def sync_metric(m):
     return added
 
 
+def add_pack(user, company, can_create=True):
+    """Every template metric for one company: reuse what the catalog has, create the rest. Returns (metrics, created, skipped)."""
+    from concurrent.futures import ThreadPoolExecutor
+    company = " ".join(company.split())[:60]
+    templates = json.load(open(os.path.join(os.path.dirname(__file__), "templates.json")))
+
+    def one(t):
+        q = t["question"].format(company=company)
+        row = db.one("SELECT id FROM metrics WHERE template_id=? AND lower(company)=?", (t["id"], company.lower()))
+        mid = row["id"] if row else match_metric(q)
+        if mid:
+            follow(user, mid)
+            return metric(mid), False
+        if not can_create:
+            return None, False
+        try:
+            m, _ = create_metric(user, q, {"title": t["title"].format(company=company), "kind": t["kind"], "unit": t["unit"],
+                                           "skill": t["skill"], "template_id": t["id"], "company": company, "curated": 1,
+                                           "no_monitor": True}, skip_match=True)
+            return m, True
+        except Exception as e:  # one failed tile must not lose the pack
+            print("pack tile failed:", t["id"], e)
+            return None, False
+
+    with ThreadPoolExecutor(6) as ex:
+        res = list(ex.map(one, templates))
+    return [m for m, _ in res if m], sum(1 for _, c in res if c), sum(1 for m, _ in res if not m)
+
+
 def sync_all():
     out = {"metrics": 0, "changes": 0, "errors": []}
     for m in db.q("SELECT * FROM metrics WHERE telem_monitor_id IS NOT NULL"):
@@ -314,8 +360,23 @@ def sync_all():
     return out
 
 
+def reject_change(user, cid):
+    """A follower says this was not a real change. It is hidden for everyone, and a falsely added entry stops counting."""
+    c = db.one("SELECT * FROM changes WHERE id=?", (cid,))
+    if not c:
+        return None
+    db.run("UPDATE changes SET status='rejected', reason=? WHERE id=?", ("flagged 'not a change' by a follower", cid))
+    db.run("INSERT INTO feedback(metric_id,change_id,user,action,at) VALUES(?,?,?,?,?)", (c["metric_id"], cid, user, "not_a_change", db.now()))
+    if c["entry_id"] and c["kind"] == "entity_added":
+        db.run("UPDATE entries SET held_out=1, gone_at=? WHERE id=?", (db.now(), c["entry_id"]))
+        record_count_obs(c["metric_id"], "feedback")
+    return c["metric_id"]
+
+
 def feedback(user, mid, action):
     m = metric(mid)
+    if action != "mute":
+        db.run("INSERT INTO feedback(metric_id,change_id,user,action,at) VALUES(?,?,?,?,?)", (mid, None, user, action, db.now()))
     if action == "mute":
         cur = db.one("SELECT muted FROM board_items WHERE user=? AND metric_id=?", (user, mid))
         db.run("UPDATE board_items SET muted=? WHERE user=? AND metric_id=?", (0 if cur and cur["muted"] else 1, user, mid))

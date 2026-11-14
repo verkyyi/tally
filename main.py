@@ -142,7 +142,8 @@ def tile(m, u=None, ids="unset"):
     followers = db.one("SELECT COUNT(*) n FROM board_items WHERE metric_id=?", (mid,))["n"]
     bi = db.one("SELECT muted FROM board_items WHERE user=? AND metric_id=?", (u["id"], mid)) if u else None
     base = {"id": mid, "title": m["title"], "question": m["question"], "kind": m["kind"], "unit": m["unit"], "followers": followers,
-            "monitor": bool(m["telem_monitor_id"]), "muted": bool(bi and bi["muted"]), "on_board": bi is not None, "live": live}
+            "monitor": bool(m["telem_monitor_id"]), "muted": bool(bi and bi["muted"]), "on_board": bi is not None, "live": live,
+            "curated": bool(m.get("curated"))}
     if not live:
         # Delayed: the last reading that is at least a day old, or the first reading if the metric is newer than that.
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -252,6 +253,33 @@ def add_metric(body: AddMetric, request: Request):
     return {"metric": tile(m, u), "matched": False}
 
 
+class Pack(BaseModel):
+    company: str
+
+
+@app.post("/api/packs")
+def add_pack(body: Pack, request: Request):
+    """Add competitor: every curated template metric for one company, reusing what the catalog already tracks."""
+    u = need_user(request)
+    company = body.company.strip()
+    if not company:
+        raise HTTPException(400, "company is empty")
+    ms, created, skipped = core.add_pack(u["id"], company, can_create=u["plan"] == "pro")
+    if not ms and u["plan"] != "pro":
+        raise HTTPException(402, "The catalog doesn't track this company yet. Creating a competitor pack is part of Pro.")
+    ids = live_ids(u)
+    return {"company": company, "tiles": [tile(m, u, ids) for m in ms], "created": created, "matched": len(ms) - created, "skipped": skipped}
+
+
+@app.post("/api/changes/{cid}/reject")
+def reject_change(cid: int, request: Request):
+    u = need_user(request)
+    mid = core.reject_change(u["id"], cid)
+    if mid is None:
+        raise HTTPException(404, "no such change")
+    return {"ok": True, "metric_id": mid}
+
+
 @app.post("/api/metrics/{mid}/follow")
 def follow(mid: int, request: Request):
     u = need_user(request)
@@ -278,8 +306,10 @@ def evidence(mid: int, request: Request):
     if not t["live"]:
         return {"metric": t, "locked": True}
     out = {"metric": t, "locked": False, "monitor_query": m["monitor_query"], "search_query": m["search_query"],
-           "telem_monitor_id": m["telem_monitor_id"],
-           "changes": db.q("SELECT * FROM changes WHERE metric_id=? ORDER BY at DESC, id DESC LIMIT 30", (mid,))}
+           "telem_monitor_id": m["telem_monitor_id"], "skill": m.get("skill"), "skill_text": core.skill_text(m),
+           "source_url": m["source_url"],
+           "trace": db.q("SELECT endpoint, providers_json, latency_ms, est_cost, at FROM telem_calls WHERE metric_id=? ORDER BY id DESC LIMIT 6", (mid,)),
+           "changes": db.q("SELECT * FROM changes WHERE metric_id=? AND COALESCE(status,'accepted')='accepted' ORDER BY at DESC, id DESC LIMIT 30", (mid,))}
     if m["kind"] == "count":
         new_ids = {c["entry_id"] for c in out["changes"] if c["entry_id"]}
         es = db.q("SELECT id,title,url,first_seen_at,seeded,found_via FROM entries WHERE metric_id=? AND held_out=0 ORDER BY first_seen_at DESC, id DESC", (mid,))
@@ -328,8 +358,9 @@ def changes(request: Request, since: str | None = None):
     sql = ("SELECT c.*, m.title, m.kind, m.unit FROM changes c JOIN metrics m ON m.id=c.metric_id "
            "JOIN board_items b ON b.metric_id=m.id AND b.user=? AND b.muted=0 ")
     args = [u["id"] if u else FEATURED]
+    sql += "WHERE COALESCE(c.status,'accepted')='accepted' "
     if since:
-        sql += "WHERE c.at>=? "
+        sql += "AND c.at>=? "
         args.append(since)
     rows = db.q(sql + "ORDER BY c.at DESC, c.id DESC LIMIT 200", args)
     return {"changes": [c for c in rows if ids is None or c["metric_id"] in ids]}
@@ -346,7 +377,9 @@ def traces():
     lat = [c["latency_ms"] for c in calls if c["latency_ms"]]
     saved = db.one("SELECT COALESCE(SUM((f.n-1)*m.refreshes),0) s FROM metrics m JOIN "
                    "(SELECT metric_id, COUNT(*) n FROM board_items GROUP BY metric_id) f ON f.metric_id=m.id")["s"]
-    return {"calls": len(calls), "by_endpoint": by_endpoint, "by_provider": by_provider,
+    mon = db.one("SELECT COUNT(*) n FROM changes WHERE origin='monitor' AND COALESCE(status,'accepted')='accepted'")["n"]
+    return {"metrics": db.one("SELECT COUNT(*) n FROM metrics")["n"], "monitor_changes": mon,
+            "calls": len(calls), "by_endpoint": by_endpoint, "by_provider": by_provider,
             "avg_latency_ms": round(sum(lat) / len(lat)) if lat else None,
             "est_search_cost": round(sum(c["est_cost"] or 0 for c in calls), 4),
             "calls_saved_by_sharing": saved, "recent": calls[:12]}

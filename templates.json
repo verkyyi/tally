@@ -1,0 +1,14 @@
+[
+  {"id": "lowest_plan_price", "title": "{company} · entry plan price", "kind": "direct", "unit": "USD/mo", "skill": "pricing_page",
+   "question": "What is the listed monthly price of {company}'s lowest-priced paid plan?"},
+  {"id": "eng_roles", "title": "{company} · open engineering roles", "kind": "count", "unit": "roles", "skill": "job_board",
+   "question": "How many open engineering roles does {company} have?"},
+  {"id": "github_stars", "title": "{company} · GitHub stars", "kind": "direct", "unit": "stars", "skill": "github_stars",
+   "question": "How many GitHub stars does {company}'s main open-source repository have?"},
+  {"id": "launches", "title": "{company} · launches this quarter", "kind": "count", "unit": "launches", "skill": null,
+   "question": "How many product launches or major feature releases has {company} announced this quarter (since October 1, 2026)?"},
+  {"id": "app_rating", "title": "{company} · App Store rating", "kind": "direct", "unit": "rating /5", "skill": "rating",
+   "question": "What is the App Store rating of the {company} iOS app?"},
+  {"id": "funding", "title": "{company} · total funding raised", "kind": "direct", "unit": "USD", "skill": null,
+   "question": "How much total funding has {company} raised?"}
+]
