@@ -130,7 +130,7 @@ def reset():
             db.run(f"DELETE FROM {t} WHERE metric_id=?", (m["id"],))
         db.run("DELETE FROM metrics WHERE id=?", (m["id"],))
         print("removed", m["title"])
-    db.run("DELETE FROM board_items WHERE user='B'")
+    db.run("DELETE FROM board_items WHERE user='demo@tally' AND metric_id NOT IN (SELECT metric_id FROM board_items WHERE user='A')")
     db.run("UPDATE board_items SET muted=0")
     rehold()
 

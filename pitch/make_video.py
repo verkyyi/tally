@@ -45,10 +45,17 @@ def tts():
         print("voice:", pick[0]["name"], pick[0].get("category"))
     os.makedirs(AUDIO, exist_ok=True)
     for s in SEGS:
-        r = httpx.post(f"https://api.elevenlabs.io/v1/text-to-speech/{vid}", params={"output_format": "mp3_44100_128"}, headers=h,
-                       json={"text": s["text"], "model_id": "eleven_multilingual_v2",
-                             "voice_settings": {"stability": 0.5, "similarity_boost": 0.8}}, timeout=120)
-        r.raise_for_status()
+        for attempt in range(4):
+            try:
+                r = httpx.post(f"https://api.elevenlabs.io/v1/text-to-speech/{vid}", params={"output_format": "mp3_44100_128"}, headers=h,
+                               json={"text": s["text"], "model_id": "eleven_multilingual_v2",
+                                     "voice_settings": {"stability": 0.5, "similarity_boost": 0.8}}, timeout=180)
+                r.raise_for_status()
+                break
+            except httpx.HTTPError as e:
+                print("retry", s["id"], e)
+                if attempt == 3:
+                    raise
         open(os.path.join(AUDIO, s["id"] + ".mp3"), "wb").write(r.content)
         print(s["id"], round(audio_len(s), 1), "s")
     print("total", round(sum(audio_len(s) + PAD for s in SEGS)), "s")
@@ -71,7 +78,7 @@ def record():
         b = pw.chromium.launch()
         ctx = b.new_context(viewport={"width": 1440, "height": 900}, record_video_dir=OUT,
                             record_video_size={"width": 1440, "height": 900})
-        ctx.add_init_script(f"localStorage.tallyKey={json.dumps(key)}; if(!sessionStorage.u){{localStorage.tallyUser='A';sessionStorage.u=1}}" + CURSOR)
+        ctx.add_init_script(CURSOR)
         p = ctx.new_page()
         t0 = time.time()
 
@@ -98,25 +105,26 @@ def record():
                 p.wait_for_timeout(1500)
 
         def a04():
-            p.locator("#user").hover()
-            p.select_option("#user", "B")
+            ctx.request.post(BASE + "/api/auth/demo", data={"passcode": key})  # sign in (the demo Pro account)
+            p.reload()
+            p.wait_for_selector("#out")
+            p.locator("#acct").hover()
             p.wait_for_timeout(1500)
-            ask("how many engineering jobs is Gamma hiring for right now?")
-            p.wait_for_selector(".tile[data-id]", timeout=60000)
-            p.locator(".tile[data-id] .foot").first.hover()
+            ask("how much is Linear's business plan per month?")
+            p.wait_for_function("document.querySelectorAll('.tile[data-id]').length==7", timeout=60000)
+            p.locator(".tile[data-id] >> nth=6").hover()
 
         def a05():
             ask("What does Papermark charge for its Pro plan?")
-            p.wait_for_selector(".pending", state="detached", timeout=180000)
+            p.wait_for_function("document.querySelectorAll('.tile[data-id]').length==8", timeout=180000)
             p.wait_for_timeout(1200)
-            click(".tile[data-id] >> nth=1", position={"x": 60, "y": 60})
+            click(".tile[data-id] >> nth=7", position={"x": 60, "y": 60})
             p.wait_for_selector("#panel.open")
             p.locator("#panel q, #panel a").first.hover()
 
         def a06():
             p.keyboard.press("Escape")
-            p.select_option("#user", "A")
-            p.wait_for_selector('.run[data-id="2"]')
+            p.locator('.tile[data-id="2"]').hover()
             p.wait_for_timeout(5000)
             click('.run[data-id="2"]')
             p.wait_for_selector("#panel.open li.new", timeout=240000)
@@ -138,8 +146,9 @@ def record():
                 p.locator(f"#trace .v >> nth={n}").hover()
             p.wait_for_timeout(2500)
             click('nav a[data-tab="catalog"]')
-            p.wait_for_timeout(1500)
-            p.mouse.wheel(0, 500)
+            p.wait_for_timeout(1200)
+            click("#cq")
+            p.keyboard.type("funding", delay=60)
 
         def a09(): p.goto(BASE + "/deck#7")
         def a10(): p.evaluate("location.hash='8'")
