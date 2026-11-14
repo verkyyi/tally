@@ -94,66 +94,66 @@ def record():
             p.wait_for_timeout(300)
             click("#addbtn")
 
+        def soft(fn):
+            try:
+                fn()
+            except Exception as e:
+                print("soft-skip:", str(e)[:80])
+
         def a01(): p.goto(BASE + "/deck#1")
         def a02(): p.evaluate("location.hash='2'")
 
         def a03():
+            ctx.request.post(BASE + "/api/auth/demo", data={"passcode": key})  # the demo Pro account, investor board
             p.goto(BASE + "/app")
             p.wait_for_selector(".tile[data-id]")
-            for sel in [".tile >> nth=5", ".tile >> nth=0", ".tile >> nth=1", ".tile >> nth=2", ".tile >> nth=3", ".tile >> nth=4"]:
-                p.locator(sel).hover()
-                p.wait_for_timeout(1500)
+            for n in (0, 3, 5, 7, 9, 10):
+                soft(lambda: p.locator(f".tile[data-id] >> nth={n}").hover(timeout=3000))
+                p.wait_for_timeout(2300)
 
         def a04():
-            ctx.request.post(BASE + "/api/auth/demo", data={"passcode": key})  # sign in (the demo Pro account)
-            p.reload()
-            p.wait_for_selector("#out")
-            p.locator("#acct").hover()
+            n0 = p.locator(".tile[data-id]").count()
+            click("#q")
+            p.keyboard.type("Linear", delay=140)
+            p.wait_for_selector('#sugg .srow[data-act="pack"]', timeout=20000)
             p.wait_for_timeout(1500)
-            ask("how much is Linear's business plan per month?")
-            p.wait_for_function("document.querySelectorAll('.tile[data-id]').length==7", timeout=60000)
-            p.locator(".tile[data-id] >> nth=6").hover()
+            click('#sugg .srow[data-act="pack"]')
+            p.wait_for_function(f"document.querySelectorAll('.tile[data-id]').length>={n0 + 6}", timeout=120000)
+            for n in (n0, n0 + 2, n0 + 5):
+                soft(lambda: p.locator(f".tile[data-id] >> nth={n}").hover(timeout=3000))
+                p.wait_for_timeout(1500)
 
         def a05():
-            ask("What does Papermark charge for its Pro plan?")
-            p.wait_for_function("document.querySelectorAll('.tile[data-id]').length==8", timeout=180000)
-            p.wait_for_timeout(1200)
-            click(".tile[data-id] >> nth=7", position={"x": 60, "y": 60})
+            click('.tile[data-id="2"]', position={"x": 60, "y": 60})
             p.wait_for_selector("#panel.open")
-            p.locator("#panel q, #panel a").first.hover()
+            p.wait_for_timeout(2500)
+            soft(lambda: p.locator("#panel ul.rows li").first.hover(timeout=3000))
+            p.wait_for_timeout(2500)
+            soft(lambda: p.locator("#panel .runp").hover(timeout=3000))
 
         def a06():
-            p.keyboard.press("Escape")
-            p.locator('.tile[data-id="2"]').hover()
-            p.wait_for_timeout(5000)
-            click('.run[data-id="2"]')
+            click("#panel .runp")
             p.wait_for_selector("#panel.open li.new", timeout=240000)
             p.locator("#panel li.new").first.hover()
 
         def a07():
-            p.wait_for_timeout(1000)
+            p.wait_for_timeout(1200)
             p.keyboard.press("Escape")
-            click("#sync")
-            p.wait_for_function("document.querySelector('#sync').textContent=='Sync'", timeout=120000)
             click('nav a[data-tab="log"]')
             p.wait_for_timeout(600)
-            p.locator("#log tr >> nth=1").hover()
+            soft(lambda: p.locator("#log tr >> nth=1").hover(timeout=3000))
 
         def a08():
-            p.locator("#trace .v >> nth=0").hover()
-            for n in (1, 3, 4):
-                p.wait_for_timeout(2300)
-                p.locator(f"#trace .v >> nth={n}").hover()
-            p.wait_for_timeout(2500)
-            click('nav a[data-tab="catalog"]')
-            p.wait_for_timeout(1200)
-            click("#cq")
-            p.keyboard.type("funding", delay=60)
+            click('nav a[data-tab="trace"]')
+            for n in (0, 1, 3):
+                p.wait_for_timeout(2000)
+                soft(lambda: p.locator(f"#trace .v >> nth={n}").hover(timeout=2000))
 
         def a09(): p.goto(BASE + "/deck#7")
         def a10(): p.evaluate("location.hash='8'")
+        def a11(): p.evaluate("location.hash='9'")
 
-        acts = [a01, a02, a03, a04, a05, a06, a07, a08, a09, a10]
+        acts = [a01, a02, a03, a04, a05, a06, a07, a08, a09, a10, a11]
         timeline = []
         for seg, act in zip(SEGS, acts):
             start = time.time() - t0

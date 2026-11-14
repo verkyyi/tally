@@ -1,42 +1,13 @@
 [
-  {
-    "id": "01_title",
-    "text": "This is Tally. A running tally of the outside world."
-  },
-  {
-    "id": "02_problem",
-    "text": "Every founder tracks competitors by hand. Pricing pages, job boards, changelogs, app stores. It ends up as twelve tabs and a spreadsheet that's stale by Friday. Scrapers break on every redesign. And you can't count things with search, because search results change from run to run."
-  },
-  {
-    "id": "03_board",
-    "text": "With Tally, you ask for a number and get a live tile. This is the featured board, open to anyone without an account: three competitors, six numbers. Prices, open roles, GitHub stars, launches, ratings, funding. Every tile is re-checked by a Telem monitor."
-  },
-  {
-    "id": "04_match",
-    "text": "I sign in and ask what Linear charges for its Business plan, in my own words. Tally matches it to a metric that already exists in the shared catalog. I get the tile at once, with the count of people tracking it, and zero new Telem calls."
-  },
-  {
-    "id": "05_create",
-    "text": "Next, a question nobody has asked: what does Papermark charge for its Pro plan? Telem Search finds the pricing page, Telem Fetch reads it, and Claude extracts the value with the quote it came from. If the number isn't on the page, the tile says no value yet. Tally never guesses."
-  },
-  {
-    "id": "06_run",
-    "text": "Counting is the hard part. Tally keeps a ledger of entries, each stored once by its link. I hit Run now on Gamma's open engineering roles. The search runs with Tavily pinned, and the count goes from twelve to thirteen. Here's the new entry, highlighted, with its source."
-  },
-  {
-    "id": "07_log",
-    "text": "The change log shows only what moved: the role I just found, and the launches that Telem monitors discovered on their own today."
-  },
-  {
-    "id": "08_trace",
-    "text": "The trace panel shows the engine at work: every Telem call, the providers that answered, latency, estimated cost, and the calls saved by sharing. And this is the catalog: sixty metrics so far, searchable by anyone."
-  },
-  {
-    "id": "09_venture",
-    "text": "That catalog is the business. Ten founders tracking the same price cost one refresh, not ten. It's free to explore, and Pro makes every number live."
-  },
-  {
-    "id": "10_close",
-    "text": "Tally. Ask for a number, keep it current. Thank you."
-  }
+ {"id": "01_title", "text": "This is Tally. A running tally of the outside world."},
+ {"id": "02_problem", "text": "If you invest at pre-seed, your edge is noticing early: who is hiring, who shipped, who just raised, how big the new YC batch is. Today that lives in tabs, newsletters and a spreadsheet. Alert tools watch one page for one user, and they can't count or add things up."},
+ {"id": "03_board", "text": "Tally turns those questions into live numbers. This is an investor's board: the size of the current YC batch, funding announced by AI agent startups this month, and hiring and launches at the companies I'm watching. Each tile shows the value, the change, and when it was last checked."},
+ {"id": "04_pack", "text": "To add a company, I type its name. Linear is already in the shared catalog, so a pack of six numbers arrives at once: funding, open roles, launches, price, rating and stars. Someone else asked first, and I reuse their work."},
+ {"id": "05_method", "text": "Every number shows how it is made. I open Gamma's open engineering roles: the source, the recipe, a ledger of entries, each stored once by its link, and the Telem calls behind it."},
+ {"id": "06_check", "text": "Now I press Check now. Telem Search runs with Tavily pinned, Telem Fetch reads the job board, and the count goes from twelve to thirteen. The new role is highlighted, with its link."},
+ {"id": "07_log", "text": "The change log shows only what moved, including changes that Telem monitors found on their own, without anyone pressing a button."},
+ {"id": "08_trace", "text": "And the Telem trace shows the engine: every call, the providers that answered, latency, estimated cost, and the calls saved by sharing."},
+ {"id": "09_compound", "text": "That sharing is the business. One refresh serves everyone who follows a number, so the cost per user falls as the catalog grows. And history cannot be bought later."},
+ {"id": "10_model", "text": "The recipes are open source. The product is the hosted runtime: free to read, nineteen dollars a month for everything live. It is running today, with sign-in and billing."},
+ {"id": "11_close", "text": "Tally. Ask for a number, keep it current. We are looking for angels and pre-seed funds as design partners. Thank you."}
 ]
