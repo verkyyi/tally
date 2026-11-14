@@ -66,7 +66,8 @@ Return {"value": number or null, "unit": string, "as_of": "YYYY-MM-DD", "evidenc
 - Use only what the pages state. If the value is not there (for example the plan says "Contact sales"), return {"value": null}. Never guess."""
 
 EXTRACT_COUNT = """You read search results and fetched pages and list the distinct items that answer the question, one entry per item (one job posting, one product launch).
-Return {"entries": [{"title": string, "url": string}]}.
+Return {"entries": [{"title": string, "url": string, "date": "YYYY-MM-DD" or null}]}.
+- date is the item's own date when the text states it (posted, launched, announced). Use null when no date is stated. Never estimate a date.
 - Only items the text states, each with the most specific URL given for it.
 - Leave out listing or aggregate pages, duplicates, and anything about another company or outside the time window in the question.
 - An empty list is a valid answer. Never invent an item."""

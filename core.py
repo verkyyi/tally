@@ -2,7 +2,7 @@
 import json
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 import db
@@ -138,12 +138,32 @@ def upsert_entries(m, entries, origin, record_changes=True):
             db.run("UPDATE entries SET held_out=0, seeded=0, first_seen_at=? WHERE id=?", (db.now(), row["id"]))
             eid = row["id"]
         else:
-            eid, _ = db.run("INSERT INTO entries(metric_id,key,title,url,first_seen_at,seeded,held_out,found_via) VALUES(?,?,?,?,?,0,0,?)",
-                            (m["id"], key, e["title"].strip(), e.get("url"), db.now(), e.get("found_via")))
+            eid, _ = db.run("INSERT INTO entries(metric_id,key,title,url,first_seen_at,seeded,held_out,found_via,date) VALUES(?,?,?,?,?,0,0,?,?)",
+                            (m["id"], key, e["title"].strip(), e.get("url"), db.now(), e.get("found_via"), _date(e.get("date"))))
         new_ids.append(eid)
         if record_changes:
             add_change(m["id"], before, before + 1, origin, "entity_added", note=e["title"].strip(), entry_id=eid, url=e.get("url"))
     return new_ids
+
+
+def _date(x):
+    return x if isinstance(x, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", x) else None
+
+
+def backfill(mid, days=7):
+    """History from real dates only: the count on each of the last days, from the entries' own dates.
+    Entries with no date count from the day they were first seen. Skipped when too few entries are dated."""
+    es = db.q("SELECT date, first_seen_at FROM entries WHERE metric_id=? AND held_out=0", (mid,))
+    dated = [e for e in es if e["date"]]
+    if not es or len(dated) * 2 < len(es) or db.one("SELECT 1 x FROM observations WHERE metric_id=? AND seeded=1", (mid,)):
+        return 0
+    db.run("DELETE FROM observations WHERE metric_id=? AND origin='backfill'", (mid,))
+    today = datetime.now(timezone.utc).date()
+    for back in range(days, 0, -1):
+        day = (today - timedelta(days=back)).isoformat()
+        n = sum(1 for e in es if (e["date"] or e["first_seen_at"][:10]) <= day)
+        db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded) VALUES(?,?,?,?,?,0)", (mid, n, day + "T23:59:00Z", None, "backfill"))
+    return days
 
 
 def record_count_obs(mid, origin):
@@ -190,6 +210,7 @@ def create_metric(user, question, overrides=None, skip_match=False):
             record_direct(m, ex, "run_now")
     else:
         upsert_entries(m, find_entries(m), "run_now", record_changes=False)
+        backfill(mid)
         record_count_obs(mid, "run_now")
     db.run("UPDATE metrics SET refreshes=refreshes+1, last_checked_at=? WHERE id=?", (db.now(), mid))
 

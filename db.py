@@ -54,7 +54,8 @@ MIGRATIONS = [
     "ALTER TABLE metrics ADD COLUMN company TEXT",
     "ALTER TABLE changes ADD COLUMN status TEXT DEFAULT 'accepted'",
     "ALTER TABLE changes ADD COLUMN reason TEXT",
-    "ALTER TABLE entries ADD COLUMN gone_at TEXT",  # for removing closed postings later
+    "ALTER TABLE entries ADD COLUMN gone_at TEXT",
+    "ALTER TABLE entries ADD COLUMN date TEXT",  # the item's own date (posted, launched, announced)  # for removing closed postings later
     "CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY, metric_id INTEGER, change_id INTEGER, user TEXT, action TEXT, at TEXT)",
 ]
 

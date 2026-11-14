@@ -362,7 +362,7 @@ def evidence(mid: int, request: Request):
            "changes": db.q("SELECT * FROM changes WHERE metric_id=? AND COALESCE(status,'accepted')='accepted' ORDER BY at DESC, id DESC LIMIT 30", (mid,))}
     if m["kind"] == "count":
         new_ids = {c["entry_id"] for c in out["changes"] if c["entry_id"]}
-        es = db.q("SELECT id,title,url,first_seen_at,seeded,found_via FROM entries WHERE metric_id=? AND held_out=0 ORDER BY first_seen_at DESC, id DESC", (mid,))
+        es = db.q("SELECT id,title,url,first_seen_at,seeded,found_via,date FROM entries WHERE metric_id=? AND held_out=0 ORDER BY first_seen_at DESC, id DESC", (mid,))
         for e in es:
             e["is_new"] = e["id"] in new_ids
         out["entries"] = es
