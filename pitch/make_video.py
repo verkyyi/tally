@@ -190,5 +190,111 @@ def mux():
     print(out)
 
 
+# ---------- 30-second cut ----------
+SHORT = json.load(open(os.path.join(HERE, "narration_short.json")))
+AUDIO_S = os.path.join(OUT, "audio_short")
+PAD_S = 0.35
+
+
+def _len(path):
+    r = subprocess.run(["ffprobe", "-v", "quiet", "-show_entries", "format=duration", "-of", "csv=p=0", path], capture_output=True, text=True)
+    return float(r.stdout.strip())
+
+
+def tts_short():
+    global SEGS, AUDIO
+    SEGS, AUDIO = SHORT, AUDIO_S
+    tts()
+
+
+def record_short():
+    """Drive the live app once. Each segment is later sped up to the length of its narration line."""
+    from playwright.sync_api import sync_playwright
+    os.makedirs(os.path.join(OUT, "short"), exist_ok=True)
+    for f in glob.glob(os.path.join(OUT, "short", "*.webm")):
+        os.remove(f)
+    key = os.environ.get("TALLY_PASSCODE", "")
+    with sync_playwright() as pw:
+        b = pw.chromium.launch()
+        ctx = b.new_context(viewport={"width": 1440, "height": 900}, record_video_dir=os.path.join(OUT, "short"),
+                            record_video_size={"width": 1440, "height": 900})
+        ctx.add_init_script(CURSOR)
+        ctx.request.post(BASE + "/api/auth/demo", data={"passcode": key})
+        p = ctx.new_page()
+        t0 = time.time()
+
+        def click(sel, **kw):
+            el = p.locator(sel).first
+            el.hover()
+            p.wait_for_timeout(250)
+            el.click(**kw)
+
+        def s1():
+            p.goto(BASE + "/app")
+            p.wait_for_selector(".tile[data-id]")
+            for n in (0, 1, 2, 5):
+                p.locator(f".tile >> nth={n}").hover()
+                p.wait_for_timeout(700)
+
+        def s2():
+            click("#q")
+            p.keyboard.type("how much is Linear's business plan?", delay=22)
+            click("#addbtn")
+            p.wait_for_function("document.querySelectorAll('.tile[data-id]').length==7", timeout=60000)
+            p.locator(".tile[data-id] >> nth=6").hover()
+            p.wait_for_timeout(1800)
+
+        def s3():
+            click('.run[data-id="2"]')
+            p.wait_for_selector("#panel.open li.new", timeout=240000)
+            p.locator("#panel li.new").first.hover()
+            p.wait_for_timeout(2500)
+
+        def s4():
+            p.keyboard.press("Escape")
+            click('nav a[data-tab="catalog"]')
+            p.wait_for_timeout(700)
+            click("#cq")
+            p.keyboard.type("funding", delay=45)
+            p.wait_for_timeout(1800)
+            p.goto(BASE + "/")
+            p.wait_for_timeout(1800)
+
+        tl = []
+        for seg, act in zip(SHORT, [s1, s2, s3, s4]):
+            start = time.time() - t0
+            act()
+            target = _len(os.path.join(AUDIO_S, seg["id"] + ".mp3")) + PAD_S
+            wait = start + target - (time.time() - t0)
+            if wait > 0:
+                p.wait_for_timeout(int(wait * 1000))
+            tl.append({"id": seg["id"], "start": round(start, 2), "end": round(time.time() - t0, 2), "target": round(target, 2)})
+            print(tl[-1])
+        ctx.close()
+        b.close()
+    json.dump(tl, open(os.path.join(OUT, "short", "timeline.json"), "w"), indent=1)
+
+
+def mux_short():
+    video = sorted(glob.glob(os.path.join(OUT, "short", "*.webm")))[-1]
+    tl = json.load(open(os.path.join(OUT, "short", "timeline.json")))
+    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", video]
+    for t in tl:
+        cmd += ["-i", os.path.join(AUDIO_S, t["id"] + ".mp3")]
+    f, at = [], 0.0
+    for i, t in enumerate(tl):
+        k = (t["end"] - t["start"]) / t["target"]  # >1 speeds the segment up to fit its narration line
+        f.append(f"[0:v]trim=start={t['start']}:end={t['end']},setpts=(PTS-STARTPTS)/{k:.4f},fps=30[v{i}]")
+        f.append(f"[{i + 1}:a]adelay={int(at * 1000)}:all=1[a{i}]")
+        at += t["target"]
+    n = len(tl)
+    f.append("".join(f"[v{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0[v]")
+    f.append("".join(f"[a{i}]" for i in range(n)) + f"amix=inputs={n}:normalize=0[a]")
+    out = os.path.join(OUT, "tally-30s.mp4")
+    subprocess.run(cmd + ["-filter_complex", ";".join(f), "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                          "-crf", "20", "-c:a", "aac", "-b:a", "160k", "-t", f"{at:.2f}", "-movflags", "+faststart", out], check=True)
+    print(out, round(_len(out), 1), "s")
+
+
 if __name__ == "__main__":
-    {"tts": tts, "record": record, "mux": mux}[sys.argv[1]]()
+    {"tts": tts, "record": record, "mux": mux, "tts_short": tts_short, "record_short": record_short, "mux_short": mux_short}[sys.argv[1]]()
