@@ -52,65 +52,64 @@ p.big{font-size:27px;line-height:1.4;color:#4a463c;max-width:30em;margin:0}
 <body>
 <div id="stage">
 
-<section class="slide" data-notes="0:00 — Hi, I'm Verky. This is Tally: a running tally of the outside world.">
-  <div style="margin-top:110px"><span class="marks"><i></i><i></i><i></i><i></i></span>
+<section class="slide" data-notes="0:00 — This is Tally: a running tally of the outside world. One shared, always-current catalog of numbers about companies and markets.">
+  <div style="margin-top:100px"><span class="marks"><i></i><i></i><i></i><i></i></span>
   <h1>Tally</h1>
   <p class="big" style="margin-top:22px;font:italic 36px var(--serif);color:var(--ink)">A running tally of the outside world.</p>
-  <p class="big" style="margin-top:34px">Ask for a number about a company. Get a live tile, with evidence, that everyone can reuse.</p></div>
+  <p class="big" style="margin-top:34px">One shared, always-current catalog of numbers about companies and markets. Ask once; everyone who cares gets it, with the evidence.</p></div>
   <div class="foot"><span>SearchHack · Nov 14, 2026</span><span>Built on Telem AI + Tavily</span></div>
 </section>
 
-<section class="slide" data-notes="0:10 — Every founder watches competitors by hand: pricing pages, job boards, changelogs, app stores. Tabs and a stale spreadsheet. Scrapers break when a page changes, and counting things from search doesn't work, because search results change every run.">
+<section class="slide" data-notes="0:10 — If you invest at pre-seed, your edge is noticing early: who is hiring, who shipped, who just raised, how big the new YC batch is. Today that is tabs, newsletters and a spreadsheet. Founders do the same for competitors. The tools that exist alert one user about one page, and they are known for false alarms.">
   <div class="eyebrow">The problem</div>
-  <h2>Founders track the outside world <em>by hand</em>.</h2>
+  <h2>Investors and founders track the outside world <em>by hand</em>.</h2>
   <div class="cols c3">
-    <div class="card"><span class="n">Today</span><b>Twelve tabs and a spreadsheet</b><p>Pricing pages, job boards, changelogs, app stores. Checked when someone remembers. Stale by Friday.</p></div>
-    <div class="card"><span class="n">Scrapers</span><b>Break on every redesign</b><p>One selector per page, per number. Nobody maintains them, and they can't count things spread across the web.</p></div>
-    <div class="card"><span class="n">Search</span><b>Results change run to run</b><p>“How many open roles?” is not the length of one result list. Ask twice, get two answers.</p></div>
+    <div class="card"><span class="n">Angels and pre-seed funds</span><b>Pipeline and portfolio in tabs</b><p>Who is hiring, who shipped, who raised, how the new batch looks. Checked when someone remembers.</p></div>
+    <div class="card"><span class="n">Founders</span><b>Competitors in a spreadsheet</b><p>Prices, open roles, launches, ratings. Stale by Friday, and nobody trusts the last edit.</p></div>
+    <div class="card"><span class="n">Today's tools</span><b>One page, one user, false alarms</b><p>Scheduled AI tasks and page watchers re-find the same number for every user, and cannot count or add things up.</p></div>
   </div>
   <div class="foot"><span>Tally</span><span>2</span></div>
 </section>
 
-<section class="slide" data-notes="0:30 — With Tally you type a question and get a tile: the value, the change, the history, and when it was last checked. This board is live.">
+<section class="slide" data-notes="0:30 — With Tally you type anything: a company, an accelerator, a question. You get tiles with the value, the change, the history and when it was last checked. This board is live.">
   <div class="eyebrow">The product</div>
-  <h2>Type a question. Get a tile that stays current.</h2>
-  <div class="shot"><img src="/static/img/board.png" alt="Tally board with six live tiles"></div>
-  <div class="foot"><span>Live board · six tiles, each re-checked hourly by a Telem monitor</span><span>3</span></div>
+  <h2>Type anything. Get numbers that stay current.</h2>
+  <div class="shot"><img src="/static/img/board.png" alt="Tally board"></div>
+  <div class="foot"><span>Live board · every tile opens to its source, its recipe and its Telem trace</span><span>3</span></div>
 </section>
 
-<section class="slide" data-notes="0:45 — Two kinds of metric. Direct: one value read from one page, stored with the quote. Count: a ledger of entries, each stored once by its URL. The count is the size of the ledger, so a new entry is a change you can see and open. If the value isn't on the page, the tile says no value yet. We never guess.">
+<section class="slide" data-notes="0:45 — Every number is a recipe: gather evidence, read fields, reduce to one number. Read one value. Count a ledger of entries. Or add up, average or take the largest across many entries. These three are live from the catalog right now. If a value is not on the page, the tile says no value yet. We never guess.">
   <div class="eyebrow">What's new here</div>
-  <h2>Counts come from a <em>ledger</em>, not a result list.</h2>
-  <div class="cols c2">
-    <div class="card"><span class="n">direct</span><b>One value, one source, one quote</b><p>A price, a rating, a star count, a funding total.</p>
-      <div class="num" style="margin-top:22px" id="d-val">9,364<small>stars</small></div><div class="lab">source: api.github.com · read via Telem Fetch</div></div>
-    <div class="card"><span class="n">count</span><b>Entries stored once, by URL</b><p>Open roles, product launches. A new entry is a visible change.</p>
-      <ul class="ledger"><li class="new">+ AI Engineer &nbsp;<b style="display:inline;font:700 16px var(--mono);color:var(--accent)">NEW</b></li><li>Software Engineer, Platform</li><li>Site Reliability Engineer</li><li style="color:var(--mute)">… 10 more, each with its link</li></ul></div>
+  <h2>Every number is a <em>recipe</em>: gather, read, reduce.</h2>
+  <div class="cols c3">
+    <div class="card"><span class="n">read one value</span><b>YC companies in the current batch</b><div class="num" style="margin-top:18px" data-m="YC · companies in the current batch">—</div><div class="lab">from the open YC directory, by a curated skill</div></div>
+    <div class="card"><span class="n">count a ledger</span><b>Cursor open engineering roles</b><div class="num" style="margin-top:18px" data-m="Cursor · open engineering roles">—</div><div class="lab">one entry per posting URL; a new one is a visible change</div></div>
+    <div class="card"><span class="n">add up across entries</span><b>AI agent startup funding, this month</b><div class="num" style="margin-top:18px" data-m="AI agent startups · Nov funding">—</div><div class="lab">sum of announced rounds, each with its link</div></div>
   </div>
-  <div class="foot"><span>If the value isn't on the page, the tile says “no value yet”. Tally never guesses.</span><span>4</span></div>
+  <div class="foot"><span>Counts and sums come from a stored ledger, never from the size of one search result. No value on the page means “no value yet”.</span><span>4</span></div>
 </section>
 
-<section class="slide" data-notes="1:00 — LIVE DEMO, about 80 seconds. (1) Board for user A. (2) Switch to user B, ask the Gamma roles question in different words: matched, history included, tracked by 2, zero new Telem calls. (3) Ask a brand-new question: Telem finds the source. (4) Run now on Gamma roles: 12 becomes 13, the new entry is highlighted. (5) Sync, open the change log: this run, plus what the Telem monitors found. (6) Trace panel.">
+<section class="slide" data-notes="1:00 — LIVE DEMO, about 80 seconds. (1) My board: YC batch, sector funding, hiring at companies I watch. (2) Type two letters, Tab, Enter: a company pack arrives at once because the catalog already has it. (3) Open a tile: source, recipe, Telem trace. (4) Check now on Gamma roles: 12 becomes 13, new entry highlighted. (5) Change log: what Telem monitors found on their own. (6) Trace panel.">
   <div class="eyebrow">Live demo</div>
   <h2>Six steps, eighty seconds.</h2>
   <div class="cols c3">
-    <div class="card"><span class="n">1 · Board</span><p>Six live tiles for founder A.</p></div>
-    <div class="card"><span class="n">2 · Match</span><p>Founder B asks the same thing in other words. Instant tile, full history, “tracked by 2”.</p></div>
-    <div class="card"><span class="n">3 · Create</span><p>A new question. Telem finds the source and the tile appears.</p></div>
-    <div class="card"><span class="n">4 · Run now</span><p>The count goes from 12 to 13. The new entry is highlighted.</p></div>
-    <div class="card"><span class="n">5 · Change log</span><p>That change, plus what Telem monitors found today.</p></div>
+    <div class="card"><span class="n">1 · Board</span><p>An investor's board: batch size, sector funding, hiring and launches.</p></div>
+    <div class="card"><span class="n">2 · One box</span><p>Type two letters. The catalog answers at once; a whole company pack is one click.</p></div>
+    <div class="card"><span class="n">3 · Open method</span><p>Source, recipe and the Telem trace behind any number.</p></div>
+    <div class="card"><span class="n">4 · Check now</span><p>A count goes from 12 to 13. The new entry is highlighted with its link.</p></div>
+    <div class="card"><span class="n">5 · Change log</span><p>What Telem monitors found today, without anyone pressing a button.</p></div>
     <div class="card"><span class="n">6 · Trace</span><p>Providers, latency, estimated cost, calls saved by sharing.</p></div>
   </div>
   <div class="foot"><span class="url" id="demo-url">/app</span><span>5</span></div>
 </section>
 
-<section class="slide" data-notes="2:20 — Telem is the engine. Search finds sources and entries, auto-routed across providers with Tavily pinned on every entry search. Fetch reads the pages. Monitors re-check hourly and we page their change feed into the change log. These numbers are live from the app's trace log.">
+<section class="slide" data-notes="2:20 — Telem is the engine. Search finds sources and entries, auto-routed across providers with Tavily pinned on every entry search. Fetch reads the pages. Monitors re-check hourly and the server reads their change feed every minute. These numbers are live from the trace log.">
   <div class="eyebrow">Telem is the engine</div>
   <h2>Search finds it. Fetch reads it. Monitors watch it.</h2>
   <div class="flow">
     <div class="card"><span class="n">Telem Search</span><p>Auto-routing picks providers per query. Tavily pinned on every entry search.</p></div>
-    <div class="card"><span class="n">Telem Fetch</span><p>Reads the source pages. Claude extracts the value and the quote.</p></div>
-    <div class="card"><span class="n">Telem Monitors</span><p>Hourly agent per metric. Its change feed fills the change log.</p></div>
+    <div class="card"><span class="n">Telem Fetch</span><p>Reads the source pages. Claude extracts values and entries, guided by a source skill.</p></div>
+    <div class="card"><span class="n">Telem Monitors</span><p>Hourly agent per metric. Its change feed fills the change log by itself.</p></div>
   </div>
   <div class="cols c4">
     <div class="card dark"><div class="num" id="t-calls">—</div><div class="lab">Telem calls</div></div>
@@ -121,24 +120,35 @@ p.big{font-size:27px;line-height:1.4;color:#4a463c;max-width:30em;margin:0}
   <div class="foot"><span>Numbers read live from the app's trace log. Cost is estimated from provider list prices.</span><span>6</span></div>
 </section>
 
-<section class="slide" data-notes="2:40 — The business is the shared catalog. Ten founders tracking the same price cost one refresh, not ten. Every question makes the catalog more complete and each user cheaper to serve. Exploring is free; adding and tracking is the paid plan.">
-  <div class="eyebrow">Why this is a company</div>
-  <h2>The catalog is the business: <em>one refresh</em> serves everyone.</h2>
+<section class="slide" data-notes="2:35 — Why this is a company. The catalog compounds. Every question makes it more complete, every follower makes each number cheaper, and history only exists for whoever started tracking first. Feedback from followers fixes the shared recipe, so accuracy improves with use.">
+  <div class="eyebrow">Why this compounds</div>
+  <h2>The catalog is the asset: <em>one refresh</em> serves everyone.</h2>
   <div class="cols c3">
-    <div class="card dark"><div class="num" id="v-metrics">—</div><div class="lab">metrics in the shared catalog</div><p style="margin-top:14px">Ask once, anyone can reuse it with its history.</p></div>
-    <div class="card dark"><div class="num" id="v-saved">—</div><div class="lab">Telem calls saved by sharing</div><p style="margin-top:14px">Followers beyond the first ride on the same refresh.</p></div>
-    <div class="card"><span class="n">Model</span><b>Free to explore, pay to track</b><p>Cost per user falls as the catalog grows. The ledgers and histories are data nobody else has.</p></div>
+    <div class="card dark"><div class="num" id="v-metrics">—</div><div class="lab">metrics in the shared catalog, day one</div><p style="margin-top:14px">Ask once; anyone reuses it with its history.</p></div>
+    <div class="card dark"><div class="num" id="v-saved">—</div><div class="lab">Telem calls saved by sharing</div><p style="margin-top:14px">Cost per user falls as followers per metric rise.</p></div>
+    <div class="card"><span class="n">Moat</span><b>History and curation</b><p>A time series cannot be bought later. Follower feedback corrects the shared recipe, so the catalog gets more accurate with use.</p></div>
   </div>
-  <div class="foot"><span>Next: alerts, team boards, an API for agents that need a trusted number.</span><span>7</span></div>
+  <div class="foot"><span>Per-user alert tools pay the full search cost for every user and keep no shared history.</span><span>7</span></div>
 </section>
 
-<section class="slide" data-notes="2:55 — That's Tally. Ask for a number, keep it current. Thank you.">
-  <div style="margin-top:130px"><span class="marks"><i></i><i></i><i></i><i></i></span>
+<section class="slide" data-notes="2:45 — Who pays and how we reach them. Angels, scouts and pre-seed funds first; founders and sales teams next. The recipes are open source, which is distribution; the product is the hosted runtime: always-on refresh, the shared catalog, the history. It is live today with Google sign-in and Stripe.">
+  <div class="eyebrow">Market and model</div>
+  <h2>Open recipes for reach. A hosted runtime to pay for.</h2>
+  <div class="cols c3">
+    <div class="card"><span class="n">Who</span><b>People paid to notice early</b><p>Angels, scouts and pre-seed funds watching pipeline and portfolio. Then founders on competitors, and sales on accounts.</p></div>
+    <div class="card"><span class="n">Model</span><b>Free to read, Pro for live</b><p>Anyone searches the catalog. $19 a month makes every number live and creation unlimited. Team boards and an API come next.</p></div>
+    <div class="card"><span class="n">Go to market</span><b>Open source, MIT</b><p>Recipes and skills are public and forkable. The runtime, the catalog and its history are the product. Live today with sign-in and billing.</p></div>
+  </div>
+  <div class="foot"><span>tallycatalog.com · github.com/verkyyi/tally</span><span>8</span></div>
+</section>
+
+<section class="slide" data-notes="2:55 — That's Tally. Ask for a number, keep it current. We are looking for angels and pre-seed funds as design partners. Thank you.">
+  <div style="margin-top:110px"><span class="marks"><i></i><i></i><i></i><i></i></span>
   <h1>Ask for a number.<br><em>Keep</em> it current.</h1>
-  <p class="url" style="margin-top:40px" id="end-url"></p>
-  <p class="big" style="margin-top:10px;font-size:22px">github.com/verkyyi/tally</p>
-  <p style="margin-top:34px;font:600 26px var(--mono)"><span id="f-metrics">—</span> metrics tracked · <span id="f-mon">—</span> changes found by Telem monitors · <span id="f-cost">—</span> est. search cost</p></div>
-  <div class="foot"><span>Tally · SearchHack 2026</span><span>Thank you</span></div>
+  <p class="url" style="margin-top:36px" id="end-url"></p>
+  <p style="margin-top:30px;font:600 26px var(--mono)"><span id="f-metrics">—</span> metrics tracked · <span id="f-mon">—</span> changes found by Telem monitors · <span id="f-cost">—</span> est. search cost</p>
+  <p class="big" style="margin-top:22px;font-size:24px">Looking for angels and pre-seed funds as design partners.</p></div>
+  <div class="foot"><span>Tally · SearchHack 2026 · github.com/verkyyi/tally</span><span>Thank you</span></div>
 </section>
 
 </div>
@@ -162,6 +172,8 @@ const host=location.host; document.getElementById("demo-url").textContent=host+"
   const $=id=>document.getElementById(id), provs=Object.keys(t.by_provider);
   $("t-calls").textContent=t.calls; $("t-prov").textContent=provs.length; $("t-provs").textContent=provs.join(" · ");
   $("t-lat").innerHTML=(t.avg_latency_ms/1000).toFixed(1)+"<small>s</small>"; $("t-cost").textContent="$"+t.est_search_cost.toFixed(2);
+  const fm=(v,u)=>{const usd=/^usd/i.test(u||""), a=Math.abs(v), t=x=>String(+x.toFixed(2)); return (usd?"$":"")+(a>=1e9?t(v/1e9)+"B":a>=1e6?t(v/1e6)+"M":v.toLocaleString("en-US",{maximumFractionDigits:2}))};
+  document.querySelectorAll("[data-m]").forEach(e=>{const m=c.find(x=>x.title==e.dataset.m); if(m&&m.value!=null) e.textContent=fm(m.value,m.unit)});
   $("v-metrics").textContent=c.length; $("f-metrics").textContent=t.metrics; $("f-mon").textContent=t.monitor_changes; $("f-cost").textContent="$"+t.est_search_cost.toFixed(2); $("v-saved").textContent=t.calls_saved_by_sharing;
 }catch(e){}})();
 </script>
