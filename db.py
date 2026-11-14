@@ -55,6 +55,9 @@ MIGRATIONS = [
     "ALTER TABLE changes ADD COLUMN status TEXT DEFAULT 'accepted'",
     "ALTER TABLE changes ADD COLUMN reason TEXT",
     "ALTER TABLE entries ADD COLUMN gone_at TEXT",
+    "ALTER TABLE metrics ADD COLUMN reducer TEXT",  # count | sum | avg | max over the ledger
+    "ALTER TABLE metrics ADD COLUMN field TEXT",    # the number read from each entry, for sum/avg/max
+    "ALTER TABLE entries ADD COLUMN value REAL",
     "ALTER TABLE entries ADD COLUMN date TEXT",  # the item's own date (posted, launched, announced)  # for removing closed postings later
     "CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY, metric_id INTEGER, change_id INTEGER, user TEXT, action TEXT, at TEXT)",
 ]

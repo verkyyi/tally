@@ -356,13 +356,13 @@ def evidence(mid: int, request: Request):
     if not t["live"]:
         return {"metric": t, "locked": True}
     out = {"metric": t, "locked": False, "monitor_query": m["monitor_query"], "search_query": m["search_query"],
-           "telem_monitor_id": m["telem_monitor_id"], "skill": m.get("skill"), "skill_text": core.skill_text(m),
+           "telem_monitor_id": m["telem_monitor_id"], "reducer": m.get("reducer") or ("count" if m["kind"] == "count" else "value"), "field": m.get("field"), "skill": m.get("skill"), "skill_text": core.skill_text(m),
            "source_url": m["source_url"],
            "trace": db.q("SELECT endpoint, providers_json, latency_ms, est_cost, at FROM telem_calls WHERE metric_id=? ORDER BY id DESC LIMIT 6", (mid,)),
            "changes": db.q("SELECT * FROM changes WHERE metric_id=? AND COALESCE(status,'accepted')='accepted' ORDER BY at DESC, id DESC LIMIT 30", (mid,))}
     if m["kind"] == "count":
         new_ids = {c["entry_id"] for c in out["changes"] if c["entry_id"]}
-        es = db.q("SELECT id,title,url,first_seen_at,seeded,found_via,date FROM entries WHERE metric_id=? AND held_out=0 ORDER BY first_seen_at DESC, id DESC", (mid,))
+        es = db.q("SELECT id,title,url,first_seen_at,seeded,found_via,date,value FROM entries WHERE metric_id=? AND held_out=0 ORDER BY first_seen_at DESC, id DESC", (mid,))
         for e in es:
             e["is_new"] = e["id"] in new_ids
         out["entries"] = es

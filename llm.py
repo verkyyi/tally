@@ -50,7 +50,9 @@ def ask_json(system, user, max_tokens=8000):
 DEFINE = """You turn a user's question into a trackable metric for a dashboard of live numbers about companies.
 Fields:
 - title: at most 6 words, "Subject · what", e.g. "Gamma · engineering roles".
-- kind: "direct" when the answer is one value read from one page (a price, a rating, a star count, a funding total). "count" when the answer is how many distinct items exist (open job posts, product launches).
+- kind: "direct" when the answer is one value read from one page (a price, a rating, a star count, one company's funding total). "count" when the answer is computed from many distinct items: how many there are (open job posts, product launches), or a number added up, averaged or maximised across them (total funding announced by several companies, average rating across several apps, largest round this month).
+- reducer: for kind "count" only. "count" = how many items. "sum", "avg" or "max" = that operation over a number read from each item. null for direct.
+- field: for sum, avg and max, what the number read from each item is, e.g. "round amount in USD". Otherwise null.
 - unit: short, e.g. "USD/seat/mo", "stars", "rating /5", "USD", "roles", "launches".
 - search_query: a web search query. For direct, it finds the page that states the value. For count, it finds the individual items.
 - monitor_query: one plain sentence naming the change to watch for, e.g. "Acme changes the listed price of its Enterprise plan" or "Acme posts a new engineering job opening".
@@ -94,9 +96,9 @@ def extract_direct(question, unit, pages, skill=None):
     return ask_json(_with_skill(EXTRACT_DIRECT, skill), f"Today is {date.today()}.\nQuestion: {question}\nExpected unit: {unit}\n\n{_pages(pages)}")
 
 
-def extract_count(question, results, pages=(), skill=None):
+def extract_count(question, results, pages=(), skill=None, field=None):
     res = "\n".join(f"- {r['title']} | {r['url']} | {r['summary'][:400]}" for r in results)
-    d = ask_json(_with_skill(EXTRACT_COUNT, skill), f"Today is {date.today()}.\nQuestion: {question}\n\nSearch results:\n{res}\n\n{_pages(pages)}",
+    d = ask_json(_with_skill(EXTRACT_COUNT, skill) + (f'\nFor each entry also return "value": the {field} as a plain number (25000000, not "25M"), or null when the text does not state it. Never estimate it.' if field else ""), f"Today is {date.today()}.\nQuestion: {question}\n\nSearch results:\n{res}\n\n{_pages(pages)}",
                  max_tokens=16000) or {}
     return [e for e in d.get("entries") or [] if isinstance(e, dict) and e.get("title")]
 

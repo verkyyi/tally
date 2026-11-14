@@ -39,8 +39,23 @@ def metric(mid):
     return db.one("SELECT * FROM metrics WHERE id=?", (mid,))
 
 
+AGG = ("sum", "avg", "max")
+
+
+def reduce_rows(reducer, rows):
+    """The recipe's last step: turn ledger entries into one number."""
+    if reducer not in AGG:
+        return len(rows)
+    vals = [r["value"] for r in rows if r["value"] is not None]
+    if not vals:
+        return 0
+    return sum(vals) if reducer == "sum" else max(vals) if reducer == "max" else round(sum(vals) / len(vals), 2)
+
+
 def count_value(mid):
-    return db.one("SELECT COUNT(*) n FROM entries WHERE metric_id=? AND held_out=0", (mid,))["n"]
+    """The value of a ledger metric: its reducer (count by default) applied to the entries."""
+    m = db.one("SELECT reducer FROM metrics WHERE id=?", (mid,)) or {}
+    return reduce_rows(m.get("reducer"), db.q("SELECT value FROM entries WHERE metric_id=? AND held_out=0", (mid,)))
 
 
 def latest_obs(mid):
@@ -118,7 +133,7 @@ def find_entries(m):
     urls += [r["url"] for r in results if hint and hint in domain(r["url"])][:2]
     pages = [p for p in telem.fetch(urls[:3], m["id"], fresh=True)] if urls else []
     pages = [p for p in pages if p["ok"]]
-    entries = llm.extract_count(m["question"], results, pages, skill_text(m))
+    entries = llm.extract_count(m["question"], results, pages, skill_text(m), m.get("field") if m.get("reducer") in AGG else None)
     page_text = " ".join(p["content"] for p in pages)
     for e in entries:
         e["found_via"] = "fetch" if e.get("url") and e["url"] in page_text else "search"
@@ -140,9 +155,11 @@ def upsert_entries(m, entries, origin, record_changes=True):
         else:
             eid, _ = db.run("INSERT INTO entries(metric_id,key,title,url,first_seen_at,seeded,held_out,found_via,date) VALUES(?,?,?,?,?,0,0,?,?)",
                             (m["id"], key, e["title"].strip(), e.get("url"), db.now(), e.get("found_via"), _date(e.get("date"))))
+            if isinstance(e.get("value"), (int, float)):
+                db.run("UPDATE entries SET value=? WHERE id=?", (e["value"], eid))
         new_ids.append(eid)
         if record_changes:
-            add_change(m["id"], before, before + 1, origin, "entity_added", note=e["title"].strip(), entry_id=eid, url=e.get("url"))
+            add_change(m["id"], fmt(before), fmt(count_value(m["id"])), origin, "entity_added", note=e["title"].strip(), entry_id=eid, url=e.get("url"))
     return new_ids
 
 
@@ -153,7 +170,8 @@ def _date(x):
 def backfill(mid, days=7):
     """History from real dates only: the count on each of the last days, from the entries' own dates.
     Entries with no date count from the day they were first seen. Skipped when too few entries are dated."""
-    es = db.q("SELECT date, first_seen_at FROM entries WHERE metric_id=? AND held_out=0", (mid,))
+    es = db.q("SELECT date, first_seen_at, value FROM entries WHERE metric_id=? AND held_out=0", (mid,))
+    red = (db.one("SELECT reducer FROM metrics WHERE id=?", (mid,)) or {}).get("reducer")
     dated = [e for e in es if e["date"]]
     if not es or len(dated) * 2 < len(es) or db.one("SELECT 1 x FROM observations WHERE metric_id=? AND seeded=1", (mid,)):
         return 0
@@ -161,7 +179,7 @@ def backfill(mid, days=7):
     today = datetime.now(timezone.utc).date()
     for back in range(days, 0, -1):
         day = (today - timedelta(days=back)).isoformat()
-        n = sum(1 for e in es if (e["date"] or e["first_seen_at"][:10]) <= day)
+        n = reduce_rows(red, [e for e in es if (e["date"] or e["first_seen_at"][:10]) <= day])
         db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded) VALUES(?,?,?,?,?,0)", (mid, n, day + "T23:59:00Z", None, "backfill"))
     return days
 
@@ -187,6 +205,7 @@ def create_metric(user, question, overrides=None, skip_match=False):
 
     d = llm.define(question)
     d.update({k: v for k, v in overrides.items() if v and k not in ("no_monitor", "curated", "template_id", "skill", "company")})
+    d["kind"] = "count" if d.get("kind") == "count" else "direct"
     mid, _ = db.run(
         "INSERT INTO metrics(question,title,kind,unit,source_url,search_query,monitor_query,telem_monitor_id,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
         (question, d.get("title") or question[:40], d["kind"], d.get("unit"), d.get("source_url"),
@@ -195,6 +214,8 @@ def create_metric(user, question, overrides=None, skip_match=False):
     m = metric(mid)
     m["source_hint"] = d.get("source_hint")
     extra = {k: overrides.get(k) for k in ("curated", "template_id", "skill", "company") if overrides.get(k)}
+    if d["kind"] == "count" and d.get("reducer") in AGG:
+        extra |= {"reducer": d["reducer"], "field": d.get("field") or "value"}
     if extra:
         db.run("UPDATE metrics SET " + ",".join(f"{k}=?" for k in extra) + " WHERE id=?", (*extra.values(), mid))
         m.update(extra)

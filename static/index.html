@@ -287,13 +287,13 @@ async function openPanel(id){
         <div>Source: <a href="${esc(o.evidence_url||m.source_url)}" target="_blank">${esc(o.evidence_url||m.source_url)}</a>${o.seeded?'<span class="tag seeded">seeded</span>':""}</div>
         <div class="when">read ${ago(o.as_of)} via Telem Fetch</div>`:"<div class='when'>No value found on any source yet. Tally never guesses.</div>");
     } else {
-      h+=`<h4>Ledger · ${e.entries.length} entries</h4><ul class="rows">${e.entries.map(x=>`<li class="${x.is_new?"new":""}">
+      h+=`<h4>Ledger · ${e.entries.length} entries${e.reducer&&e.reducer!="count"?" · "+({sum:"summed",avg:"averaged",max:"largest taken"}[e.reducer]||""):""}</h4><ul class="rows">${e.entries.map(x=>`<li class="${x.is_new?"new":""}">
         ${x.url?`<a href="${esc(x.url)}" target="_blank">${esc(x.title)}</a>`:esc(x.title)}${x.is_new?'<span class="tag new">NEW</span>':""}${x.seeded?'<span class="tag seeded">seeded</span>':""}
-        <div class="when">${x.date?"dated "+esc(x.date)+" · ":""}first seen ${ago(x.first_seen_at)}${x.found_via?" · via "+x.found_via:""}</div></li>`).join("")||"<li class='when'>No entries yet.</li>"}</ul>`;
+        <div class="when">${x.value!=null?"<b>"+((val(x.value,m.unit)||{}).text||x.value)+"</b> · ":""}${x.date?"dated "+esc(x.date)+" · ":""}first seen ${ago(x.first_seen_at)}${x.found_via?" · via "+x.found_via:""}</div></li>`).join("")||"<li class='when'>No entries yet.</li>"}</ul>`;
     }
     h+=`<h4>Changes</h4><ul class="rows">${e.changes.map(c=>`<li>${changeText(c)} ${originTag(c.origin)}<div class="when">${ago(c.at)} · <a href="#" class="nac" data-c="${c.id}">not a change</a></div></li>`).join("")||"<li class='when'>No changes recorded.</li>"}</ul>
       <h4>How this number is made</h4>
-      ${m.spark.some(o=>o.origin=="backfill")?'<div class="when">History of the last 7 days is computed from the entries\' own dates.</div>':""}<div class="when">Recipe: ${m.kind=="count"?"gather many entries → read title, URL, date → count the ledger":"gather one source → read one value"}${m.curated?" · curated template":" · free-form question"}</div>
+      ${m.spark.some(o=>o.origin=="backfill")?'<div class="when">History of the last 7 days is computed from the entries\' own dates.</div>':""}<div class="when">Recipe: ${m.kind=="count"?"gather many entries → read title, URL, date"+(e.field&&e.reducer!="count"?", "+esc(e.field):"")+" → "+({count:"count",sum:"sum",avg:"average",max:"take the largest"}[e.reducer]||"count")+" across the ledger":"gather one source → read one value"}${m.curated?" · curated template":" · free-form question"}</div>
       <div style="margin:6px 0">Source: ${e.source_url?`<a href="${esc(e.source_url)}" target="_blank">${esc(e.source_url)}</a>`:"found by search on each run"}</div>
       <div class="when">Skill: ${e.skill?esc(e.skill)+".md":"general method"}</div>
       ${e.skill_text?`<pre style="white-space:pre-wrap;font:11px/1.45 var(--mono);background:#fff;border:1px solid var(--line);border-radius:6px;padding:9px;margin:6px 0;max-height:150px;overflow:auto">${esc(e.skill_text)}</pre>`:""}
