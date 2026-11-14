@@ -164,6 +164,10 @@ def create_metric(user, question, overrides=None):
     if m["kind"] == "direct":
         ex = resolve_direct(m)
         if ex:
+            unit = (ex.get("unit") or "").strip().replace("€", "EUR ").replace("$", "USD ").replace("£", "GBP ").strip()
+            # The page decides the currency, not the guess made before reading it.
+            if unit and unit[:3].upper() in ("USD", "EUR", "GBP") and unit[:3].upper() != (m["unit"] or "")[:3].upper():
+                db.run("UPDATE metrics SET unit=? WHERE id=?", (unit[:3].upper() + (m["unit"] or "")[3:] if (m["unit"] or "")[:3].upper() in ("USD", "EUR", "GBP") else unit, mid))
             db.run("UPDATE metrics SET source_url=? WHERE id=?", (ex["evidence_url"], mid))
             record_direct(m, ex, "run_now")
     else:

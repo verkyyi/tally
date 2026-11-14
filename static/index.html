@@ -8,6 +8,7 @@
 :root{--paper:#f4f0e6;--card:#fbf9f3;--ink:#1d1b16;--mute:#7b7566;--line:#d9d2c0;--accent:#c2410c;--up:#15703b;--down:#b3261e;--seed:#a79f8c;--new:#fff1c9;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.45 -apple-system,"Helvetica Neue",Arial,sans-serif;padding-bottom:92px}
 header{display:flex;gap:16px;align-items:center;padding:14px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .brand{display:flex;align-items:baseline;gap:10px}
@@ -232,7 +233,7 @@ $("#panel").onclick=async ev=>{
     toast(f.dataset.a=="mute"?(r.muted?"Muted on your board":"Unmuted"):(r.resolved?"Source re-resolved":"No better source found"))}
   catch(e){toast(e.message,6000)} refresh()};
 $("#sync").onclick=async()=>{const b=$("#sync"); b.disabled=true; b.textContent="Syncing…";
-  try{const r=await api("/api/sync",{}); toast(`${r.changes} change${r.changes==1?"":"s"} from ${r.metrics} Telem monitor${r.metrics==1?"":"s"}${r.errors.length?" · "+r.errors.length+" error(s): "+r.errors[0]:""}`,5000)}
+  try{const r=await api("/api/sync",{}); toast(`${r.changes?r.changes+" new change"+(r.changes==1?"":"s")+" from":"Up to date with"} ${r.metrics} Telem monitor${r.metrics==1?"":"s"}${r.errors.length?" · "+r.errors.length+" error(s): "+r.errors[0]:""}`,5000)}
   catch(e){toast("Sync failed: "+e.message,6000)} b.disabled=false; b.textContent="Sync"; refresh()};
 $("#user").onchange=ev=>{S.user=localStorage.tallyUser=ev.target.value; closePanel(); refresh()};
 document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>{S.tab=a.dataset.tab;

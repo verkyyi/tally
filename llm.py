@@ -55,12 +55,14 @@ Fields:
 - search_query: a web search query. For direct, it finds the page that states the value. For count, it finds the individual items.
 - monitor_query: one plain sentence naming the change to watch for, e.g. "Acme changes the listed price of its Enterprise plan" or "Acme posts a new engineering job opening".
 - source_hint: the domain most likely to hold the answer, or null.
-- source_url: an exact URL only when you are certain of it, else null. For GitHub stars use https://api.github.com/repos/{owner}/{repo}."""
+- source_url: an exact URL only when you are certain of it, else null. For GitHub stars use https://api.github.com/repos/{owner}/{repo}. For a plan price use the company's own pricing page when you know its address."""
 
 EXTRACT_DIRECT = """You read fetched web pages and extract the single value that answers the question.
 Return {"value": number or null, "unit": string, "as_of": "YYYY-MM-DD", "evidence_url": string, "confidence": 0 to 1, "quote": string}.
 - value is a plain number: 343000000, not "343M". For a price, the number in the listed currency.
 - quote is the short text on the page that states the value. evidence_url is the URL of the page it came from.
+- When several pages state a value, prefer the subject's own official page (its pricing page, its repository, its store listing) over blog posts and third-party sites, and use the currency that page shows.
+- quote is one short plain phrase, not a table row.
 - Use only what the pages state. If the value is not there (for example the plan says "Contact sales"), return {"value": null}. Never guess."""
 
 EXTRACT_COUNT = """You read search results and fetched pages and list the distinct items that answer the question, one entry per item (one job posting, one product launch).
