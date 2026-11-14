@@ -2,6 +2,8 @@
 
 **Tagline:** A running tally of the outside world.
 
+**Try it:** https://tallycatalog.com (landing page with a 20-second demo) · board at https://tallycatalog.com/app · deck at https://tallycatalog.com/deck
+
 ## Inspiration
 Founders track competitors by hand: pricing pages, job boards, changelogs, app stores. It ends up as a dozen tabs and a spreadsheet that goes stale. Scrapers break on every redesign, and search results change from run to run, so "how many open roles do they have?" has no stable answer.
 
@@ -13,12 +15,14 @@ Type a question such as "How many open engineering roles does Gamma have?" and T
 - **Evidence for every number.** Each tile opens to its source and quote, or to the list of entries. If the value is not on the page, the tile says "no value yet".
 - **Only changes are surfaced.** A change log shows what moved, whether you found it with "Run now" or a monitor found it in the background.
 
+- **Open catalog, tiered live data.** Anyone can read and search the 60-metric catalog with no account. Featured metrics are live for everyone; a free Google account adds your own board, live numbers on what you create and five catalog picks, and three new metrics; Pro (Stripe, $19/month) makes every number live.
+
 ## How we built it
 - **Telem Search** finds source pages and entries. Direct metrics use auto-routing; entry-finding searches run once with **Tavily** pinned and once auto-routed, then merge by URL.
 - **Telem Fetch** reads the source pages; Claude extracts the value and the quote, or the list of entries.
 - **Telem Monitors**: one hourly agent monitor per demo metric. "Sync" pages through each monitor's change feed from a stored cursor and maps `entity_added` to ledger entries, `value_changed` to observations and `run` to "last checked".
 - A **trace panel** logs every Telem call: endpoint, providers that answered, latency, estimated search cost, and calls saved by sharing.
-- Stack: Python, FastAPI, SQLite, one static HTML page, Anthropic API for three small prompts (define, extract, match).
+- Stack: Python, FastAPI, SQLite, one static HTML page, Anthropic API for three small prompts (define, extract, match). Google sign-in, Stripe Checkout, deployed on AWS (EC2 behind Caddy).
 
 ## Challenges
 - Search results vary between runs, so counts had to come from a stored ledger with stable keys.
@@ -31,6 +35,6 @@ Alerts, team boards, and an API so agents can ask the catalog for a trusted numb
 ## Honest notes
 - Sparkline history before today is seeded and marked "seeded" in the database and the UI.
 - Search cost is an estimate from provider list prices; Telem does not return cost per call.
-- Exploring is open; adding and refreshing metrics needs a passcode.
+- Exploring is open; adding and refreshing metrics needs a Google sign-in. Values outside your live set are delayed: the last reading at least a day old, or the first reading for metrics newer than that.
 
 **Repo:** https://github.com/verkyyi/tally

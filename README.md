@@ -3,6 +3,8 @@
 **A running tally of the outside world.** A personal dashboard of live numbers about companies you care about,
 built from a shared catalog: anything one person tracks is instantly available to everyone.
 
+Live at https://tallycatalog.com.
+
 Built for SearchHack on [Telem AI](https://telem.ai) (Search, Fetch and Monitors) with Tavily as a pinned search provider.
 
 ## How it works
