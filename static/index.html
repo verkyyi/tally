@@ -10,7 +10,7 @@
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.45 -apple-system,"Helvetica Neue",Arial,sans-serif;padding-bottom:92px}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.45 -apple-system,"Helvetica Neue",Arial,sans-serif;padding-bottom:28px}
 header{display:flex;gap:14px;align-items:center;padding:12px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit}
 .brand img{width:30px;height:30px}
@@ -69,7 +69,7 @@ svg.spark{display:block;width:100%;height:46px;margin:6px 0 2px}
 .badge{position:absolute;top:-8px;right:12px;background:var(--accent);color:#fff;font:600 10px var(--mono);padding:2px 7px;border-radius:9px}
 .pending{border-style:dashed;color:var(--mute);display:flex;align-items:center;justify-content:center;min-height:190px;font:italic 15px var(--serif);text-align:center;cursor:default}
 .empty{color:var(--mute);font:italic 16px var(--serif);padding:40px 0}
-#panel{position:fixed;top:0;right:0;bottom:76px;width:min(460px,100vw);background:var(--card);border-left:1px solid var(--ink);padding:20px 22px;overflow:auto;transform:translateX(105%);transition:transform .2s;z-index:5}
+#panel{position:fixed;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--card);border-left:1px solid var(--ink);padding:20px 22px;overflow:auto;transform:translateX(105%);transition:transform .2s;z-index:5}
 #panel.open{transform:none}
 #panel h2,#modal h2{font:700 20px/1.25 var(--serif);margin:0 30px 4px 0}
 .x{position:absolute;top:14px;right:14px;padding:2px 9px}
@@ -88,12 +88,16 @@ td .followbtn{padding:4px 9px;font-size:12px}
 td,th{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute)}
 .cathead{display:flex;gap:12px;align-items:center;margin-bottom:12px}
-#trace{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:var(--paper);padding:10px 24px;display:flex;gap:28px;align-items:center;font-size:12px;z-index:6;overflow-x:auto;white-space:nowrap;min-height:76px}
+#trace{background:var(--ink);color:var(--paper);padding:16px 22px;display:flex;gap:34px;align-items:center;font-size:12px;border-radius:10px;flex-wrap:wrap;margin-bottom:14px}
+.tstat{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:8px 0}
+.tstat div{background:var(--ink);color:var(--paper);border-radius:8px;padding:9px 11px}
+.tstat b{display:block;font:600 17px var(--mono)}
+.tstat span{font:9px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:#a8a08c}
 #trace .k{font:10px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:#a8a08c;display:block}
 #trace .v{font:600 18px var(--mono)}
 #trace .v small{font:11px var(--mono);font-weight:400;color:#cfc8b6;margin-left:6px}
 #trace .t{font:700 15px var(--serif);color:#fff}
-#toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;max-width:80vw}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;max-width:80vw}
 #toast.on{opacity:1}
 #veil{position:fixed;inset:0;background:#1d1b1699;z-index:20;display:flex;align-items:center;justify-content:center;padding:20px}
 #modal{background:var(--paper);border:1px solid var(--ink);border-radius:14px;box-shadow:8px 8px 0 var(--ink);padding:26px 28px;width:min(860px,100%);position:relative;max-height:92vh;overflow:auto}
@@ -115,13 +119,13 @@ th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var
   <div id="acct"></div>
 </header>
 <div id="banner" hidden></div>
-<nav><a data-tab="board" class="on">Board</a><a data-tab="log">Change log</a><a data-tab="catalog">Shared catalog</a>
+<nav><a data-tab="board" class="on">Board</a><a data-tab="log">Change log</a><a data-tab="catalog">Shared catalog</a><a data-tab="trace">Telem trace</a>
   <label id="f24"><input type="checkbox" id="last24"> last 24h</label></nav>
 <main><div id="board" class="grid"></div><div id="log" hidden></div>
+  <div id="tracetab" hidden><div id="trace"></div><div id="tracecalls"></div></div>
   <div id="catalog" hidden><div class="cathead"><input type="search" id="cq" placeholder="Search the catalog: a company, “stars”, “price”, “funding”…"><span class="when" id="ccount"></span></div><div id="ctable"></div></div></main>
 <aside id="panel"></aside>
 <div id="veil" hidden><div id="modal"></div></div>
-<div id="trace"></div>
 <div id="toast"></div>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
@@ -236,7 +240,9 @@ async function pollBoard(){
       if(moved.length){toast(moved.length+" number"+(moved.length>1?"s":"")+" just changed"); if(S.tab=="log") loadLog()}}
   }catch(e){}}
 
+const provs=j=>esc(JSON.parse(j||"[]").join(", ")||"—");
 async function loadTrace(){
+  if(S.tab!="trace") return;
   const t=await api("/api/traces"), kv=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+" "+v).join(" · ")||"—";
   $("#trace").innerHTML=`<span class="t">Telem trace</span>
     <span><span class="k">Telem calls</span><span class="v">${t.calls}<small>${kv(t.by_endpoint)}</small></span></span>
@@ -244,6 +250,9 @@ async function loadTrace(){
     <span><span class="k">Avg latency</span><span class="v">${t.avg_latency_ms!=null?(t.avg_latency_ms/1000).toFixed(1)+"s":"—"}</span></span>
     <span><span class="k">Search cost (estimated)</span><span class="v">$${t.est_search_cost.toFixed(3)}</span></span>
     <span><span class="k">Calls saved by sharing</span><span class="v" style="color:#ffb38a">${t.calls_saved_by_sharing}</span></span>`;
+  $("#tracecalls").innerHTML=`<table><tr><th>When</th><th>Telem call</th><th>Providers that answered</th><th>Latency</th><th>Est. cost</th></tr>${t.recent.map(c=>
+    `<tr><td class="when">${ago(c.at)}</td><td style="font-family:var(--mono)">${esc(c.endpoint)}</td><td>${provs(c.providers_json)}</td><td class="when">${(c.latency_ms/1000).toFixed(1)}s</td><td class="when">${c.est_cost!=null?"$"+c.est_cost.toFixed(4):"—"}</td></tr>`).join("")}</table>
+    <p class="when" style="margin-top:10px">Open any tile to see the Telem trace for that one number. Search cost is estimated from provider list prices.</p>`;
 }
 
 function changeText(c){
@@ -298,8 +307,12 @@ async function openPanel(id){
       <div style="margin:6px 0">Source: ${e.source_url?`<a href="${esc(e.source_url)}" target="_blank">${esc(e.source_url)}</a>`:"found by search on each run"}</div>
       <div class="when">Skill: ${e.skill?esc(e.skill)+".md":"general method"}</div>
       ${e.skill_text?`<pre style="white-space:pre-wrap;font:11px/1.45 var(--mono);background:#fff;border:1px solid var(--line);border-radius:6px;padding:9px;margin:6px 0;max-height:150px;overflow:auto">${esc(e.skill_text)}</pre>`:""}
-      <div class="when" style="margin-top:8px">Last Telem trace</div>
-      <ul class="rows">${e.trace.map(t=>`<li style="font:11px var(--mono)">${esc(t.endpoint)} · ${esc(JSON.parse(t.providers_json||"[]").join(", ")||"—")} · ${(t.latency_ms/1000).toFixed(1)}s · ${ago(t.at)}</li>`).join("")||"<li class='when'>No Telem calls recorded for this metric.</li>"}</ul>
+      <h4>Telem trace for this number</h4>
+      <div class="tstat"><div><b>${e.trace_summary.calls}</b><span>Telem calls</span></div><div><b>${e.trace_summary.avg_latency_ms!=null?(e.trace_summary.avg_latency_ms/1000).toFixed(1)+"s":"—"}</b><span>avg latency</span></div>
+        <div><b>$${e.trace_summary.est_search_cost.toFixed(3)}</b><span>search cost (estimated)</span></div><div><b>${e.trace_summary.saved_by_sharing}</b><span>calls saved by sharing</span></div></div>
+      <div class="when">By endpoint: ${Object.entries(e.trace_summary.by_endpoint).map(([k,v])=>esc(k)+" "+v).join(" · ")||"—"}</div>
+      <div class="when">Providers that answered: ${Object.entries(e.trace_summary.by_provider).sort((a,b)=>b[1]-a[1]).map(([k,v])=>esc(k)+" "+v).join(" · ")||"—"}</div>
+      <ul class="rows" style="margin-top:6px">${e.trace.map(t=>`<li style="font:11px var(--mono)">${esc(t.endpoint)} · ${provs(t.providers_json)} · ${(t.latency_ms/1000).toFixed(1)}s${t.est_cost?" · $"+t.est_cost.toFixed(3):""} · ${ago(t.at)}</li>`).join("")||"<li class='when'>No Telem calls recorded for this metric.</li>"}</ul>
       <div class="when" style="margin-top:6px">Search: ${esc(e.search_query)}<br>Monitor: ${esc(e.monitor_query)}${e.telem_monitor_id?"<br>hourly · id "+esc(e.telem_monitor_id):"<br>no monitor yet"}</div>
       <h4>Actions</h4>${m.kind=="direct"?`<button class="ghost fb" data-a="wrong_source">Wrong source</button> `:""}${m.on_board?`<button class="ghost fb" data-a="mute">Mute / unmute</button> <button class="ghost unf">Remove from board</button>`:`<button class="ghost fol" data-id="${m.id}">Add to board</button>`}`;
   }
@@ -413,7 +426,7 @@ $("#panel").onclick=async ev=>{
     toast(f.dataset.a=="mute"?(r.muted?"Muted on your board":"Unmuted"):(r.resolved?"Source re-resolved":"No better source found"))}
   catch(e){toast(e.message,6000)} refresh()};
 function setTab(tab){S.tab=tab; document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x.dataset.tab==tab));
-  $("#board").hidden=tab!="board"; $("#log").hidden=tab!="log"; $("#catalog").hidden=tab!="catalog"; $("#f24").style.display=tab=="log"?"flex":"none"; refresh()}
+  $("#board").hidden=tab!="board"; $("#log").hidden=tab!="log"; $("#catalog").hidden=tab!="catalog"; $("#tracetab").hidden=tab!="trace"; $("#f24").style.display=tab=="log"?"flex":"none"; refresh()}
 document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>setTab(a.dataset.tab));
 $("#last24").onchange=loadLog;
 let cqT; $("#cq").oninput=()=>{clearTimeout(cqT); cqT=setTimeout(loadCatalog,180)};

@@ -346,6 +346,23 @@ def unfollow(mid: int, request: Request):
     return {"ok": True}
 
 
+def trace_summary(mid):
+    """Everything Telem did for one metric: calls by endpoint, providers that answered, latency, estimated search cost."""
+    calls = db.q("SELECT endpoint, providers_json, latency_ms, est_cost FROM telem_calls WHERE metric_id=?", (mid,))
+    by_endpoint, by_provider = {}, {}
+    for c in calls:
+        by_endpoint[c["endpoint"]] = by_endpoint.get(c["endpoint"], 0) + 1
+        for p in json.loads(c["providers_json"] or "[]"):
+            by_provider[p] = by_provider.get(p, 0) + 1
+    lat = [c["latency_ms"] for c in calls if c["latency_ms"]]
+    followers = db.one("SELECT COUNT(*) n FROM board_items WHERE metric_id=?", (mid,))["n"]
+    refreshes = (db.one("SELECT refreshes FROM metrics WHERE id=?", (mid,)) or {}).get("refreshes") or 0
+    return {"calls": len(calls), "by_endpoint": by_endpoint, "by_provider": by_provider,
+            "avg_latency_ms": round(sum(lat) / len(lat)) if lat else None,
+            "est_search_cost": round(sum(c["est_cost"] or 0 for c in calls), 4),
+            "saved_by_sharing": max(followers - 1, 0) * refreshes}
+
+
 @app.get("/api/metrics/{mid}")
 def evidence(mid: int, request: Request):
     m = core.metric(mid)
@@ -358,7 +375,8 @@ def evidence(mid: int, request: Request):
     out = {"metric": t, "locked": False, "monitor_query": m["monitor_query"], "search_query": m["search_query"],
            "telem_monitor_id": m["telem_monitor_id"], "reducer": m.get("reducer") or ("count" if m["kind"] == "count" else "value"), "field": m.get("field"), "skill": m.get("skill"), "skill_text": core.skill_text(m),
            "source_url": m["source_url"],
-           "trace": db.q("SELECT endpoint, providers_json, latency_ms, est_cost, at FROM telem_calls WHERE metric_id=? ORDER BY id DESC LIMIT 6", (mid,)),
+           "trace": db.q("SELECT endpoint, providers_json, latency_ms, est_cost, at FROM telem_calls WHERE metric_id=? AND endpoint!='monitors.changes' ORDER BY id DESC LIMIT 10", (mid,)),
+           "trace_summary": trace_summary(mid),
            "changes": db.q("SELECT * FROM changes WHERE metric_id=? AND COALESCE(status,'accepted')='accepted' ORDER BY at DESC, id DESC LIMIT 30", (mid,))}
     if m["kind"] == "count":
         new_ids = {c["entry_id"] for c in out["changes"] if c["entry_id"]}
