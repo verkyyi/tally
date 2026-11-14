@@ -1,6 +1,7 @@
 #!/bin/bash
 # Runs on the EC2 instance (as root, through SSM or first boot): pull code, refresh config, restart.
 set -euo pipefail
+export HOME=/root
 REGION=us-east-1
 APP=/opt/tally/app
 DATA=/opt/tally/data
