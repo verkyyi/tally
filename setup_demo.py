@@ -3,6 +3,7 @@
   python setup_demo.py build      create the six metrics on user A's board through the normal flow
   python setup_demo.py presets    add more catalog metrics tracked by other users (no monitors)
   python setup_demo.py seed       add past observations (flagged seeded=1) and hold one real entry out
+  python setup_demo.py reset      put the demo back to its starting state before a rehearsal
   python setup_demo.py tick       ask each monitor's agent to run now
 """
 import env  # noqa: F401
@@ -109,6 +110,26 @@ def rehold():
         print("held out again:", e["title"], "count now", core.count_value(m["id"]))
 
 
+def reset():
+    """Put the demo back to its starting state: B's board empty, ad-hoc metrics removed, one entry held out."""
+    keep = {d["question"] for d in load()} | {d["question"] for d in json.load(open(os.path.join(os.path.dirname(__file__), "catalog_presets.json")))}
+    for m in db.q("SELECT * FROM metrics"):
+        if m["question"] in keep:
+            continue
+        if m["telem_monitor_id"]:
+            try:
+                telem._req("DELETE", f"/v1/monitors/{m['telem_monitor_id']}")
+            except telem.TelemError as e:
+                print("monitor delete failed", e)
+        for t in ("observations", "entries", "changes", "board_items"):
+            db.run(f"DELETE FROM {t} WHERE metric_id=?", (m["id"],))
+        db.run("DELETE FROM metrics WHERE id=?", (m["id"],))
+        print("removed", m["title"])
+    db.run("DELETE FROM board_items WHERE user='B'")
+    db.run("UPDATE board_items SET muted=0")
+    rehold()
+
+
 def tick():
     for m in db.q("SELECT id,title,telem_monitor_id FROM metrics WHERE telem_monitor_id IS NOT NULL"):
         try:
@@ -119,4 +140,4 @@ def tick():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset}[sys.argv[1]]()

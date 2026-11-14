@@ -1,0 +1,12 @@
+[
+  {"id": "01_title", "text": "This is Tally. A running tally of the outside world."},
+  {"id": "02_problem", "text": "Every founder tracks competitors by hand. Pricing pages, job boards, changelogs, app stores. It ends up as twelve tabs and a spreadsheet that's stale by Friday. Scrapers break on every redesign. And you can't count things with search, because search results change from run to run."},
+  {"id": "03_board", "text": "With Tally, you ask for a number and get a live tile. This is my board: three competitors, six numbers. Prices, open roles, GitHub stars, launches, ratings, funding. Every tile is re-checked by a Telem monitor."},
+  {"id": "04_match", "text": "Now I'm a second founder. I ask how many engineering jobs Gamma is hiring for, in my own words. Tally matches it to a metric that already exists in the shared catalog. I get the tile with its full history, tracked by two, and zero new Telem calls."},
+  {"id": "05_create", "text": "Next, a question nobody has asked: what does Papermark charge for its Pro plan? Telem Search finds the pricing page, Telem Fetch reads it, and Claude extracts the value with the quote it came from. If the number isn't on the page, the tile says no value yet. Tally never guesses."},
+  {"id": "06_run", "text": "Counting is the hard part. Tally keeps a ledger of entries, each stored once by its link. I hit Run now on Gamma's open engineering roles. The search runs with Tavily pinned, and the count goes from twelve to thirteen. Here's the new entry, highlighted, with its source."},
+  {"id": "07_log", "text": "The change log shows only what moved: the role I just found, and the launches that Telem monitors discovered on their own today."},
+  {"id": "08_trace", "text": "The trace panel shows the engine at work: every Telem call, the providers that answered, latency, estimated cost, and the calls saved by sharing. And this is the catalog: every metric anyone tracks, one click from anyone's board."},
+  {"id": "09_venture", "text": "That catalog is the business. Ten founders tracking the same price cost one refresh, not ten. Every question makes the catalog more complete, and every user cheaper to serve."},
+  {"id": "10_close", "text": "Tally. Ask for a number, keep it current. Thank you."}
+]

@@ -8,6 +8,7 @@ import secrets
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import core
@@ -17,6 +18,7 @@ import telem
 HERE = os.path.dirname(__file__)
 app = FastAPI(title="Tally")
 db.init()
+app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="static")
 
 
 PASSCODE = os.environ.get("TALLY_PASSCODE")  # unset = open (local dev)
@@ -60,6 +62,11 @@ def telem_error(_, e):
 @app.get("/")
 def landing():
     return FileResponse(os.path.join(HERE, "static", "landing.html"))
+
+
+@app.get("/deck")
+def deck():
+    return FileResponse(os.path.join(HERE, "static", "deck.html"))
 
 
 @app.get("/app")

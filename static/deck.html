@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tally — SearchHack pitch</title>
+<style>
+:root{--paper:#f4f0e6;--card:#fbf9f3;--ink:#1d1b16;--mute:#7b7566;--line:#d9d2c0;--accent:#c2410c;--new:#fff1c9;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#12110e;overflow:hidden;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;color:var(--ink)}
+#stage{position:absolute;left:50%;top:50%;width:1280px;height:720px;transform-origin:center;background:var(--paper)}
+.slide{position:absolute;inset:0;padding:64px 80px;display:none;flex-direction:column}
+.slide.on{display:flex}
+.eyebrow{font:15px var(--mono);text-transform:uppercase;letter-spacing:.14em;color:var(--accent)}
+h1{font:700 92px/1.02 var(--serif);letter-spacing:-2.5px;margin:18px 0 0}
+h2{font:700 54px/1.08 var(--serif);letter-spacing:-1.3px;margin:14px 0 26px;max-width:22em}
+h2 em,h1 em{font-style:italic;color:var(--accent)}
+p.big{font-size:27px;line-height:1.4;color:#4a463c;max-width:30em;margin:0}
+.marks{display:inline-flex;gap:7px;position:relative;height:56px;margin-bottom:8px}
+.marks i{width:6px;height:56px;background:var(--ink);border-radius:2px}
+.marks:after{content:"";position:absolute;left:-12px;right:-12px;top:25px;height:6px;background:var(--accent);transform:rotate(-24deg);border-radius:2px}
+.cols{display:grid;gap:22px;flex:1;align-content:start}
+.c2{grid-template-columns:1fr 1fr}.c3{grid-template-columns:repeat(3,1fr)}.c4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 26px}
+.card b{display:block;font:700 26px/1.2 var(--serif);margin-bottom:8px}
+.card p{margin:0;font-size:19px;line-height:1.42;color:#4a463c}
+.card .n{font:14px var(--mono);color:var(--accent);text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:8px}
+.num{font:600 60px/1 var(--mono);letter-spacing:-2px;font-variant-numeric:tabular-nums}
+.num small{font:15px var(--mono);color:var(--mute);letter-spacing:0;margin-left:8px}
+.lab{font:13px var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--mute);margin-top:10px}
+.dark{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.dark .lab{color:#a8a08c}.dark p{color:#cfc8b6}
+.ledger{list-style:none;margin:14px 0 0;padding:0;font:16px var(--mono)}
+.ledger li{padding:7px 10px;border-bottom:1px solid var(--line)}
+.ledger li.new{background:var(--new)}
+.flow{display:flex;align-items:stretch;gap:0;margin-bottom:22px}
+.flow .card{flex:1;border-radius:0;border-right:none}
+.flow .card:first-child{border-radius:14px 0 0 14px}.flow .card:last-child{border-radius:0 14px 14px 0;border-right:1px solid var(--line)}
+.shot{flex:1;min-height:0;border:1px solid var(--ink);border-radius:12px;overflow:hidden;box-shadow:8px 8px 0 var(--ink);background:var(--card)}
+.shot img{width:100%;height:100%;object-fit:cover;object-position:top left;display:block}
+.foot{position:absolute;left:80px;right:80px;bottom:26px;display:flex;justify-content:space-between;font:13px var(--mono);color:var(--mute)}
+.url{font:600 30px var(--mono);color:var(--accent)}
+#hint{position:fixed;right:14px;bottom:10px;color:#77705f;font:12px var(--mono)}
+#notes{position:fixed;left:0;right:0;bottom:0;background:#000d;color:#eee;padding:14px 24px;font-size:16px;line-height:1.45;display:none;max-height:32vh;overflow:auto}
+@media print{@page{size:1280px 720px;margin:0}html,body{overflow:visible;background:none;height:auto}
+  #stage{position:static;transform:none!important;width:auto;height:auto}
+  .slide{display:flex!important;position:relative;width:1280px;height:720px;page-break-after:always;background:var(--paper);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #hint,#notes{display:none!important}}
+</style>
+</head>
+<body>
+<div id="stage">
+
+<section class="slide" data-notes="0:00 — Hi, I'm Verky. This is Tally: a running tally of the outside world.">
+  <div style="margin-top:110px"><span class="marks"><i></i><i></i><i></i><i></i></span>
+  <h1>Tally</h1>
+  <p class="big" style="margin-top:22px;font:italic 36px var(--serif);color:var(--ink)">A running tally of the outside world.</p>
+  <p class="big" style="margin-top:34px">Ask for a number about a company. Get a live tile, with evidence, that everyone can reuse.</p></div>
+  <div class="foot"><span>SearchHack · Nov 14, 2026</span><span>Built on Telem AI + Tavily</span></div>
+</section>
+
+<section class="slide" data-notes="0:10 — Every founder watches competitors by hand: pricing pages, job boards, changelogs, app stores. Tabs and a stale spreadsheet. Scrapers break when a page changes, and counting things from search doesn't work, because search results change every run.">
+  <div class="eyebrow">The problem</div>
+  <h2>Founders track the outside world <em>by hand</em>.</h2>
+  <div class="cols c3">
+    <div class="card"><span class="n">Today</span><b>Twelve tabs and a spreadsheet</b><p>Pricing pages, job boards, changelogs, app stores. Checked when someone remembers. Stale by Friday.</p></div>
+    <div class="card"><span class="n">Scrapers</span><b>Break on every redesign</b><p>One selector per page, per number. Nobody maintains them, and they can't count things spread across the web.</p></div>
+    <div class="card"><span class="n">Search</span><b>Results change run to run</b><p>“How many open roles?” is not the length of one result list. Ask twice, get two answers.</p></div>
+  </div>
+  <div class="foot"><span>Tally</span><span>2</span></div>
+</section>
+
+<section class="slide" data-notes="0:30 — With Tally you type a question and get a tile: the value, the change, the history, and when it was last checked. This board is live.">
+  <div class="eyebrow">The product</div>
+  <h2>Type a question. Get a tile that stays current.</h2>
+  <div class="shot"><img src="/static/img/board.png" alt="Tally board with six live tiles"></div>
+  <div class="foot"><span>Live board · six tiles, each re-checked hourly by a Telem monitor</span><span>3</span></div>
+</section>
+
+<section class="slide" data-notes="0:45 — Two kinds of metric. Direct: one value read from one page, stored with the quote. Count: a ledger of entries, each stored once by its URL. The count is the size of the ledger, so a new entry is a change you can see and open. If the value isn't on the page, the tile says no value yet. We never guess.">
+  <div class="eyebrow">What's new here</div>
+  <h2>Counts come from a <em>ledger</em>, not a result list.</h2>
+  <div class="cols c2">
+    <div class="card"><span class="n">direct</span><b>One value, one source, one quote</b><p>A price, a rating, a star count, a funding total.</p>
+      <div class="num" style="margin-top:22px" id="d-val">9,364<small>stars</small></div><div class="lab">source: api.github.com · read via Telem Fetch</div></div>
+    <div class="card"><span class="n">count</span><b>Entries stored once, by URL</b><p>Open roles, product launches. A new entry is a visible change.</p>
+      <ul class="ledger"><li class="new">+ AI Engineer &nbsp;<b style="display:inline;font:700 16px var(--mono);color:var(--accent)">NEW</b></li><li>Software Engineer, Platform</li><li>Site Reliability Engineer</li><li style="color:var(--mute)">… 10 more, each with its link</li></ul></div>
+  </div>
+  <div class="foot"><span>If the value isn't on the page, the tile says “no value yet”. Tally never guesses.</span><span>4</span></div>
+</section>
+
+<section class="slide" data-notes="1:00 — LIVE DEMO, about 80 seconds. (1) Board for user A. (2) Switch to user B, ask the Gamma roles question in different words: matched, history included, tracked by 2, zero new Telem calls. (3) Ask a brand-new question: Telem finds the source. (4) Run now on Gamma roles: 12 becomes 13, the new entry is highlighted. (5) Sync, open the change log: this run, plus what the Telem monitors found. (6) Trace panel.">
+  <div class="eyebrow">Live demo</div>
+  <h2>Six steps, eighty seconds.</h2>
+  <div class="cols c3">
+    <div class="card"><span class="n">1 · Board</span><p>Six live tiles for founder A.</p></div>
+    <div class="card"><span class="n">2 · Match</span><p>Founder B asks the same thing in other words. Instant tile, full history, “tracked by 2”.</p></div>
+    <div class="card"><span class="n">3 · Create</span><p>A new question. Telem finds the source and the tile appears.</p></div>
+    <div class="card"><span class="n">4 · Run now</span><p>The count goes from 12 to 13. The new entry is highlighted.</p></div>
+    <div class="card"><span class="n">5 · Change log</span><p>That change, plus what Telem monitors found today.</p></div>
+    <div class="card"><span class="n">6 · Trace</span><p>Providers, latency, estimated cost, calls saved by sharing.</p></div>
+  </div>
+  <div class="foot"><span class="url" id="demo-url">/app</span><span>5</span></div>
+</section>
+
+<section class="slide" data-notes="2:20 — Telem is the engine. Search finds sources and entries, auto-routed across providers with Tavily pinned on every entry search. Fetch reads the pages. Monitors re-check hourly and we page their change feed into the change log. These numbers are live from the app's trace log.">
+  <div class="eyebrow">Telem is the engine</div>
+  <h2>Search finds it. Fetch reads it. Monitors watch it.</h2>
+  <div class="flow">
+    <div class="card"><span class="n">Telem Search</span><p>Auto-routing picks providers per query. Tavily pinned on every entry search.</p></div>
+    <div class="card"><span class="n">Telem Fetch</span><p>Reads the source pages. Claude extracts the value and the quote.</p></div>
+    <div class="card"><span class="n">Telem Monitors</span><p>Hourly agent per metric. Its change feed fills the change log.</p></div>
+  </div>
+  <div class="cols c4">
+    <div class="card dark"><div class="num" id="t-calls">—</div><div class="lab">Telem calls</div></div>
+    <div class="card dark"><div class="num" id="t-prov">—</div><div class="lab" id="t-provs">providers used</div></div>
+    <div class="card dark"><div class="num" id="t-lat">—</div><div class="lab">avg latency</div></div>
+    <div class="card dark"><div class="num" id="t-cost">—</div><div class="lab">search cost (estimated)</div></div>
+  </div>
+  <div class="foot"><span>Numbers read live from the app's trace log. Cost is estimated from provider list prices.</span><span>6</span></div>
+</section>
+
+<section class="slide" data-notes="2:40 — The business is the shared catalog. Ten founders tracking the same price cost one refresh, not ten. Every question makes the catalog more complete and each user cheaper to serve. Exploring is free; adding and tracking is the paid plan.">
+  <div class="eyebrow">Why this is a company</div>
+  <h2>The catalog is the business: <em>one refresh</em> serves everyone.</h2>
+  <div class="cols c3">
+    <div class="card dark"><div class="num" id="v-metrics">—</div><div class="lab">metrics in the shared catalog</div><p style="margin-top:14px">Ask once, anyone can reuse it with its history.</p></div>
+    <div class="card dark"><div class="num" id="v-saved">—</div><div class="lab">Telem calls saved by sharing</div><p style="margin-top:14px">Followers beyond the first ride on the same refresh.</p></div>
+    <div class="card"><span class="n">Model</span><b>Free to explore, pay to track</b><p>Cost per user falls as the catalog grows. The ledgers and histories are data nobody else has.</p></div>
+  </div>
+  <div class="foot"><span>Next: alerts, team boards, an API for agents that need a trusted number.</span><span>7</span></div>
+</section>
+
+<section class="slide" data-notes="2:55 — That's Tally. Ask for a number, keep it current. Thank you.">
+  <div style="margin-top:130px"><span class="marks"><i></i><i></i><i></i><i></i></span>
+  <h1>Ask for a number.<br><em>Keep</em> it current.</h1>
+  <p class="url" style="margin-top:40px" id="end-url"></p>
+  <p class="big" style="margin-top:10px;font-size:22px">github.com/verkyyi/tally</p></div>
+  <div class="foot"><span>Tally · SearchHack 2026</span><span>Thank you</span></div>
+</section>
+
+</div>
+<div id="notes"></div>
+<div id="hint">← → to move · N for notes</div>
+<script>
+const slides=[...document.querySelectorAll(".slide")], stage=document.getElementById("stage"), notes=document.getElementById("notes");
+let i=Math.min(slides.length-1,Math.max(0,(+location.hash.slice(1)||1)-1));
+function show(){slides.forEach((s,k)=>s.classList.toggle("on",k==i)); location.hash=i+1; notes.textContent=slides[i].dataset.notes||""}
+function fit(){const s=Math.min(innerWidth/1280,innerHeight/720); stage.style.transform=`translate(-50%,-50%) scale(${s})`}
+addEventListener("resize",fit); fit(); show();
+addEventListener("hashchange",()=>{const k=(+location.hash.slice(1)||1)-1; if(k!=i&&slides[k]){i=k;show()}});
+addEventListener("keydown",e=>{
+  if(["ArrowRight"," ","PageDown"].includes(e.key)){i=Math.min(slides.length-1,i+1);show()}
+  if(["ArrowLeft","PageUp"].includes(e.key)){i=Math.max(0,i-1);show()}
+  if(e.key.toLowerCase()=="n") notes.style.display=notes.style.display=="block"?"none":"block"});
+stage.addEventListener("click",e=>{ if(e.target.closest("a")) return; i=Math.min(slides.length-1,i+1); show()});
+const host=location.host; document.getElementById("demo-url").textContent=host+"/app"; document.getElementById("end-url").textContent=host;
+(async()=>{try{
+  const t=await (await fetch("/api/traces")).json(), c=(await (await fetch("/api/catalog")).json()).metrics;
+  const $=id=>document.getElementById(id), provs=Object.keys(t.by_provider);
+  $("t-calls").textContent=t.calls; $("t-prov").textContent=provs.length; $("t-provs").textContent=provs.join(" · ");
+  $("t-lat").innerHTML=(t.avg_latency_ms/1000).toFixed(1)+"<small>s</small>"; $("t-cost").textContent="$"+t.est_search_cost.toFixed(2);
+  $("v-metrics").textContent=c.length; $("v-saved").textContent=t.calls_saved_by_sharing;
+}catch(e){}})();
+</script>
+</body>
+</html>
