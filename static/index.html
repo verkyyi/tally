@@ -315,6 +315,7 @@ function catRow(m){const v=val(m.value,m.unit); return sugRow(m.on_board?"open":
 async function showEmpty(){
   if(!tplNames) tplNames=(await api("/api/templates")).templates;
   const pop=(await api("/api/catalog?sort=popular")).metrics.filter(m=>m.value!=null&&!m.on_board).slice(0,5);
+  if($("#q").value.trim()) return;  // the user started typing while this loaded
   $("#sugg").innerHTML=`<div class="shead">Popular in the catalog</div>${pop.map(catRow).join("")}
     <div class="shead">What a company pack gives you</div><div class="spack">${tplNames.map(t=>`<span>${esc(t.name)}</span>`).join("")}</div>
     <div class="shead">Try</div><div class="spack">${["Linear","How many GitHub stars does supabase/supabase have?","What does Figma charge for its Professional plan?"].map(x=>`<a href="#" class="chip" data-fill="${esc(x)}">${esc(x)}</a>`).join("")}</div>`;
