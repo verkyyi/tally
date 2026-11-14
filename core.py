@@ -250,12 +250,62 @@ def create_metric(user, question, overrides=None, skip_match=False):
     db.run("UPDATE metrics SET refreshes=refreshes+1, last_checked_at=? WHERE id=?", (db.now(), mid))
 
     if not m["telem_monitor_id"] and not overrides.get("no_monitor"):
-        try:
-            mon = telem.create_monitor(m["monitor_query"], mid)
-            db.run("UPDATE metrics SET telem_monitor_id=? WHERE id=?", (mon.get("id"), mid))
-        except telem.TelemError as e:  # the tile still works without a monitor
-            print("monitor create failed:", e)
+        ensure_monitor(metric(mid))  # pack tiles skip this to stay fast; the pacer gives them one within minutes
     return metric(mid), False
+
+
+# ---------- every metric has a monitor, paced by how often it actually changes ----------
+PACE_MIN, PACE_START, PACE_QUIET_START, PACE_MAX = 900, 3600, 6 * 3600, 24 * 3600
+BASE_FREQS = ("1d", "12h", "6h")  # Telem's own schedule is the slow floor; this server adds the ticks in between
+
+
+def _in(seconds):
+    return (datetime.now(timezone.utc) + timedelta(seconds=seconds)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def ensure_monitor(m):
+    """Give a metric its Telem monitor. Returns True if one was created."""
+    if m["telem_monitor_id"]:
+        return False
+    mon, paced = None, 1
+    for f in BASE_FREQS:
+        try:
+            mon = telem.create_monitor(m["monitor_query"] or m["question"], m["id"], frequency=f)
+            break
+        except telem.TelemError as e:
+            print("monitor create failed:", m["id"], f, str(e)[:120])
+    if not mon:
+        try:  # last resort: Telem's hourly schedule, not paced by us
+            mon, paced = telem.create_monitor(m["monitor_query"] or m["question"], m["id"]), 0
+        except telem.TelemError as e:  # the tile still works without a monitor
+            print("monitor create failed:", m["id"], str(e)[:120])
+            return False
+    followed = db.one("SELECT COUNT(*) n FROM board_items WHERE metric_id=?", (m["id"],))["n"]
+    start = PACE_START if followed else PACE_QUIET_START
+    db.run("UPDATE metrics SET telem_monitor_id=?, paced=?, check_interval_s=?, next_tick_at=?, last_tick_at=? WHERE id=?",
+           (mon.get("id"), paced, start if paced else None, _in(start) if paced else None, db.now(), m["id"]))
+    return True
+
+
+def pace(create_max=4, tick_max=3):
+    """One pacing step, run once a minute. Creates missing monitors a few at a time, then ticks the paced monitors
+    that are due. A metric that changed since its last tick is checked twice as often (down to 15 minutes);
+    a quiet one is checked less often (up to once a day)."""
+    out = {"created": 0, "ticked": 0}
+    for m in db.q("SELECT * FROM metrics WHERE telem_monitor_id IS NULL ORDER BY id LIMIT ?", (create_max,)):
+        out["created"] += 1 if ensure_monitor(m) else 0
+    for m in db.q("SELECT * FROM metrics WHERE paced=1 AND telem_monitor_id IS NOT NULL AND next_tick_at<=? ORDER BY next_tick_at LIMIT ?",
+                  (db.now(), tick_max)):
+        moved = db.one("SELECT COUNT(*) n FROM changes WHERE metric_id=? AND at>?", (m["id"], m["last_tick_at"] or ""))["n"]
+        step = m["check_interval_s"] or PACE_START
+        step = max(PACE_MIN, step // 2) if moved else min(PACE_MAX, int(step * 1.5))
+        try:
+            telem.tick(m["telem_monitor_id"], m["id"])
+            out["ticked"] += 1
+        except telem.TelemError as e:
+            print("tick failed:", m["id"], str(e)[:120])
+        db.run("UPDATE metrics SET check_interval_s=?, next_tick_at=?, last_tick_at=? WHERE id=?", (step, _in(step), db.now(), m["id"]))
+    return out
 
 
 def run_now(mid):
@@ -329,6 +379,12 @@ def sync_metric(m):
     value_changed -> observation on a direct metric. entity_added -> ledger entry on a count metric
     (only entities the monitor's agent qualified, deduped by URL and by title). run -> last checked."""
     mid, cursor, added = m["id"], m["monitor_cursor"] or 0, 0
+    # A curated or skill-backed number, and any sum/avg/max, is never taken from the monitor's own reading:
+    # the monitor only says "something moved", and the stored recipe is run again to get the value.
+    verify = bool(m.get("curated") or m.get("skill")) or (m["kind"] != "direct" and (m.get("reducer") or "count") != "count")
+    rerun = False
+    # A paced monitor's first run lists everything it can see. That is its baseline, not news: skip it.
+    baseline, saw_run = bool(m.get("paced")) and not m.get("baselined"), False
     for _ in range(20):
         data = telem.monitor_changes(m["telem_monitor_id"], cursor, mid)
         for c in data.get("changes") or []:
@@ -338,7 +394,12 @@ def sync_metric(m):
             name = ((c.get("subject") or {}).get("name") or "").strip()
             after, before = c.get("after"), c.get("before")
             if kind == "run":
+                saw_run = True
                 db.run("UPDATE metrics SET last_checked_at=? WHERE id=? AND (last_checked_at IS NULL OR last_checked_at<?)", (at, mid, at))
+            elif baseline:
+                continue
+            elif verify and kind in ("value_changed", "entity_added"):
+                rerun = True
             elif kind == "value_changed":
                 v = _num(after)
                 if m["kind"] == "direct" and v is not None:
@@ -371,7 +432,20 @@ def sync_metric(m):
         if done:
             break
     db.run("UPDATE metrics SET monitor_cursor=? WHERE id=?", (cursor, mid))
-    if added and m["kind"] == "count":
+    if baseline and saw_run:
+        db.run("UPDATE metrics SET baselined=1 WHERE id=?", (mid,))
+    if rerun:
+        try:
+            if m["kind"] == "direct":
+                ex = resolve_direct(m, fresh=True)
+                added += 1 if ex and record_direct(m, ex, "monitor") else 0
+            else:
+                added += len(upsert_entries(m, find_entries(m), "monitor") or [])
+                record_count_obs(mid, "monitor")
+            db.run("UPDATE metrics SET refreshes=refreshes+1, last_checked_at=? WHERE id=?", (db.now(), mid))
+        except Exception as e:  # a failed re-run must not stop the sync of the other metrics
+            print("recipe re-run failed:", mid, str(e)[:120])
+    elif added and m["kind"] == "count":
         record_count_obs(mid, "monitor")
     return added
 

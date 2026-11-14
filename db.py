@@ -59,6 +59,11 @@ MIGRATIONS = [
     "ALTER TABLE metrics ADD COLUMN field TEXT",    # the number read from each entry, for sum/avg/max
     "ALTER TABLE entries ADD COLUMN value REAL",
     "ALTER TABLE entries ADD COLUMN date TEXT",  # the item's own date (posted, launched, announced)  # for removing closed postings later
+    "ALTER TABLE metrics ADD COLUMN paced INTEGER DEFAULT 0",       # 1 = this server paces the monitor's ticks
+    "ALTER TABLE metrics ADD COLUMN check_interval_s INTEGER",    # current pace; shrinks after a change, grows when quiet
+    "ALTER TABLE metrics ADD COLUMN next_tick_at TEXT",
+    "ALTER TABLE metrics ADD COLUMN last_tick_at TEXT",
+    "ALTER TABLE metrics ADD COLUMN baselined INTEGER DEFAULT 0",  # a paced monitor's first run is its baseline, not a change
     "CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY, metric_id INTEGER, change_id INTEGER, user TEXT, action TEXT, at TEXT)",
 ]
 

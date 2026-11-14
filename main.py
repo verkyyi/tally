@@ -165,7 +165,9 @@ def tile(m, u=None, ids="unset"):
     new = db.one("SELECT COUNT(*) n FROM entries WHERE metric_id=? AND held_out=0 AND seeded=0 AND first_seen_at>? AND id IN (SELECT entry_id FROM changes WHERE metric_id=?)",
                  (mid, day_ago, mid))["n"]
     nxt = None
-    if m["telem_monitor_id"] and m["last_checked_at"]:  # hourly Telem monitor: next check = last monitor run + 1h
+    if m.get("paced") and m.get("next_tick_at"):  # paced by this server: the next tick is already scheduled
+        nxt = m["next_tick_at"]
+    elif m["telem_monitor_id"] and m["last_checked_at"]:  # hourly Telem monitor: next check = last monitor run + 1h
         try:
             nxt = (datetime.strptime(m["last_checked_at"], "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
         except ValueError:
@@ -454,7 +456,8 @@ def traces():
 
 
 # ---------- self-paced updates ----------
-# Numbers keep themselves current: the server polls every Telem monitor's change feed once a minute.
+# Numbers keep themselves current: once a minute the server reads every Telem monitor's change feed,
+# gives any metric without a monitor its own, and ticks the monitors whose next check is due (core.pace).
 
 _sync_lock = threading.Lock()
 
@@ -465,6 +468,10 @@ def _autosync():
         if _sync_lock.acquire(blocking=False):  # never overlap two runs
             try:
                 core.sync_all()
+                if os.environ.get("TALLY_PACER", "1") != "0":
+                    r = core.pace()
+                    if r["created"] or r["ticked"]:
+                        print("pacer:", r)
             except Exception as e:
                 print("autosync failed:", e)
             finally:
