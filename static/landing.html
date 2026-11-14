@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tally — a running tally of the outside world</title>
+<title>Tally — your pipeline and portfolio as live numbers</title>
 <link rel="icon" href="/static/img/logo.svg" type="image/svg+xml">
 <meta property="og:title" content="Tally — a running tally of the outside world">
 <meta name="description" content="A personal dashboard of live numbers about the outside world, built from a shared catalog. Anything one person tracks is instantly available to everyone.">
@@ -74,16 +74,16 @@ footer{padding:28px 0 48px;color:var(--mute);font-size:13px;border-top:1px solid
 
 <div class="hero">
   <div>
-    <div class="eyebrow">A running tally of the outside world</div>
-    <h1>Ask for a number. <em>Keep</em> it current.</h1>
-    <p class="lede">Tally is a personal dashboard of live numbers about the outside world: the companies, accelerators and markets you watch. Prices, open roles, funding, launches, batch sizes, totals across a whole sector. Every metric lives in a shared catalog, so what one person tracks is instantly there for everyone.</p>
+    <div class="eyebrow">For angels, pre-seed funds and founders</div>
+    <h1>Your pipeline and portfolio, as <em>live numbers</em>.</h1>
+    <p class="lede">Tally keeps a running tally of the outside world: who is hiring, who shipped, who raised, how big the new YC batch is, how much a sector raised this month. Ask once. Every number stays current, shows its evidence, and lives in a shared catalog, so what one person tracks is there for everyone.</p>
     <div class="cta"><a class="btn" href="/app">Open the live board</a><a class="btn ghost" href="#video">Watch the demo</a></div>
   </div>
   <div class="ask">
-    <div class="q">How many open engineering roles does Gamma have?</div>
+    <div class="q">How much have AI agent startups raised this month?</div>
     <div class="arrow">↓ matched in the shared catalog · tracked by <span id="hf">2</span></div>
     <div class="tile" id="herotile"><h3><span>Gamma · open engineering roles</span><span class="kind">count</span></h3>
-      <div class="val">—<small>roles</small></div><div class="sub">every entry opens to its source</div></div>
+      <div class="val">—<small>roles</small></div><div class="sub">a sum of announced rounds; every entry opens to its source</div></div>
   </div>
 </div>
 
@@ -93,6 +93,16 @@ footer{padding:28px 0 48px;color:var(--mute);font-size:13px;border-top:1px solid
   <video controls preload="metadata" poster="/static/img/board.png" style="width:100%;border:1px solid var(--ink);border-radius:12px;box-shadow:6px 6px 0 var(--ink);background:#000;display:block">
     <source src="/static/tally-30s.mp4" type="video/mp4"></video>
   <p style="margin:14px 0 0;color:var(--mute);font-size:14px">Want the details? <a href="/static/tally-demo.mp4">Watch the full two-minute walkthrough</a>.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Who it is for</div>
+  <h2>Built for people who are paid to notice early.</h2>
+  <div class="grid3">
+    <div class="step"><span class="n">Angels and scouts</span><b>Your pipeline, watched</b><p>Hiring pace, launches and new rounds at the companies you are circling. The new YC batch, counted from the directory itself.</p></div>
+    <div class="step"><span class="n">Pre-seed funds</span><b>Your portfolio and your sector</b><p>One board per fund. Totals across a whole sector, such as funding announced this month, built from individual rounds you can open.</p></div>
+    <div class="step"><span class="n">Founders</span><b>Your competitors</b><p>Prices, open roles, launches and ratings, without the spreadsheet that goes stale by Friday.</p></div>
+  </div>
 </section>
 
 <section>
@@ -109,7 +119,7 @@ footer{padding:28px 0 48px;color:var(--mute);font-size:13px;border-top:1px solid
   <div class="eyebrow">How it works</div>
   <h2>From a typed question to a number you can trust.</h2>
   <div class="grid3">
-    <div class="step"><span class="n">01</span><b>Ask</b><p>Type the question the way you'd ask a colleague. No setup, no selectors, no scraper to maintain.</p></div>
+    <div class="step"><span class="n">01</span><b>Ask</b><p>Type a company, an accelerator or a question, the way you'd ask a colleague. No setup, no scraper to maintain.</p></div>
     <div class="step"><span class="n">02</span><b>Match or create</b><p>If the catalog already tracks it, you get the tile with its full history at once. If not, Tally finds the source and starts.</p></div>
     <div class="step"><span class="n">03</span><b>Watch</b><p>A monitor re-checks every metric in the background. You only hear about what moved.</p></div>
     <div class="step"><span class="n">04</span><b>Open the evidence</b><p>Every value links to the page and the quote it came from. If a value isn't on the page, the tile says “no value yet”. Tally never guesses.</p></div>
@@ -117,23 +127,25 @@ footer{padding:28px 0 48px;color:var(--mute);font-size:13px;border-top:1px solid
 </section>
 
 <section>
-  <div class="eyebrow">Two kinds of metric</div>
-  <h2>Reading a number is easy. Counting things is the hard part.</h2>
-  <p class="intro">Search results change from run to run, so the size of one result list is not a count. Tally keeps a ledger.</p>
-  <div class="two">
-    <div class="step"><span class="n">direct</span><b>One value from one source</b><p>A plan price, an App Store rating, a star count, a funding total. Read from the page, stored with the quote.</p>
-      <div class="val" style="margin-top:14px">9,364<small>stars</small></div><div class="sub">source: api.github.com · read just now</div></div>
-    <div class="step"><span class="n">count</span><b>A ledger of entries</b><p>Open job posts, product launches. Each entry is stored once by its URL. The count is the size of the ledger, and a new entry is a change you can see.</p>
-      <ul class="ledger"><li class="new">+ Staff Engineer, AI &nbsp;<b style="color:var(--accent);font:inherit;font-weight:700">NEW</b></li><li>Senior Product Engineer</li><li>Infrastructure Engineer</li></ul></div>
+  <div class="eyebrow">Every number is a recipe</div>
+  <h2>Read one value, count a ledger, or add up a whole sector.</h2>
+  <p class="intro">Search results change from run to run, so the size of one result list is not a count. Tally keeps a ledger of entries, each stored once by its link, and reduces it to one number.</p>
+  <div class="grid3">
+    <div class="step"><span class="n">read one value</span><b>YC companies in the current batch</b><p>Read from the open YC directory by a curated skill, so it is exact and needs no cold start.</p>
+      <div class="val" style="margin-top:14px" data-m="YC · companies in the current batch">—</div><div class="sub">one source, stored with the quote</div></div>
+    <div class="step"><span class="n">count a ledger</span><b>Open engineering roles at Cursor</b><p>One entry per posting. A new posting is a change you can see and open.</p>
+      <div class="val" style="margin-top:14px" data-m="Cursor · open engineering roles">—</div><div class="sub">hiring pace, from the job board itself</div></div>
+    <div class="step"><span class="n">add up across entries</span><b>AI agent startup funding this month</b><p>Each announced round is an entry with its amount and its link. The tile is their sum.</p>
+      <div class="val" style="margin-top:14px" data-m="AI agent startups · Nov funding">—</div><div class="sub">sum, average or largest across the ledger</div></div>
   </div>
 </section>
 
 <section>
   <div class="eyebrow">Why a shared catalog</div>
   <h2>One refresh serves everyone who asked.</h2>
-  <p class="intro">Ten founders tracking the same competitor price should cost one check, not ten. The catalog gets more complete and cheaper per user with every question asked.</p>
+  <p class="intro">Ten investors watching the same batch size or the same company should cost one check, not ten. The catalog gets more complete and cheaper per user with every question asked.</p>
   <div class="share">
-    <div class="people"><div class="person">Founder A · “What does Gamma charge?”</div><div class="person">Founder B · “Gamma pricing for teams”</div><div class="person">Analyst C · “gamma.app top plan price”</div></div>
+    <div class="people"><div class="person">Angel A · “How big is the new YC batch?”</div><div class="person">Scout B · “YC Fall 2026 company count”</div><div class="person">Fund C · “companies in the current YC batch”</div></div>
     <div class="hub"><span>shared metric</span><b>1 refresh</b><span id="saved">calls saved by sharing</span></div>
     <div class="people"><div class="person">Same tile, same history</div><div class="person">Same evidence</div><div class="person">A third of the cost each</div></div>
   </div>
@@ -171,7 +183,8 @@ function val(v,u){const m=/^(usd|eur|gbp)\b\s*/i.exec(u||"");return (m?CUR[m[1].
   fetch("/api/me").then(r=>r.json()).then(m=>document.getElementById("price").textContent=m.price_usd);
   document.getElementById("live").innerHTML=c.slice(0,8).map(m=>`<div class="tile"><h3><span>${esc(m.title)}</span><span class="kind">${m.kind}</span></h3>
     <div class="val">${val(m.value,m.unit)}</div><div class="sub">${m.live?"● live":"delayed"} · tracked by ${m.followers}</div></div>`).join("")||'<div class="sub">The catalog is empty.</div>';
-  const g=c.find(m=>m.kind=="count"); if(g){const t=document.getElementById("herotile");
+  document.querySelectorAll("[data-m]").forEach(e=>{const m=cat.metrics.find(x=>x.title==e.dataset.m); if(m&&m.value!=null) e.innerHTML=val(m.value,m.unit)});
+  const g=cat.metrics.find(m=>m.title=="AI agent startups · Nov funding"&&m.value!=null)||c.find(m=>m.kind=="count"); if(g){const t=document.getElementById("herotile");
     t.querySelector("h3 span").textContent=g.title; t.querySelector(".val").innerHTML=val(g.value,g.unit); document.getElementById("hf").textContent=Math.max(g.followers,2);
     document.querySelector(".ask .q").textContent=g.question}
   const tr=await (await fetch("/api/traces")).json(); document.getElementById("saved").textContent=tr.calls_saved_by_sharing+" calls saved so far";
