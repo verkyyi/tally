@@ -10,6 +10,8 @@ import env  # noqa: F401  loads .env first
 import json
 import os
 import secrets
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -162,7 +164,13 @@ def tile(m, u=None, ids="unset"):
     day_ago = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
     new = db.one("SELECT COUNT(*) n FROM entries WHERE metric_id=? AND held_out=0 AND seeded=0 AND first_seen_at>? AND id IN (SELECT entry_id FROM changes WHERE metric_id=?)",
                  (mid, day_ago, mid))["n"]
-    return base | {"value": value, "previous": prev, "spark": obs, "last_checked": checked, "as_of": checked,
+    nxt = None
+    if m["telem_monitor_id"] and m["last_checked_at"]:  # hourly Telem monitor: next check = last monitor run + 1h
+        try:
+            nxt = (datetime.strptime(m["last_checked_at"], "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        except ValueError:
+            nxt = None
+    return base | {"value": value, "previous": prev, "spark": obs, "last_checked": checked, "as_of": checked, "next_check": nxt,
                    "source_url": m["source_url"], "new_entries": new}
 
 
@@ -209,8 +217,46 @@ def favicon():
 
 # ---------- catalog and boards ----------
 
+QUESTION_WORDS = {"what", "how", "when", "which", "who", "why", "is", "are", "does", "do", "many", "much", "price", "count", "number"}
+
+
+def looks_like_company(text):
+    words = text.split()
+    return 0 < len(words) <= 3 and "?" not in text and not any(w.lower() in QUESTION_WORDS for w in words)
+
+
+@app.get("/api/search")
+def search(request: Request, q: str = ""):
+    """One box: what the catalog already has, a company pack if the text looks like a company, and create-new last."""
+    u = viewer(request)
+    ids = live_ids(u)
+    text = " ".join(q.split())[:120]
+    words = [w for w in text.lower().split() if w]
+    found = []
+    if words:
+        for m in db.q("SELECT * FROM metrics ORDER BY id"):
+            hay = " ".join([m["title"] or "", m["question"] or "", m.get("company") or ""]).lower()
+            if all(w in hay for w in words):
+                t = tile(m, u, ids)
+                found.append({k: t[k] for k in ("id", "title", "question", "kind", "unit", "value", "followers", "live", "on_board", "curated")})
+    found.sort(key=lambda t: -t["followers"])
+    pack = None
+    if text and looks_like_company(text):
+        have = db.one("SELECT COUNT(*) n FROM metrics WHERE lower(company)=? AND template_id IS NOT NULL", (text.lower(),))["n"]
+        pack = {"company": text, "metrics": len(TEMPLATES), "in_catalog": have}
+    return {"q": text, "catalog": found[:8], "catalog_total": len(found), "pack": pack, "create": {"text": text} if text else None}
+
+
+TEMPLATES = json.load(open(os.path.join(HERE, "templates.json")))
+
+
+@app.get("/api/templates")
+def templates():
+    return {"templates": [{"id": t["id"], "name": t["title"].replace("{company} · ", ""), "kind": t["kind"]} for t in TEMPLATES]}
+
+
 @app.get("/api/catalog")
-def catalog(request: Request, q: str = ""):
+def catalog(request: Request, q: str = "", sort: str = ""):
     """Every metric anyone tracks: the shared catalog. Open to everyone, searchable."""
     u = viewer(request)
     ids = live_ids(u)
@@ -221,6 +267,10 @@ def catalog(request: Request, q: str = ""):
         if all(w in hay for w in words):
             t = tile(m, u, ids)
             out.append({k: t[k] for k in ("id", "title", "question", "kind", "unit", "value", "followers", "last_checked", "monitor", "live", "on_board")})
+    if sort == "popular":
+        last = {r["metric_id"]: r["at"] for r in db.q("SELECT metric_id, MAX(at) at FROM changes WHERE COALESCE(status,'accepted')='accepted' GROUP BY metric_id")}
+        out.sort(key=lambda t: (-t["followers"], last.get(t["id"]) or ""), reverse=False)
+        out.sort(key=lambda t: (t["followers"], last.get(t["id"]) or ""), reverse=True)
     return {"metrics": out, "total": db.one("SELECT COUNT(*) n FROM metrics")["n"]}
 
 
@@ -383,6 +433,28 @@ def traces():
             "avg_latency_ms": round(sum(lat) / len(lat)) if lat else None,
             "est_search_cost": round(sum(c["est_cost"] or 0 for c in calls), 4),
             "calls_saved_by_sharing": saved, "recent": calls[:12]}
+
+
+# ---------- self-paced updates ----------
+# Numbers keep themselves current: the server polls every Telem monitor's change feed once a minute.
+
+_sync_lock = threading.Lock()
+
+
+def _autosync():
+    while True:
+        time.sleep(60)
+        if _sync_lock.acquire(blocking=False):  # never overlap two runs
+            try:
+                core.sync_all()
+            except Exception as e:
+                print("autosync failed:", e)
+            finally:
+                _sync_lock.release()
+
+
+if os.environ.get("TALLY_AUTOSYNC", "1") != "0":
+    threading.Thread(target=_autosync, daemon=True).start()
 
 
 # ---------- billing (Stripe Checkout) ----------

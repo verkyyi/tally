@@ -16,7 +16,15 @@ header{display:flex;gap:14px;align-items:center;padding:12px 24px;border-bottom:
 .brand img{width:30px;height:30px}
 .brand b{font:700 25px var(--serif);letter-spacing:-.5px}
 .brand span{color:var(--mute);font:italic 13px var(--serif)}
-form{flex:1;display:flex;gap:8px;min-width:280px}
+form{flex:1;display:flex;gap:8px;min-width:280px;position:relative}
+#sugg{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--card);border:1px solid var(--ink);border-radius:10px;box-shadow:6px 6px 0 var(--ink);z-index:15;max-height:70vh;overflow:auto;padding:6px 0}
+.shead{font:10px var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--mute);padding:10px 14px 4px}
+.srow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 14px;cursor:pointer}
+.srow:hover,.srow:first-of-type{background:#f1ecdf}
+.sbtn{font:12px inherit;border:1px solid var(--ink);border-radius:6px;padding:3px 10px;white-space:nowrap;background:var(--card)}
+.spack{display:flex;gap:8px;flex-wrap:wrap;padding:4px 14px 8px}
+.spack span,.spack .chip{font:12px var(--mono);border:1px solid var(--line);border-radius:14px;padding:3px 10px;text-decoration:none;background:#fff}
+.spack .chip{border-color:var(--ink)}
 input[type=text],input[type=search]{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--card);font:inherit;color:inherit}
 input:focus{outline:2px solid var(--ink);outline-offset:-1px}
 button{font:inherit;padding:8px 13px;border:1px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--paper);cursor:pointer;white-space:nowrap}
@@ -99,9 +107,7 @@ th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var
 <body>
 <header>
   <a href="/" class="brand"><img src="/static/img/logo.svg" alt=""><b>Tally</b><span>A running tally of the outside world.</span></a>
-  <form id="add"><input type="text" id="q" placeholder="Ask for a number: “What does Linear charge for its Business plan?”" autocomplete="off"><button id="addbtn">Add metric</button></form>
-  <form id="pack" style="flex:0 1 300px;min-width:230px"><input type="text" id="company" placeholder="Add competitor: a company name" autocomplete="off"><button id="packbtn" class="ghost">Add 6 tiles</button></form>
-  <button class="ghost" id="sync" title="Poll Telem monitor change feeds">Sync</button>
+  <form id="add"><input type="text" id="q" placeholder="Search a company or ask for a number" autocomplete="off"><div id="sugg" hidden></div></form>
   <div id="acct"></div>
 </header>
 <div id="banner" hidden></div>
@@ -129,6 +135,7 @@ async function api(path,body){
 function toast(t,ms=3500){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("on"),ms)}
 function ago(iso){ if(!iso) return "never"; const s=(Date.now()-new Date(iso))/1e3;
   return s<60?"just now":s<3600?Math.floor(s/60)+"m ago":s<86400?Math.floor(s/3600)+"h ago":Math.floor(s/86400)+"d ago"}
+function until(iso){const s=(new Date(iso)-Date.now())/1e3; return s<=60?"check due":s<3600?"in "+Math.ceil(s/60)+"m":"in "+Math.round(s/3600)+"h"}
 function num(v){const a=Math.abs(v); const t=x=>String(+x.toFixed(2));
   return a>=1e9?t(v/1e9)+"B":a>=1e6?t(v/1e6)+"M":v.toLocaleString("en-US",{maximumFractionDigits:2})}
 const CUR={usd:"$",eur:"€",gbp:"£"};
@@ -145,7 +152,7 @@ async function loadMe(){
   if($("#upg")) $("#upg").onclick=()=>plansModal();
   if($("#out")) $("#out").onclick=async()=>{await api("/api/auth/logout",{}); closePanel(); await loadMe(); refresh()};
   const b=$("#banner");
-  if(!u){b.hidden=false;b.innerHTML=`<span>You're browsing the <b>featured board</b>. Everything in the catalog is open to read and search; featured numbers are live, the rest are delayed. Sign in for your own board and to ask for new numbers.</span><button id="in2">Sign in with Google</button>`;$("#in2").onclick=()=>signInModal()}
+  if(!u){b.hidden=false;b.innerHTML=`<span>You're browsing the <b>featured board</b>. Everything in the catalog is open to read and search; featured numbers are live, the rest are delayed. Sign in for your own board and to track new companies and numbers.</span><button id="in2">Sign in with Google</button>`;$("#in2").onclick=()=>signInModal()}
   else if(u.plan!="pro"){b.hidden=false;b.innerHTML=`<span><b>Free plan:</b> featured metrics, the ones you create (${u.created}/${S.me.free_create}), and your first ${S.me.free_live} catalog picks are live. Everything else shows a delayed value.</span><button class="pro" id="upg2">Go Pro · $${S.me.price_usd}/mo</button>`;$("#upg2").onclick=()=>plansModal()}
   else b.hidden=true;
 }
@@ -205,8 +212,8 @@ function tileHTML(t){
     <h3><span>${esc(t.title)}</span><span class="kind ${t.live?"live":"late"}">${t.live?"● live":"delayed"}</span></h3>
     ${v?`<div class="val">${v.text}<small>${esc(v.unit)}</small></div>`:`<div class="val none">no value yet</div>`}
     <div class="delta">${d}</div>${spark(t.spark)}
-    <div class="foot"><span>${t.live?"checked "+ago(t.last_checked)+" · ":""}tracked by ${t.followers}${t.monitor?" · ◉ monitor":""}${t.curated?' · <b style="color:var(--accent);font-weight:600">curated</b>':""}</span>
-    ${t.live?`<button class="ghost run" data-id="${t.id}">Run now</button>`:`<button class="ghost golive" data-id="${t.id}">Go live</button>`}</div></div>`;
+    <div class="foot"><span>${t.live?"checked "+ago(t.last_checked)+(t.next_check?" · next "+until(t.next_check):"")+" · ":""}tracked by ${t.followers}${t.monitor?" · ◉ monitor":""}${t.curated?' · <b style="color:var(--accent);font-weight:600">curated</b>':""}</span>
+    ${t.live?`<button class="ghost run" data-id="${t.id}">Check now</button>`:`<button class="ghost golive" data-id="${t.id}">Go live</button>`}</div></div>`;
 }
 function renderBoard(){
   let h=S.tiles.map(tileHTML).join("");
@@ -215,6 +222,15 @@ function renderBoard(){
   S.flash=null;
 }
 async function loadBoard(){const b=await api("/api/board"); S.tiles=b.tiles; S.featured=b.featured; renderBoard()}
+// Numbers keep themselves current: re-read the board every 10 seconds and flash what moved.
+async function pollBoard(){
+  if(S.busy||S.tab!="board"||!$("#veil").hidden) return;
+  try{const b=await (await fetch("/api/board")).json(); const old=Object.fromEntries(S.tiles.map(t=>[t.id,t.value]));
+    const moved=b.tiles.filter(t=>t.id in old&&old[t.id]!==t.value).map(t=>t.id);
+    if(JSON.stringify(b.tiles.map(t=>[t.id,t.value,t.new_entries,t.live]))!=JSON.stringify(S.tiles.map(t=>[t.id,t.value,t.new_entries,t.live]))||moved.length){
+      S.tiles=b.tiles; renderBoard(); moved.forEach(id=>{const e=document.querySelector(`.tile[data-id="${id}"]`); if(e) e.classList.add("flash")});
+      if(moved.length){toast(moved.length+" number"+(moved.length>1?"s":"")+" just changed"); if(S.tab=="log") loadLog()}}
+  }catch(e){}}
 
 async function loadTrace(){
   const t=await api("/api/traces"), kv=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+" "+v).join(" · ")||"—";
@@ -288,29 +304,63 @@ function closePanel(){$("#panel").classList.remove("open");S.open=null}
 async function refresh(){await Promise.all([loadBoard(),loadTrace(),S.tab=="log"?loadLog():S.tab=="catalog"?loadCatalog():0]); if(S.open) openPanel(S.open)}
 async function followMetric(id){ await api(`/api/metrics/${id}/follow`,{}); toast("Added to your board with its full history. No new Telem calls."); await loadMe(); refresh() }
 
-$("#add").onsubmit=async ev=>{ev.preventDefault(); const q=$("#q").value.trim(); if(!q) return;
+/* ---------- one search box ---------- */
+let tplNames=null, sugT=null;
+const sugRow=(act,arg,main,sub,btn)=>`<div class="srow" data-act="${act}" data-arg="${esc(arg)}"><div><b>${main}</b>${sub?`<div class="when">${sub}</div>`:""}</div><span class="sbtn">${btn}</span></div>`;
+function catRow(m){const v=val(m.value,m.unit); return sugRow(m.on_board?"open":"follow",m.id,esc(m.title),`${v?v.text+" "+esc(v.unit):"no value yet"} · tracked by ${m.followers}${m.live?"":" · delayed"}`,m.on_board?"On your board":"Follow")}
+async function showEmpty(){
+  if(!tplNames) tplNames=(await api("/api/templates")).templates;
+  const pop=(await api("/api/catalog?sort=popular")).metrics.filter(m=>m.value!=null&&!m.on_board).slice(0,5);
+  $("#sugg").innerHTML=`<div class="shead">Popular in the catalog</div>${pop.map(catRow).join("")}
+    <div class="shead">What a company pack gives you</div><div class="spack">${tplNames.map(t=>`<span>${esc(t.name)}</span>`).join("")}</div>
+    <div class="shead">Try</div><div class="spack">${["Linear","How many GitHub stars does supabase/supabase have?","What does Figma charge for its Professional plan?"].map(x=>`<a href="#" class="chip" data-fill="${esc(x)}">${esc(x)}</a>`).join("")}</div>`;
+  $("#sugg").hidden=false;
+}
+async function showResults(){
+  const q=$("#q").value.trim(); if(!q) return showEmpty();
+  const r=await api("/api/search?q="+encodeURIComponent(q)); if(r.q!=$("#q").value.trim().replace(/\s+/g," ")) return;
+  let h="";
+  if(r.catalog.length) h+=`<div class="shead">In the catalog${r.catalog_total>r.catalog.length?" · "+r.catalog_total+" matches":""}</div>`+r.catalog.map(catRow).join("");
+  if(r.pack) h+=`<div class="shead">Company pack</div>`+sugRow("pack",r.pack.company,`Track ${esc(r.pack.company)}: ${r.pack.metrics} metrics`,r.pack.in_catalog?`${r.pack.in_catalog} already in the catalog, reused at once`:"entry plan price, engineering roles, GitHub stars, launches, App Store rating, funding","Track");
+  if(r.create) h+=`<div class="shead">Create new</div>`+sugRow("create",r.create.text,`Create a new metric: “${esc(r.create.text)}”`,"Telem finds the source; the catalog is checked first","Create");
+  $("#sugg").innerHTML=h; $("#sugg").hidden=false;
+}
+function hideSugg(){$("#sugg").hidden=true}
+async function doCreate(q){
   if(!S.me.user) return signInModal("Sign in to ask for a number. If the catalog already tracks it, you get it at once.");
-  $("#addbtn").disabled=true; S.pending="Checking the shared catalog, then asking Telem…"; renderBoard();
+  S.busy=true; S.pending="Checking the shared catalog, then asking Telem…"; setTab("board");
   try{const r=await api("/api/metrics",{question:q}); $("#q").value=""; S.flash=r.metric.id;
     toast(r.matched?`Already in the catalog — reused with its history. Tracked by ${r.metric.followers}. No new Telem calls.`
       :(r.metric.value!=null?"New metric: Telem found the source.":"New metric created — no value found yet."),5000)}
   catch(e){toast(e.message,6000)}
-  S.pending=null; $("#addbtn").disabled=false; await loadMe(); refresh()};
-$("#pack").onsubmit=async ev=>{ev.preventDefault(); const c=$("#company").value.trim(); if(!c) return;
-  if(!S.me.user) return signInModal("Sign in to add a competitor. Whatever the catalog already tracks arrives at once.");
-  $("#packbtn").disabled=true; S.pending=`Building the ${c} pack: matching the catalog, then asking Telem for what is new…`; setTab("board");
-  try{const r=await api("/api/packs",{company:c}); $("#company").value="";
+  S.pending=null; S.busy=false; await loadMe(); refresh()}
+async function doPack(c){
+  if(!S.me.user) return signInModal("Sign in to track a company. Whatever the catalog already tracks arrives at once.");
+  S.busy=true; S.pending=`Building the ${c} pack: matching the catalog, then asking Telem for what is new…`; setTab("board");
+  try{const r=await api("/api/packs",{company:c}); $("#q").value="";
     toast(`${r.company}: ${r.tiles.length} tiles. ${r.matched} reused from the catalog, ${r.created} new${r.skipped?", "+r.skipped+" not available":""}.`,6000)}
   catch(e){toast(e.message,6000)}
-  S.pending=null; $("#packbtn").disabled=false; await loadMe(); refresh()};
+  S.pending=null; S.busy=false; await loadMe(); refresh()}
+async function pick(row){
+  const act=row.dataset.act, arg=row.dataset.arg; hideSugg();
+  if(act=="open") return openPanel(+arg);
+  if(act=="follow"){ if(!S.me.user) return signInModal("Sign in to follow catalog metrics on your own board."); $("#q").value=""; try{await followMetric(arg); S.flash=+arg; setTab("board")}catch(e){} return }
+  if(act=="pack") return doPack(arg);
+  if(act=="create") return doCreate(arg);
+}
+$("#q").oninput=()=>{clearTimeout(sugT); sugT=setTimeout(()=>showResults().catch(()=>{}),300)};
+$("#q").onfocus=()=>showResults().catch(()=>{});
+$("#add").onsubmit=async ev=>{ev.preventDefault(); clearTimeout(sugT); await showResults().catch(()=>{}); const first=$("#sugg .srow"); if(first&&$("#q").value.trim()) pick(first)};
+$("#sugg").onclick=ev=>{const c=ev.target.closest(".chip"); if(c){ev.preventDefault(); $("#q").value=c.dataset.fill; $("#q").focus(); return showResults()} const r=ev.target.closest(".srow"); if(r) pick(r)};
+document.addEventListener("click",ev=>{if(!ev.target.closest("#add")) hideSugg()});
 $("#board").onclick=async ev=>{
   const b=ev.target.closest(".run"), g=ev.target.closest(".golive"), t=ev.target.closest(".tile[data-id]");
   if(g){ev.stopPropagation(); S.me.user?plansModal("This metric is delayed on your plan."):signInModal()}
-  else if(b){ev.stopPropagation(); if(!S.me.user) return signInModal("Sign in to refresh a metric."); b.disabled=true; b.textContent="Running…";
+  else if(b){ev.stopPropagation(); if(!S.me.user) return signInModal("Sign in to refresh a metric."); S.busy=true; b.disabled=true; b.textContent="Checking…";
     try{const r=await api(`/api/metrics/${b.dataset.id}/run`,{}); S.flash=+b.dataset.id;
       if(r.new_entries&&r.new_entries.length){toast(`+${r.new_entries.length} new ${r.new_entries.length>1?"entries":"entry"} found`); S.open=+b.dataset.id}
       else toast(r.found?(r.changed?"Value changed":"Checked — no change"):"Checked — no value found")}
-    catch(e){toast(e.message,6000)} refresh()}
+    catch(e){toast(e.message,6000)} S.busy=false; refresh()}
   else if(t) openPanel(+t.dataset.id)};
 $("#panel").onclick=async ev=>{
   if(ev.target.closest(".x")) return closePanel();
@@ -323,9 +373,6 @@ $("#panel").onclick=async ev=>{
   try{const r=await api(`/api/metrics/${S.open}/feedback`,{action:f.dataset.a});
     toast(f.dataset.a=="mute"?(r.muted?"Muted on your board":"Unmuted"):(r.resolved?"Source re-resolved":"No better source found"))}
   catch(e){toast(e.message,6000)} refresh()};
-$("#sync").onclick=async()=>{ if(!S.me.user) return signInModal("Sign in to sync with the Telem monitors."); const b=$("#sync"); b.disabled=true; b.textContent="Syncing…";
-  try{const r=await api("/api/sync",{}); toast(`${r.changes?r.changes+" new change"+(r.changes==1?"":"s")+" from":"Up to date with"} ${r.metrics} Telem monitor${r.metrics==1?"":"s"}${r.errors.length?" · "+r.errors.length+" error(s): "+r.errors[0]:""}`,5000)}
-  catch(e){toast(e.message,6000)} b.disabled=false; b.textContent="Sync"; refresh()};
 function setTab(tab){S.tab=tab; document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x.dataset.tab==tab));
   $("#board").hidden=tab!="board"; $("#log").hidden=tab!="log"; $("#catalog").hidden=tab!="catalog"; $("#f24").style.display=tab=="log"?"flex":"none"; refresh()}
 document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>setTab(a.dataset.tab));
@@ -346,7 +393,7 @@ document.onkeydown=ev=>{if(ev.key=="Escape"){closeModal();closePanel()}};
     history.replaceState({},"","/app"); await loadMe(); refresh()}
   if(p.get("checkout")=="cancel"){toast("Checkout cancelled"); history.replaceState({},"","/app")}
   if(p.get("plans")) plansModal();
-  setInterval(loadTrace,15000);
+  setInterval(loadTrace,15000); setInterval(pollBoard,10000);
 })();
 </script>
 </body>

@@ -21,6 +21,14 @@ The trace panel shows Telem calls, providers, latency, estimated search cost and
 Cost is an estimate from the provider price list; Telem does not return it.
 Seeded history is flagged `seeded = 1` in the database and marked in the UI.
 
+## How a number is made
+
+Every metric is a small recipe: **gather** evidence (Telem Search, then Telem Fetch), **read** fields from it (a Claude prompt guided by a source skill in `skills/`), and **reduce** to one number (read one value, or count a ledger of entries keyed by URL). Curated metrics come from `templates.json`; type a company name and you get the whole pack. The app shows the source, the skill, the last Telem trace and the change history for every number. If a value is not on the page, the tile says "no value yet".
+
+The recipes are open: `skills/` and `templates.json` are part of this repo. The hosted product is the always-on runtime, the shared catalog and its accumulated history.
+
+**Seeded data:** sparkline points before a metric was first tracked are simulated, flagged `seeded = 1` in the database and marked "seeded" in the UI. Everything else is read live.
+
 ## Run
 
 ```sh
@@ -33,3 +41,7 @@ cp .env.example .env            # TELEM_API_KEY, ANTHROPIC_API_KEY, LLM_MODEL
 ```
 
 Stack: Python 3.11, FastAPI, SQLite, httpx, one static `index.html`. LLM: Anthropic API (`LLM_MODEL`, default `claude-sonnet-5-5`).
+
+## License
+
+MIT. See `LICENSE`.

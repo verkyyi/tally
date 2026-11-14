@@ -324,6 +324,8 @@ def add_pack(user, company, can_create=True):
     """Every template metric for one company: reuse what the catalog has, create the rest. Returns (metrics, created, skipped)."""
     from concurrent.futures import ThreadPoolExecutor
     company = " ".join(company.split())[:60]
+    if company.islower():
+        company = company.title()
     templates = json.load(open(os.path.join(os.path.dirname(__file__), "templates.json")))
 
     def one(t):
