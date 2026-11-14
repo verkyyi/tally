@@ -318,7 +318,7 @@ async function showEmpty(){
   if($("#q").value.trim()) return;  // the user started typing while this loaded
   $("#sugg").innerHTML=`<div class="shead">Popular in the catalog</div>${pop.map(catRow).join("")}
     <div class="shead">What a company pack gives you</div><div class="spack">${tplNames.map(t=>`<span>${esc(t.name)}</span>`).join("")}</div>
-    <div class="shead">Try</div><div class="spack">${["Linear","How many GitHub stars does supabase/supabase have?","What does Figma charge for its Professional plan?"].map(x=>`<a href="#" class="chip" data-fill="${esc(x)}">${esc(x)}</a>`).join("")}</div>`;
+    <div class="shead">Try</div><div class="spack">${["Lovable","How many open engineering roles does Cursor have?","How much total funding has Tavily raised?"].map(x=>`<a href="#" class="chip" data-fill="${esc(x)}">${esc(x)}</a>`).join("")}</div>`;
   $("#sugg").hidden=false;
 }
 // Suggestions are computed in the browser from the cached catalog, so they appear as you type.

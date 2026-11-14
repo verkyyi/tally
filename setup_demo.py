@@ -143,6 +143,18 @@ def curate():
         print(title, db.run("UPDATE metrics SET curated=1, template_id=?, company=?, skill=? WHERE title=?", (tpl, co, skill, title))[1])
 
 
+def prewarm():
+    """Add company packs to the catalog ahead of a demo, tracked by two other users: python setup_demo.py prewarm Tavily Lovable"""
+    for co in sys.argv[2:]:
+        ms, created, skipped = core.add_pack("C", co)
+        for m in ms:
+            core.follow("D", m["id"])
+        print(co, "tiles", len(ms), "created", created, "skipped", skipped, flush=True)
+        for m in ms:
+            v = core.count_value(m["id"]) if m["kind"] == "count" else (core.latest_obs(m["id"]) or {}).get("value")
+            print("   ", m["title"], "|", v, flush=True)
+
+
 def tick():
     for m in db.q("SELECT id,title,telem_monitor_id FROM metrics WHERE telem_monitor_id IS NOT NULL"):
         try:
@@ -153,4 +165,4 @@ def tick():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm}[sys.argv[1]]()
