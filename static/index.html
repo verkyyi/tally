@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tally</title>
+<style>
+:root{--paper:#f4f0e6;--card:#fbf9f3;--ink:#1d1b16;--mute:#7b7566;--line:#d9d2c0;--accent:#c2410c;--up:#15703b;--down:#b3261e;--seed:#a79f8c;--new:#fff1c9;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.45 -apple-system,"Helvetica Neue",Arial,sans-serif;padding-bottom:92px}
+header{display:flex;gap:16px;align-items:center;padding:14px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand b{font:700 26px var(--serif);letter-spacing:-.5px}
+.marks{display:inline-flex;gap:3px;position:relative;height:20px;align-self:center;margin-right:2px}
+.marks i{width:2.5px;height:20px;background:var(--ink);border-radius:1px}
+.marks:after{content:"";position:absolute;left:-4px;right:-4px;top:9px;height:2.5px;background:var(--accent);transform:rotate(-24deg);border-radius:1px}
+.brand span{color:var(--mute);font:italic 13px var(--serif)}
+form{flex:1;display:flex;gap:8px;min-width:280px}
+input[type=text]{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--card);font:inherit;color:inherit}
+input[type=text]:focus{outline:2px solid var(--ink);outline-offset:-1px}
+button,select{font:inherit;padding:8px 13px;border:1px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--paper);cursor:pointer}
+button.ghost,select{background:transparent;color:var(--ink);border-color:var(--line)}
+button.ghost:hover{border-color:var(--ink)}
+button:disabled{opacity:.5;cursor:wait}
+nav{display:flex;gap:4px;padding:14px 24px 0;align-items:center}
+nav a{padding:6px 12px;border-radius:6px;cursor:pointer;color:var(--mute)}
+nav a.on{background:var(--ink);color:var(--paper)}
+nav label{margin-left:auto;color:var(--mute);display:none;gap:6px;align-items:center}
+main{padding:16px 24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px 12px;cursor:pointer;position:relative;transition:border-color .15s}
+.tile:hover{border-color:var(--ink)}
+.tile.muted{opacity:.45}
+.tile.flash{animation:flash 1.6s}
+@keyframes flash{0%{background:var(--new)}100%{background:var(--card)}}
+.tile h3{margin:0;font:600 13px/1.3 inherit;display:flex;justify-content:space-between;gap:8px}
+.kind{font:10px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute);border:1px solid var(--line);border-radius:3px;padding:1px 5px;height:fit-content}
+.val{font:600 34px/1.15 var(--mono);font-variant-numeric:tabular-nums;margin:10px 0 0;letter-spacing:-1px}
+.val small{font:12px var(--mono);color:var(--mute);letter-spacing:0;margin-left:6px}
+.val.none{font:italic 18px var(--serif);color:var(--mute);letter-spacing:0;padding:9px 0}
+.delta{font:12px var(--mono);height:18px}
+.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--mute)}
+svg.spark{display:block;width:100%;height:46px;margin:6px 0 2px}
+.seedcap{font:10px var(--mono);color:var(--seed);height:14px}
+.foot{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--mute);margin-top:6px;gap:8px}
+.foot button{padding:4px 9px;font-size:12px}
+.badge{position:absolute;top:-8px;right:12px;background:var(--accent);color:#fff;font:600 10px var(--mono);padding:2px 7px;border-radius:9px}
+.pending{border-style:dashed;color:var(--mute);display:flex;align-items:center;justify-content:center;min-height:190px;font:italic 15px var(--serif);text-align:center;cursor:default}
+.empty{color:var(--mute);font:italic 16px var(--serif);padding:40px 0}
+#panel{position:fixed;top:0;right:0;bottom:76px;width:min(460px,100vw);background:var(--card);border-left:1px solid var(--ink);padding:20px 22px;overflow:auto;transform:translateX(105%);transition:transform .2s;z-index:5}
+#panel.open{transform:none}
+#panel h2{font:700 20px/1.25 var(--serif);margin:0 30px 4px 0}
+#panel .x{position:absolute;top:14px;right:14px;padding:2px 9px}
+#panel h4{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute);margin:20px 0 6px;border-bottom:1px solid var(--line);padding-bottom:4px}
+#panel q{display:block;font:italic 14px var(--serif);border-left:3px solid var(--accent);padding-left:10px;margin:8px 0;quotes:none}
+a{color:inherit;text-decoration-color:var(--accent);text-underline-offset:2px;word-break:break-word}
+ul.rows{list-style:none;margin:0;padding:0}
+ul.rows li{padding:7px 8px;border-bottom:1px solid var(--line);font-size:13px}
+ul.rows li.new{background:var(--new)}
+.tag{font:10px var(--mono);border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap}
+.tag.new{background:var(--accent);color:#fff}.tag.seeded{border:1px dashed var(--seed);color:var(--seed)}
+.tag.monitor{background:#1d4d8f;color:#fff}.tag.run_now{background:var(--ink);color:var(--paper)}.tag.feedback{border:1px solid var(--line);color:var(--mute)}
+.when{font:11px var(--mono);color:var(--mute)}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+td,th{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute)}
+#trace{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:var(--paper);padding:10px 24px;display:flex;gap:28px;align-items:center;font-size:12px;z-index:6;overflow-x:auto;white-space:nowrap;min-height:76px}
+#trace .k{font:10px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:#a8a08c;display:block}
+#trace .v{font:600 18px var(--mono)}
+#trace .v small{font:11px var(--mono);font-weight:400;color:#cfc8b6;margin-left:6px}
+#trace .t{font:700 15px var(--serif);color:#fff}
+#toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9;max-width:80vw}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="marks"><i></i><i></i><i></i><i></i></span><b>Tally</b><span>A running tally of the outside world.</span></div>
+  <form id="add"><input type="text" id="q" placeholder="Ask for a number: “What does Gamma charge for its Business plan?”" autocomplete="off"><button id="addbtn">Add metric</button></form>
+  <select id="user" title="User"><option value="A">User A</option><option value="B">User B</option></select>
+  <button class="ghost" id="sync" title="Poll Telem monitor change feeds">Sync</button>
+</header>
+<nav><a data-tab="board" class="on">Board</a><a data-tab="log">Change log</a>
+  <label id="f24"><input type="checkbox" id="last24"> last 24h</label></nav>
+<main><div id="board" class="grid"></div><div id="log" hidden></div></main>
+<aside id="panel"></aside>
+<div id="trace"></div>
+<div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const S={user:localStorage.tallyUser||"A",tiles:[],tab:"board",pending:null,flash:null,open:null};
+$("#user").value=S.user;
+
+async function api(path,opts){
+  const r=await fetch(path,opts&&{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(opts)});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.detail||r.statusText);
+  return j;
+}
+function toast(t,ms=3500){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("on"),ms)}
+function ago(iso){ if(!iso) return "never"; const s=(Date.now()-new Date(iso))/1e3;
+  return s<60?"just now":s<3600?Math.floor(s/60)+"m ago":s<86400?Math.floor(s/3600)+"h ago":Math.floor(s/86400)+"d ago"}
+function num(v){const a=Math.abs(v); const t=x=>String(+x.toFixed(2));
+  return a>=1e9?t(v/1e9)+"B":a>=1e6?t(v/1e6)+"M":v.toLocaleString("en-US",{maximumFractionDigits:2})}
+function val(v,unit){ if(v==null) return null; const usd=/^(usd|\$)/i.test(unit||"");
+  return {text:(usd?"$":"")+num(v), unit:usd?(unit||"").replace(/^(usd|\$)\s*/i,""):(unit||"")}}
+
+function spark(pts){
+  if(pts.length<2) return '<svg class="spark"></svg><div class="seedcap"></div>';
+  const W=240,H=46,P=4,vs=pts.map(p=>p.value),mn=Math.min(...vs),mx=Math.max(...vs),r=mx-mn;
+  const xy=pts.map((p,i)=>[P+i*(W-2*P)/(pts.length-1), r?H-P-(p.value-mn)/r*(H-2*P):H/2]);
+  const firstReal=pts.findIndex(p=>!p.seeded), cut=firstReal<0?pts.length:firstReal;
+  const path=a=>a.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
+  const seeded=xy.slice(0,Math.min(cut+1,xy.length)), real=xy.slice(Math.max(cut,0));
+  const last=xy[xy.length-1];
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    ${seeded.length>1?`<path d="${path(seeded)}" fill="none" stroke="var(--seed)" stroke-width="1.5" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>`:""}
+    ${real.length>1?`<path d="${path(real)}" fill="none" stroke="var(--ink)" stroke-width="1.8" vector-effect="non-scaling-stroke"/>`:""}
+    <circle cx="${last[0]}" cy="${last[1]}" r="2.6" fill="var(--accent)"/></svg>
+    <div class="seedcap">${cut>0?"┄ seeded history · ━ observed":""}</div>`;
+}
+
+function tileHTML(t){
+  const v=val(t.value,t.unit); let d='<span class="flat">&nbsp;</span>';
+  if(t.value!=null&&t.previous!=null){const x=t.value-t.previous;
+    d=`<span class="${x>0?"up":"down"}">${x>0?"▲ +":"▼ −"}${num(Math.abs(x))}</span> <span class="flat">from ${num(t.previous)}</span>`}
+  return `<div class="tile${t.muted?" muted":""}${S.flash==t.id?" flash":""}" data-id="${t.id}">
+    ${t.new_entries?`<span class="badge">${t.new_entries} NEW</span>`:""}
+    <h3><span>${esc(t.title)}</span><span class="kind">${t.kind}</span></h3>
+    ${v?`<div class="val">${v.text}<small>${esc(v.unit)}</small></div>`:`<div class="val none">no value yet</div>`}
+    <div class="delta">${d}</div>${spark(t.spark)}
+    <div class="foot"><span>checked ${ago(t.last_checked)} · tracked by ${t.followers}${t.monitor?" · ◉ monitor":""}</span>
+    <button class="ghost run" data-id="${t.id}">Run now</button></div></div>`;
+}
+function renderBoard(){
+  let h=S.tiles.map(tileHTML).join("");
+  if(S.pending) h+=`<div class="tile pending">${esc(S.pending)}</div>`;
+  $("#board").innerHTML=h||'<div class="empty">Nothing tracked yet. Ask for a number above — if someone already tracks it, you get its history for free.</div>';
+  S.flash=null;
+}
+async function loadBoard(){S.tiles=(await api("/api/board?user="+S.user)).tiles;renderBoard()}
+
+async function loadTrace(){
+  const t=await api("/api/traces"), kv=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+" "+v).join(" · ")||"—";
+  $("#trace").innerHTML=`<span class="t">Telem trace</span>
+    <span><span class="k">Telem calls</span><span class="v">${t.calls}<small>${kv(t.by_endpoint)}</small></span></span>
+    <span><span class="k">Providers used</span><span class="v"><small style="margin:0;font-size:13px">${kv(t.by_provider)}</small></span></span>
+    <span><span class="k">Avg latency</span><span class="v">${t.avg_latency_ms!=null?(t.avg_latency_ms/1000).toFixed(1)+"s":"—"}</span></span>
+    <span><span class="k">Search cost (estimated)</span><span class="v">$${t.est_search_cost.toFixed(3)}</span></span>
+    <span><span class="k">Calls saved by sharing</span><span class="v" style="color:#ffb38a">${t.calls_saved_by_sharing}</span></span>`;
+}
+
+function changeText(c){
+  const link=c.url?` <a href="${esc(c.url)}" target="_blank">↗</a>`:"";
+  if(c.kind=="entity_added"&&c.before!=null) return `<b>${esc(c.before)} → ${esc(c.after)}</b> · new entry: ${esc(c.note)}${link}`;
+  if(c.kind=="entity_added") return `Telem now tracks: ${esc(c.note||c.after)}${link}`;
+  if(c.kind=="value_changed") return `<b>${esc(c.before??"—")} → ${esc(c.after)}</b>${c.note?" · "+esc(c.note):""}${link}`;
+  if(c.kind=="source_changed") return `${esc(c.note)}: <a href="${esc(c.after)}" target="_blank">${esc(c.after)}</a>`;
+  return esc(c.note||c.after||c.kind)+link;
+}
+const originTag=o=>`<span class="tag ${o}">${{monitor:"Telem monitor",run_now:"Run now",feedback:"Feedback"}[o]||o}</span>`;
+async function loadLog(){
+  const since=$("#last24").checked?"&since="+new Date(Date.now()-864e5).toISOString().slice(0,19)+"Z":"";
+  const cs=(await api("/api/changes?user="+S.user+since)).changes;
+  $("#log").innerHTML=cs.length?`<table><tr><th>When</th><th>Metric</th><th>Change</th><th>Found by</th></tr>${cs.map(c=>
+    `<tr><td class="when">${ago(c.at)}</td><td>${esc(c.title)}</td><td>${changeText(c)}</td><td>${originTag(c.origin)}</td></tr>`).join("")}</table>`
+    :'<div class="empty">No changes yet. Tally only surfaces what moved.</div>';
+}
+
+async function openPanel(id){
+  S.open=id; const e=await api("/api/metrics/"+id), m=e.metric, v=val(m.value,m.unit); let h=`<button class="ghost x">×</button>
+    <h2>${esc(m.title)}</h2><div class="when">${esc(m.question)}</div>
+    <div class="val">${v?v.text+`<small>${esc(v.unit)}</small>`:'<span class="val none">no value yet</span>'}</div>
+    <div class="when">tracked by ${m.followers} · checked ${ago(m.last_checked)}</div>`;
+  if(m.kind=="direct"){
+    const o=e.observation; h+=`<h4>Evidence</h4>`+(o?`${o.quote?`<q>${esc(o.quote)}</q>`:""}
+      <div>Source: <a href="${esc(o.evidence_url||m.source_url)}" target="_blank">${esc(o.evidence_url||m.source_url)}</a>${o.seeded?'<span class="tag seeded">seeded</span>':""}</div>
+      <div class="when">read ${ago(o.as_of)} via Telem Fetch</div>`:"<div class='when'>No value found on any source yet. Tally never guesses.</div>");
+  } else {
+    h+=`<h4>Ledger · ${e.entries.length} entries</h4><ul class="rows">${e.entries.map(x=>`<li class="${x.is_new?"new":""}">
+      ${x.url?`<a href="${esc(x.url)}" target="_blank">${esc(x.title)}</a>`:esc(x.title)}${x.is_new?'<span class="tag new">NEW</span>':""}${x.seeded?'<span class="tag seeded">seeded</span>':""}
+      <div class="when">first seen ${ago(x.first_seen_at)}${x.found_via?" · via "+x.found_via:""}</div></li>`).join("")||"<li class='when'>No entries yet.</li>"}</ul>`;
+  }
+  h+=`<h4>Changes</h4><ul class="rows">${e.changes.map(c=>`<li>${changeText(c)} ${originTag(c.origin)}<div class="when">${ago(c.at)}</div></li>`).join("")||"<li class='when'>No changes recorded.</li>"}</ul>
+    <h4>How Telem tracks this</h4><div class="when">Search: ${esc(e.search_query)}<br>Monitor (hourly): ${esc(e.monitor_query)}${e.telem_monitor_id?"<br>id "+esc(e.telem_monitor_id):"<br>no monitor"}</div>
+    <h4>Feedback</h4>${m.kind=="direct"?`<button class="ghost fb" data-a="wrong_source">Wrong source</button> `:""}<button class="ghost fb" data-a="mute">Mute / unmute</button>`;
+  const p=$("#panel"); p.innerHTML=h; p.classList.add("open");
+}
+function closePanel(){$("#panel").classList.remove("open");S.open=null}
+async function refresh(){await Promise.all([loadBoard(),loadTrace(),S.tab=="log"?loadLog():0]); if(S.open) openPanel(S.open)}
+
+$("#add").onsubmit=async ev=>{ev.preventDefault(); const q=$("#q").value.trim(); if(!q) return;
+  $("#addbtn").disabled=true; S.pending="Checking the shared catalog, then asking Telem…"; renderBoard();
+  try{const r=await api("/api/metrics",{user:S.user,question:q}); $("#q").value=""; S.flash=r.metric.id;
+    toast(r.matched?`Already in the catalog — reused with its history. Tracked by ${r.metric.followers}. No new Telem calls.`
+      :(r.metric.value!=null?"New metric: Telem found the source.":"New metric created — no value found yet."),5000)}
+  catch(e){toast("Could not add: "+e.message,6000)}
+  S.pending=null; $("#addbtn").disabled=false; refresh()};
+$("#board").onclick=async ev=>{
+  const b=ev.target.closest(".run"), t=ev.target.closest(".tile[data-id]");
+  if(b){ev.stopPropagation(); b.disabled=true; b.textContent="Running…";
+    try{const r=await api(`/api/metrics/${b.dataset.id}/run`,{}); S.flash=+b.dataset.id;
+      if(r.new_entries&&r.new_entries.length){toast(`+${r.new_entries.length} new ${r.new_entries.length>1?"entries":"entry"} found`); S.open=+b.dataset.id}
+      else toast(r.found?(r.changed?"Value changed":"Checked — no change"):"Checked — no value found")}
+    catch(e){toast("Run failed: "+e.message,6000)} refresh()}
+  else if(t) openPanel(+t.dataset.id)};
+$("#panel").onclick=async ev=>{
+  if(ev.target.closest(".x")) return closePanel();
+  const f=ev.target.closest(".fb"); if(!f) return; f.disabled=true;
+  try{const r=await api(`/api/metrics/${S.open}/feedback`,{user:S.user,action:f.dataset.a});
+    toast(f.dataset.a=="mute"?(r.muted?"Muted on your board":"Unmuted"):(r.resolved?"Source re-resolved":"No better source found"))}
+  catch(e){toast(e.message,6000)} refresh()};
+$("#sync").onclick=async()=>{const b=$("#sync"); b.disabled=true; b.textContent="Syncing…";
+  try{const r=await api("/api/sync",{}); toast(`${r.changes} change${r.changes==1?"":"s"} from ${r.metrics} Telem monitor${r.metrics==1?"":"s"}${r.errors.length?" · "+r.errors.length+" error(s): "+r.errors[0]:""}`,5000)}
+  catch(e){toast("Sync failed: "+e.message,6000)} b.disabled=false; b.textContent="Sync"; refresh()};
+$("#user").onchange=ev=>{S.user=localStorage.tallyUser=ev.target.value; closePanel(); refresh()};
+document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>{S.tab=a.dataset.tab;
+  document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x==a));
+  $("#board").hidden=S.tab!="board"; $("#log").hidden=S.tab!="log"; $("#f24").style.display=S.tab=="log"?"flex":"none"; refresh()});
+$("#last24").onchange=loadLog;
+document.onkeydown=ev=>{if(ev.key=="Escape") closePanel()};
+refresh(); setInterval(loadTrace,15000);
+</script>
+</body>
+</html>

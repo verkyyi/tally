@@ -1,0 +1,103 @@
+"""The three small LLM prompts: define a metric, extract a value or entries, match a question."""
+import json
+import os
+import re
+from datetime import date
+
+import anthropic
+
+MODEL = os.environ.get("LLM_MODEL", "claude-sonnet-5-5")
+_client = None
+
+
+def _c():
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic()
+    return _client
+
+
+def _parse(text):
+    text = text.strip()
+    m = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
+    if m:
+        text = m.group(1).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        a, b = text.find("{"), text.rfind("}")
+        if a >= 0 and b > a:
+            try:
+                return json.loads(text[a:b + 1])
+            except json.JSONDecodeError:
+                return None
+    return None
+
+
+def ask_json(system, user, max_tokens=8000):
+    kw = dict(model=MODEL, max_tokens=max_tokens, system=system + "\nReturn only one JSON object, no prose.",
+              messages=[{"role": "user", "content": user}], output_config={"effort": "low"})
+    try:
+        # Server-side refusal fallback: a declined request is re-run on a fallback model in the same call.
+        msg = _c().beta.messages.create(betas=["server-side-fallback-2026-07-01"], fallbacks="default", **kw)
+    except (TypeError, anthropic.BadRequestError):
+        msg = _c().messages.create(**kw)
+    if msg.stop_reason == "refusal":
+        return None
+    return _parse("".join(b.text for b in msg.content if b.type == "text"))
+
+
+DEFINE = """You turn a user's question into a trackable metric for a dashboard of live numbers about companies.
+Fields:
+- title: at most 6 words, "Subject · what", e.g. "Gamma · engineering roles".
+- kind: "direct" when the answer is one value read from one page (a price, a rating, a star count, a funding total). "count" when the answer is how many distinct items exist (open job posts, product launches).
+- unit: short, e.g. "USD/seat/mo", "stars", "rating /5", "USD", "roles", "launches".
+- search_query: a web search query. For direct, it finds the page that states the value. For count, it finds the individual items.
+- monitor_query: one plain sentence naming the change to watch for, e.g. "Acme changes the listed price of its Enterprise plan" or "Acme posts a new engineering job opening".
+- source_hint: the domain most likely to hold the answer, or null.
+- source_url: an exact URL only when you are certain of it, else null. For GitHub stars use https://api.github.com/repos/{owner}/{repo}."""
+
+EXTRACT_DIRECT = """You read fetched web pages and extract the single value that answers the question.
+Return {"value": number or null, "unit": string, "as_of": "YYYY-MM-DD", "evidence_url": string, "confidence": 0 to 1, "quote": string}.
+- value is a plain number: 343000000, not "343M". For a price, the number in the listed currency.
+- quote is the short text on the page that states the value. evidence_url is the URL of the page it came from.
+- Use only what the pages state. If the value is not there (for example the plan says "Contact sales"), return {"value": null}. Never guess."""
+
+EXTRACT_COUNT = """You read search results and fetched pages and list the distinct items that answer the question, one entry per item (one job posting, one product launch).
+Return {"entries": [{"title": string, "url": string}]}.
+- Only items the text states, each with the most specific URL given for it.
+- Leave out listing or aggregate pages, duplicates, and anything about another company or outside the time window in the question.
+- An empty list is a valid answer. Never invent an item."""
+
+MATCH = """You decide whether a new question asks for a metric that already exists in a catalog.
+Return {"match_id": id or null}. Match only when both ask for the same fact about the same subject. A different plan, company, repository or time window is not a match."""
+
+
+def define(question):
+    d = ask_json(DEFINE, f"Today is {date.today()}.\nQuestion: {question}") or {}
+    d["kind"] = "count" if d.get("kind") == "count" else "direct"
+    return d
+
+
+def _pages(pages, cap=14000):
+    return "\n\n".join(f"<page url=\"{p['url']}\">\n{(p.get('content') or '')[:cap]}\n</page>" for p in pages)
+
+
+def extract_direct(question, unit, pages):
+    return ask_json(EXTRACT_DIRECT, f"Today is {date.today()}.\nQuestion: {question}\nExpected unit: {unit}\n\n{_pages(pages)}")
+
+
+def extract_count(question, results, pages=()):
+    res = "\n".join(f"- {r['title']} | {r['url']} | {r['summary'][:400]}" for r in results)
+    d = ask_json(EXTRACT_COUNT, f"Today is {date.today()}.\nQuestion: {question}\n\nSearch results:\n{res}\n\n{_pages(pages)}",
+                 max_tokens=16000) or {}
+    return [e for e in d.get("entries") or [] if isinstance(e, dict) and e.get("title")]
+
+
+def match(question, existing):
+    if not existing:
+        return None
+    cat = "\n".join(f"{m['id']}: {m['question']}" for m in existing)
+    d = ask_json(MATCH, f"New question: {question}\n\nCatalog:\n{cat}", max_tokens=2000) or {}
+    ids = {m["id"] for m in existing}
+    return d.get("match_id") if d.get("match_id") in ids else None
