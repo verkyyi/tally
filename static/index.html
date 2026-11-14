@@ -217,7 +217,7 @@ function tileHTML(t){
     ${v?`<div class="val">${v.text}<small>${esc(v.unit)}</small></div>`:`<div class="val none">no value yet</div>`}
     <div class="delta">${d}</div>${spark(t.spark)}
     <div class="foot"><span>${t.live?"checked "+ago(t.last_checked)+(t.next_check?" · next "+until(t.next_check):"")+" · ":""}tracked by ${t.followers}${t.monitor?" · ◉ monitor":""}${t.curated?' · <b style="color:var(--accent);font-weight:600">curated</b>':""}</span>
-    ${t.live?`<button class="ghost run" data-id="${t.id}">Check now</button>`:`<button class="ghost golive" data-id="${t.id}">Go live</button>`}</div></div>`;
+    ${t.live?"":`<button class="ghost golive" data-id="${t.id}">Go live</button>`}</div></div>`;
 }
 function renderBoard(){
   let h=S.tiles.map(tileHTML).join("");
@@ -276,7 +276,8 @@ async function openPanel(id){
   S.open=id; const e=await api("/api/metrics/"+id), m=e.metric, v=val(m.value,m.unit); let h=`<button class="ghost x">×</button>
     <h2>${esc(m.title)}</h2><div class="when">${esc(m.question)}</div>
     <div class="val">${v?v.text+`<small>${esc(v.unit)}</small>`:'<span class="val none">no value yet</span>'}</div>
-    <div class="when">tracked by ${m.followers} · ${m.live?"checked "+ago(m.last_checked):"delayed value, as of "+ago(m.as_of)}</div>`;
+    <div class="when">tracked by ${m.followers} · ${m.live?"checked "+ago(m.last_checked):"delayed value, as of "+ago(m.as_of)}</div>
+    ${m.live?`<div style="margin-top:10px;display:flex;gap:10px;align-items:center"><button class="ghost runp">Check now</button><span class="when">${m.next_check?"Checked automatically. Next check "+until(m.next_check)+".":"Checked automatically."} Ask for an early check any time.</span></div>`:""}`;
   if(e.locked){
     h+=`<h4>Live value and evidence</h4><p style="color:#4a463c">This metric is delayed for you. The live number, its source and quote, the full ledger and the change history are part of ${S.me.user?"Pro, or pick it as one of your live catalog metrics":"a signed-in account"}.</p>
       ${S.me.user?`<button class="pro" id="pup">See plans</button>`:`<button id="pin2">Sign in with Google</button>`}
@@ -399,6 +400,10 @@ $("#board").onclick=async ev=>{
 $("#panel").onclick=async ev=>{
   if(ev.target.closest(".x")) return closePanel();
   if(ev.target.closest("#pup")) return plansModal();
+  const rp=ev.target.closest(".runp"); if(rp){ if(!S.me.user) return signInModal("Sign in to ask for an early check."); S.busy=true; rp.disabled=true; rp.textContent="Checking…";
+    try{const r=await api(`/api/metrics/${S.open}/run`,{}); S.flash=S.open;
+      toast(r.new_entries&&r.new_entries.length?`+${r.new_entries.length} new ${r.new_entries.length>1?"entries":"entry"} found`:r.found?(r.changed?"Value changed":"Checked — no change"):"Checked — no value found")}
+    catch(e){toast(e.message,6000)} S.busy=false; return refresh()}
   const na=ev.target.closest(".nac"); if(na){ev.preventDefault(); try{await api(`/api/changes/${na.dataset.c}/reject`,{}); toast("Marked as not a change. Hidden for everyone who tracks this metric.")}catch(e){} return refresh()}
   if(ev.target.closest("#pin2")) return signInModal();
   const fo=ev.target.closest(".fol"); if(fo){ try{await followMetric(fo.dataset.id)}catch(e){} return }
