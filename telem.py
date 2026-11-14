@@ -7,7 +7,7 @@ import httpx
 
 import db
 
-BASE = "https://router.telem.ai"
+BASE = os.environ.get("TELEM_BASE_URL", "https://router.telem.ai").rstrip("/")
 
 # Telem does not return cost. Estimate per provider that answered a search.
 PRICE = {"brave": 0.005, "perplexity": 0.005, "seltz": 0.005, "tavily": 0.005, "linkup": 0.005,
@@ -64,7 +64,7 @@ def search(query, metric_id=None, include=None, auto=True, num_results=8):
             if not r.get("url"):
                 continue
             results.append({"url": r["url"], "title": r.get("title") or "",
-                            "summary": (r.get("summary") or r.get("snippet") or r.get("content") or "")[:1500],
+                            "summary": (r.get("summary") or r.get("snippet") or r.get("content") or "")[:3000],
                             "provider": name, "rank": r.get("rank")})
     cost = sum(PRICE.get(p, 0.005) for p in provs)
     _log(metric_id, "search", provs, ms, cost)

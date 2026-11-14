@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tally — a running tally of the outside world</title>
+<meta name="description" content="A personal dashboard of live numbers about the outside world, built from a shared catalog. Anything one person tracks is instantly available to everyone.">
+<style>
+:root{--paper:#f4f0e6;--card:#fbf9f3;--ink:#1d1b16;--mute:#7b7566;--line:#d9d2c0;--accent:#c2410c;--up:#15703b;--seed:#a79f8c;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 -apple-system,"Helvetica Neue",Arial,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+header{display:flex;justify-content:space-between;align-items:center;padding:20px 0}
+.brand{display:flex;align-items:center;gap:10px;font:700 24px var(--serif);letter-spacing:-.5px}
+.marks{display:inline-flex;gap:3px;position:relative;height:20px}
+.marks i{width:2.5px;height:20px;background:var(--ink);border-radius:1px}
+.marks:after{content:"";position:absolute;left:-4px;right:-4px;top:9px;height:2.5px;background:var(--accent);transform:rotate(-24deg);border-radius:1px}
+a{color:inherit}
+.btn{display:inline-block;padding:11px 20px;border-radius:7px;background:var(--ink);color:var(--paper);text-decoration:none;font-weight:600;border:1px solid var(--ink)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.hero{padding:56px 0 40px;display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center}
+.eyebrow{font:12px var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--accent)}
+h1{font:700 clamp(38px,5.4vw,62px)/1.04 var(--serif);letter-spacing:-1.5px;margin:14px 0 18px;text-wrap:balance}
+h1 em{font-style:italic;color:var(--accent)}
+.lede{font-size:19px;color:#4a463c;max-width:34em;margin:0 0 26px}
+.cta{display:flex;gap:12px;flex-wrap:wrap}
+.ask{background:var(--card);border:1px solid var(--ink);border-radius:12px;padding:18px;box-shadow:6px 6px 0 var(--ink)}
+.ask .q{font:15px var(--mono);border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:#fff}
+.ask .q:after{content:"▍";color:var(--accent);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.ask .arrow{font:12px var(--mono);color:var(--mute);margin:10px 2px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.tile h3{margin:0;font:600 13px/1.3 inherit;display:flex;justify-content:space-between;gap:8px}
+.kind{font:10px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute);border:1px solid var(--line);border-radius:3px;padding:1px 5px;height:fit-content}
+.val{font:600 32px/1.15 var(--mono);font-variant-numeric:tabular-nums;margin:8px 0 2px;letter-spacing:-1px}
+.val small{font:12px var(--mono);color:var(--mute);letter-spacing:0;margin-left:6px}
+.sub{font:12px var(--mono);color:var(--mute)}
+section{padding:52px 0;border-top:1px solid var(--line)}
+h2{font:700 32px/1.15 var(--serif);letter-spacing:-.6px;margin:8px 0 10px;text-wrap:balance}
+.intro{color:#4a463c;max-width:42em;margin:0 0 28px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.live{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+.step b{display:block;font:700 18px var(--serif);margin:6px 0 4px}
+.step .n{font:12px var(--mono);color:var(--accent)}
+.step p{margin:0;color:#4a463c;font-size:15px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.ledger{font:13px var(--mono);margin:10px 0 0;padding:0;list-style:none}
+.ledger li{padding:5px 8px;border-bottom:1px solid var(--line)}
+.ledger li.new{background:#fff1c9}
+.share{display:grid;grid-template-columns:1fr auto 1fr;gap:20px;align-items:center}
+.people{display:flex;flex-direction:column;gap:8px}
+.person{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:14px}
+.hub{background:var(--ink);color:var(--paper);border-radius:12px;padding:18px 22px;text-align:center}
+.hub b{display:block;font:700 30px var(--mono)}
+.hub span{font:11px var(--mono);text-transform:uppercase;letter-spacing:.1em;color:#cfc8b6}
+.stack{display:flex;gap:10px;flex-wrap:wrap}
+.chip{border:1px solid var(--ink);border-radius:20px;padding:5px 13px;font:13px var(--mono);background:var(--card)}
+footer{padding:28px 0 48px;color:var(--mute);font-size:13px;border-top:1px solid var(--line)}
+@media(max-width:760px){.hero,.two,.share{grid-template-columns:1fr}.hero{padding-top:28px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="brand"><span class="marks"><i></i><i></i><i></i><i></i></span>Tally</div>
+  <a class="btn ghost" href="/app">Open the live board →</a>
+</header>
+
+<div class="hero">
+  <div>
+    <div class="eyebrow">A running tally of the outside world</div>
+    <h1>Ask for a number. <em>Keep</em> it current.</h1>
+    <p class="lede">Tally is a personal dashboard of live numbers about the companies you watch: prices, job posts, stars, ratings, launches. Every metric lives in a shared catalog, so what one person tracks is instantly there for everyone.</p>
+    <div class="cta"><a class="btn" href="/app">Open the live board</a><a class="btn ghost" href="#how">How it works</a></div>
+  </div>
+  <div class="ask">
+    <div class="q">How many open engineering roles does Gamma have?</div>
+    <div class="arrow">↓ matched in the shared catalog · tracked by <span id="hf">2</span></div>
+    <div class="tile" id="herotile"><h3><span>Gamma · open engineering roles</span><span class="kind">count</span></h3>
+      <div class="val">—<small>roles</small></div><div class="sub">every entry opens to its source</div></div>
+  </div>
+</div>
+
+<section>
+  <div class="eyebrow">Live from the catalog</div>
+  <h2>These numbers are being checked right now.</h2>
+  <p class="intro">Read from the running app. Each one is backed by a source page or a ledger of entries you can open.</p>
+  <div class="live" id="live"><div class="sub">Loading the catalog…</div></div>
+</section>
+
+<section id="how">
+  <div class="eyebrow">How it works</div>
+  <h2>From a typed question to a number you can trust.</h2>
+  <div class="grid3">
+    <div class="step"><span class="n">01</span><b>Ask</b><p>Type the question the way you'd ask a colleague. No setup, no selectors, no scraper to maintain.</p></div>
+    <div class="step"><span class="n">02</span><b>Match or create</b><p>If the catalog already tracks it, you get the tile with its full history at once. If not, Tally finds the source and starts.</p></div>
+    <div class="step"><span class="n">03</span><b>Watch</b><p>A monitor re-checks every metric in the background. You only hear about what moved.</p></div>
+    <div class="step"><span class="n">04</span><b>Open the evidence</b><p>Every value links to the page and the quote it came from. If a value isn't on the page, the tile says “no value yet”. Tally never guesses.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Two kinds of metric</div>
+  <h2>Reading a number is easy. Counting things is the hard part.</h2>
+  <p class="intro">Search results change from run to run, so the size of one result list is not a count. Tally keeps a ledger.</p>
+  <div class="two">
+    <div class="step"><span class="n">direct</span><b>One value from one source</b><p>A plan price, an App Store rating, a star count, a funding total. Read from the page, stored with the quote.</p>
+      <div class="val" style="margin-top:14px">9,364<small>stars</small></div><div class="sub">source: api.github.com · read just now</div></div>
+    <div class="step"><span class="n">count</span><b>A ledger of entries</b><p>Open job posts, product launches. Each entry is stored once by its URL. The count is the size of the ledger, and a new entry is a change you can see.</p>
+      <ul class="ledger"><li class="new">+ Staff Engineer, AI Platform &nbsp;<b style="color:var(--accent)">NEW</b></li><li>Senior Product Engineer</li><li>Infrastructure Engineer</li></ul></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Why a shared catalog</div>
+  <h2>One refresh serves everyone who asked.</h2>
+  <p class="intro">Ten founders tracking the same competitor price should cost one check, not ten. The catalog gets more complete and cheaper per user with every question asked.</p>
+  <div class="share">
+    <div class="people"><div class="person">Founder A · “What does Gamma charge?”</div><div class="person">Founder B · “Gamma pricing for teams”</div><div class="person">Analyst C · “gamma.app top plan price”</div></div>
+    <div class="hub"><span>shared metric</span><b>1 refresh</b><span id="saved">calls saved by sharing</span></div>
+    <div class="people"><div class="person">Same tile, same history</div><div class="person">Same evidence</div><div class="person">A third of the cost each</div></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Built on Telem AI</div>
+  <h2>Telem is the engine, and the trace panel shows it.</h2>
+  <p class="intro">Search finds sources and entries across providers, with Tavily pinned for entry-finding. Fetch reads the pages. Monitors re-check on a schedule and feed the change log. Every call, provider and latency is logged and shown in the app.</p>
+  <div class="stack"><span class="chip">Telem Search</span><span class="chip">Telem Fetch</span><span class="chip">Telem Monitors</span><span class="chip">Tavily</span><span class="chip">Claude</span><span class="chip">FastAPI + SQLite</span></div>
+  <p style="margin-top:28px"><a class="btn" href="/app">Open the live board</a></p>
+</section>
+
+<footer>Tally · built for SearchHack, November 2026 · <a href="https://github.com/verkyyi/tally">source</a> · Sparkline history before today is seeded and marked as such in the app.</footer>
+</div>
+<script>
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function num(v){const a=Math.abs(v),t=x=>String(+x.toFixed(2));return a>=1e9?t(v/1e9)+"B":a>=1e6?t(v/1e6)+"M":v.toLocaleString("en-US",{maximumFractionDigits:2})}
+const CUR={usd:"$",eur:"€",gbp:"£"};
+function val(v,u){const m=/^(usd|eur|gbp)\b\s*/i.exec(u||"");return (m?CUR[m[1].toLowerCase()]:"")+num(v)+`<small>${esc(m?u.slice(m[0].length):u||"")}</small>`}
+(async()=>{try{
+  const c=(await (await fetch("/api/catalog")).json()).metrics.filter(m=>m.value!=null);
+  document.getElementById("live").innerHTML=c.slice(0,8).map(m=>`<div class="tile"><h3><span>${esc(m.title)}</span><span class="kind">${m.kind}</span></h3>
+    <div class="val">${val(m.value,m.unit)}</div><div class="sub">tracked by ${m.followers}</div></div>`).join("")||'<div class="sub">The catalog is empty.</div>';
+  const g=c.find(m=>m.kind=="count"); if(g){const t=document.getElementById("herotile");
+    t.querySelector("h3 span").textContent=g.title; t.querySelector(".val").innerHTML=val(g.value,g.unit); document.getElementById("hf").textContent=Math.max(g.followers,2);
+    document.querySelector(".ask .q").textContent=g.question}
+  const tr=await (await fetch("/api/traces")).json(); document.getElementById("saved").textContent=tr.calls_saved_by_sharing+" calls saved so far";
+}catch(e){document.getElementById("live").innerHTML='<div class="sub">Start the app to see live numbers.</div>'}})();
+</script>
+</body>
+</html>

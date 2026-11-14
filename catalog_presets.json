@@ -1,0 +1,14 @@
+[
+  {"users": ["C", "D"], "question": "What is the per-seat monthly price of Notion's Business plan?", "title": "Notion · Business plan price", "kind": "direct", "unit": "USD/seat/mo", "source_url": "https://www.notion.com/pricing"},
+  {"users": ["C"], "question": "What is the per-seat monthly price of Notion's Plus plan?", "title": "Notion · Plus plan price", "kind": "direct", "unit": "USD/seat/mo", "source_url": "https://www.notion.com/pricing"},
+  {"users": ["D"], "question": "What is the listed monthly price of Papermark's Business plan?", "title": "Papermark · Business plan price", "kind": "direct", "unit": "EUR/mo", "source_url": "https://www.papermark.com/pricing"},
+  {"users": ["C", "D", "E"], "question": "What is the App Store rating of the Canva iOS app?", "title": "Canva · App Store rating", "kind": "direct", "unit": "rating /5", "source_url": "https://itunes.apple.com/lookup?id=897446215&country=us"},
+  {"users": ["E"], "question": "How many GitHub stars does the docusealco/docuseal repository have?", "title": "DocuSeal · GitHub stars", "kind": "direct", "unit": "stars", "source_url": "https://api.github.com/repos/docusealco/docuseal"},
+  {"users": ["C", "E"], "question": "How many GitHub stars does the documenso/documenso repository have?", "title": "Documenso · GitHub stars", "kind": "direct", "unit": "stars", "source_url": "https://api.github.com/repos/documenso/documenso"},
+  {"users": ["D"], "question": "How many GitHub stars does the outline/outline repository have?", "title": "Outline · GitHub stars", "kind": "direct", "unit": "stars", "source_url": "https://api.github.com/repos/outline/outline"},
+  {"users": ["C"], "question": "How many GitHub stars does the AppFlowy-IO/AppFlowy repository have?", "title": "AppFlowy · GitHub stars", "kind": "direct", "unit": "stars", "source_url": "https://api.github.com/repos/AppFlowy-IO/AppFlowy"},
+  {"users": ["D", "E"], "question": "How many GitHub stars does the excalidraw/excalidraw repository have?", "title": "Excalidraw · GitHub stars", "kind": "direct", "unit": "stars", "source_url": "https://api.github.com/repos/excalidraw/excalidraw"},
+  {"users": ["C", "D"], "question": "How much total funding has Gamma (gamma.app) raised?", "title": "Gamma · total funding raised", "kind": "direct", "unit": "USD"},
+  {"users": ["E"], "question": "How much total funding has Canva raised?", "title": "Canva · total funding raised", "kind": "direct", "unit": "USD"},
+  {"users": ["C"], "question": "How many open engineering roles does Papermark have?", "title": "Papermark · open engineering roles", "kind": "count", "unit": "roles"}
+]

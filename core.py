@@ -1,6 +1,7 @@
 """Tally flows: create, run now, sync from Telem monitors, feedback."""
 import json
 import re
+from datetime import datetime, timezone
 from urllib.parse import urlsplit
 
 import db
@@ -53,7 +54,7 @@ def fmt(v):
 
 def resolve_direct(m, exclude_domain=None, fresh=False):
     """Search, fetch the top pages, extract. Returns the extraction dict or None."""
-    urls = []
+    urls, results = [], None
     if m.get("source_url") and domain(m["source_url"]) != exclude_domain:
         urls.append(m["source_url"])
     if len(urls) < 1 or exclude_domain:
@@ -64,9 +65,14 @@ def resolve_direct(m, exclude_domain=None, fresh=False):
             if domain(r["url"]) != exclude_domain and r["url"] not in urls:
                 urls.append(r["url"])
     pages = [p for p in telem.fetch(urls[:5], m["id"], fresh=fresh) if p["ok"]]
-    if not pages:
-        return None
-    ex = llm.extract_direct(m["question"], m.get("unit") or "", pages)
+    ex = llm.extract_direct(m["question"], m.get("unit") or "", pages) if pages else None
+    if not ex or not isinstance(ex.get("value"), (int, float)):
+        # The page text had no value (often a script-rendered page). Try what search providers read from it.
+        if results is None:
+            results, _ = telem.search(m["search_query"] or m["question"], m["id"], auto=True, num_results=5)
+        snips = [{"url": r["url"], "content": r["title"] + "\n" + r["summary"]} for r in results
+                 if r["summary"] and domain(r["url"]) != exclude_domain][:8]
+        ex = llm.extract_direct(m["question"], m.get("unit") or "", snips) if snips else None
     if not ex or not isinstance(ex.get("value"), (int, float)):
         return None
     if not ex.get("evidence_url"):
@@ -146,7 +152,7 @@ def create_metric(user, question, overrides=None):
         return metric(mid), True
 
     d = llm.define(question)
-    d.update({k: v for k, v in overrides.items() if v})
+    d.update({k: v for k, v in overrides.items() if v and k != "no_monitor"})
     mid, _ = db.run(
         "INSERT INTO metrics(question,title,kind,unit,source_url,search_query,monitor_query,telem_monitor_id,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
         (question, d.get("title") or question[:40], d["kind"], d.get("unit"), d.get("source_url"),
@@ -165,7 +171,7 @@ def create_metric(user, question, overrides=None):
         record_count_obs(mid, "run_now")
     db.run("UPDATE metrics SET refreshes=refreshes+1, last_checked_at=? WHERE id=?", (db.now(), mid))
 
-    if not m["telem_monitor_id"]:
+    if not m["telem_monitor_id"] and not overrides.get("no_monitor"):
         try:
             mon = telem.create_monitor(m["monitor_query"], mid)
             db.run("UPDATE metrics SET telem_monitor_id=? WHERE id=?", (mon.get("id"), mid))
@@ -232,19 +238,29 @@ def _url(x):
     return None
 
 
+def _at(x):
+    """Telem timestamps -> the same UTC format the rest of the app stores."""
+    try:
+        return datetime.fromisoformat(x.replace("Z", "+00:00")).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except (AttributeError, ValueError):
+        return db.now()
+
+
 def sync_metric(m):
-    """Page through the Telem monitor's change feed from the stored cursor."""
+    """Page through the Telem monitor's change feed from the stored cursor.
+    value_changed -> observation on a direct metric. entity_added -> ledger entry on a count metric
+    (only entities the monitor's agent qualified, deduped by URL and by title). run -> last checked."""
     mid, cursor, added = m["id"], m["monitor_cursor"] or 0, 0
     for _ in range(20):
         data = telem.monitor_changes(m["telem_monitor_id"], cursor, mid)
         for c in data.get("changes") or []:
-            if (c.get("seq") or 0) <= cursor and cursor:
+            if cursor and (c.get("seq") or 0) <= cursor:
                 continue  # dedupe by seq
-            kind, at = c.get("kind"), c.get("at")
-            name = (c.get("subject") or {}).get("name")
+            kind, at = c.get("kind"), _at(c.get("at"))
+            name = ((c.get("subject") or {}).get("name") or "").strip()
             after, before = c.get("after"), c.get("before")
             if kind == "run":
-                db.run("UPDATE metrics SET last_checked_at=? WHERE id=?", (at, mid))
+                db.run("UPDATE metrics SET last_checked_at=? WHERE id=? AND (last_checked_at IS NULL OR last_checked_at<?)", (at, mid, at))
             elif kind == "value_changed":
                 v = _num(after)
                 if m["kind"] == "direct" and v is not None:
@@ -252,22 +268,22 @@ def sync_metric(m):
                            (mid, v, at, _url(after), "monitor"))
                 add_change(mid, _text(before), _text(after), "monitor", kind, note=name, url=_url(after), at=at)
                 added += 1
-            elif kind == "entity_added":
-                if m["kind"] == "count" and name:
-                    u = _url(after)
-                    key = norm_url(u) if u else name.strip().lower()
-                    if not db.one("SELECT 1 x FROM entries WHERE metric_id=? AND key=? AND held_out=0", (mid, key)):
-                        n = count_value(mid)
-                        db.run("INSERT OR REPLACE INTO entries(metric_id,key,title,url,first_seen_at,seeded,held_out,found_via) VALUES(?,?,?,?,?,0,0,'monitor')",
-                               (mid, key, name, u, at))
-                        eid = db.one("SELECT id FROM entries WHERE metric_id=? AND key=?", (mid, key))["id"]
-                        add_change(mid, n, n + 1, "monitor", kind, note=name, entry_id=eid, url=u, at=at)
-                        added += 1
+            elif kind == "entity_added" and m["kind"] == "count" and name:
+                if not isinstance(after, dict) or after.get("status") != "qualified":
+                    continue
+                u = _url(after)
+                key = norm_url(u) if u else name.lower()
+                row = db.one("SELECT id, held_out FROM entries WHERE metric_id=? AND (key=? OR lower(title)=?)", (mid, key, name.lower()))
+                if row and not row["held_out"]:
+                    continue
+                n = count_value(mid)
+                if row:
+                    db.run("UPDATE entries SET held_out=0, seeded=0, first_seen_at=?, found_via='monitor' WHERE id=?", (at, row["id"]))
+                    eid = row["id"]
                 else:
-                    add_change(mid, None, _text(after) or name, "monitor", kind, note=name, url=_url(after), at=at)
-                    added += 1
-            elif kind == "alert":
-                add_change(mid, None, _text(after), "monitor", kind, note=name, url=_url(after), at=at)
+                    eid, _ = db.run("INSERT INTO entries(metric_id,key,title,url,first_seen_at,seeded,held_out,found_via) VALUES(?,?,?,?,?,0,0,'monitor')",
+                                    (mid, key, name, u, at))
+                add_change(mid, n, n + 1, "monitor", kind, note=name, entry_id=eid, url=u, at=at)
                 added += 1
         nxt = data.get("next_cursor", cursor)
         done = nxt == data.get("watermark") or nxt == cursor or not data.get("changes")
@@ -275,6 +291,8 @@ def sync_metric(m):
         if done:
             break
     db.run("UPDATE metrics SET monitor_cursor=? WHERE id=?", (cursor, mid))
+    if added and m["kind"] == "count":
+        record_count_obs(mid, "monitor")
     return added
 
 

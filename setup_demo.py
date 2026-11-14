@@ -1,6 +1,7 @@
 """Demo setup. Steps, in order:
   python setup_demo.py monitors   create one hourly Telem monitor per demo metric (do this first)
   python setup_demo.py build      create the six metrics on user A's board through the normal flow
+  python setup_demo.py presets    add more catalog metrics tracked by other users (no monitors)
   python setup_demo.py seed       add past observations (flagged seeded=1) and hold one real entry out
   python setup_demo.py tick       ask each monitor's agent to run now
 """
@@ -46,6 +47,21 @@ def build():
             print("FAILED", d["title"], e)
 
 
+def presets():
+    """More metrics in the shared catalog, tracked by other users (C, D, E). No monitors, to limit spend."""
+    for d in json.load(open(os.path.join(os.path.dirname(__file__), "catalog_presets.json"))):
+        if db.one("SELECT 1 x FROM metrics WHERE question=?", (d["question"],)):
+            continue
+        try:
+            m, matched = core.create_metric(d["users"][0], d["question"], {k: d.get(k) for k in KEYS} | {"no_monitor": True})
+            for u in d["users"][1:]:
+                core.follow(u, m["id"])
+            v = core.count_value(m["id"]) if m["kind"] == "count" else (core.latest_obs(m["id"]) or {}).get("value")
+            print(f"{m['id']} {m['title']}: {v}  matched={matched}")
+        except Exception as e:
+            print("FAILED", d["title"], e)
+
+
 def seed(days=14):
     """Past observations for sparklines. Simulated, flagged seeded=1, and marked in the UI."""
     now = datetime.now(timezone.utc)
@@ -76,6 +92,23 @@ def seed(days=14):
         print("seeded", m["title"], vals[0], "->", vals[-1])
 
 
+def rehold():
+    """Reset the demo: hold the held-out entry out again so 'Run now' can find it once more."""
+    for d in load():
+        if not d.get("hold_out"):
+            continue
+        m = db.one("SELECT * FROM metrics WHERE question=?", (d["question"],))
+        e = db.one("SELECT e.id, e.title FROM entries e JOIN changes c ON c.entry_id=e.id WHERE e.metric_id=? AND c.origin='run_now' ORDER BY c.id DESC LIMIT 1", (m["id"],))
+        if not e:
+            print("nothing to re-hold")
+            continue
+        db.run("UPDATE entries SET held_out=1 WHERE id=?", (e["id"],))
+        db.run("DELETE FROM changes WHERE entry_id=?", (e["id"],))
+        db.run("DELETE FROM observations WHERE metric_id=? AND seeded=0", (m["id"],))
+        core.record_count_obs(m["id"], "run_now")
+        print("held out again:", e["title"], "count now", core.count_value(m["id"]))
+
+
 def tick():
     for m in db.q("SELECT id,title,telem_monitor_id FROM metrics WHERE telem_monitor_id IS NOT NULL"):
         try:
@@ -86,4 +119,4 @@ def tick():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "seed": seed, "tick": tick}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold}[sys.argv[1]]()

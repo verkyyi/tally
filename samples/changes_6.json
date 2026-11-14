@@ -1,0 +1,229 @@
+{
+ "changes": [
+  {
+   "seq": 1509,
+   "type": "compile.done",
+   "kind": "compile",
+   "monitor_id": "5c9348df-1d08-4ec0-9564-eb9249a27381",
+   "subject": {
+    "entity_id": null,
+    "name": null
+   },
+   "before": null,
+   "after": {
+    "error": null,
+    "job_id": "4c67564f-74f1-4cba-a602-099221b130d0",
+    "status": "done",
+    "plan_version": 1
+   },
+   "fact_ids": [],
+   "at": "2026-11-14T20:21:49.687061+00:00"
+  },
+  {
+   "seq": 1556,
+   "type": "entity_added",
+   "kind": "entity_added",
+   "monitor_id": "5c9348df-1d08-4ec0-9564-eb9249a27381",
+   "subject": {
+    "entity_id": "54bc42331e65645e",
+    "name": "Notion Capital"
+   },
+   "before": null,
+   "after": {
+    "url": "https://techcrunch.com/2025/09/29/notion-capital-raises-130m-growth-fund-to-tackle-europes-follow-on-gap/",
+    "kind": "company",
+    "status": "rejected",
+    "discovered_via": "plan:notion_funding_sites"
+   },
+   "fact_ids": [
+    "3fe5a413-a997-547f-85d5-582fc55426b6",
+    "a1587c52-b3fd-536b-aa4d-0e33a6c8a56e",
+    "43fd3bb7-2d28-5cc8-aa5c-93437bbf5665",
+    "7e792577-68f4-5b4f-bb80-6ebcbadec262",
+    "08d16cbf-260a-5c0e-8d85-caa02613ecdc",
+    "af93a76c-13eb-5ccc-bf02-10ba7df0ac65"
+   ],
+   "at": "2026-11-14T20:23:06.559123+00:00"
+  },
+  {
+   "seq": 1557,
+   "type": "entity_added",
+   "kind": "entity_added",
+   "monitor_id": "5c9348df-1d08-4ec0-9564-eb9249a27381",
+   "subject": {
+    "entity_id": "573accf8e0a68894",
+    "name": "Notion Labs, Inc."
+   },
+   "before": null,
+   "after": {
+    "url": "https://www.notion.com/",
+    "kind": "company",
+    "status": "age_unclear",
+    "discovered_via": "plan:notion_site"
+   },
+   "fact_ids": [
+    "b68acd29-f440-5495-ad14-ad91506133d3",
+    "268b3526-9f58-548b-9684-a62dd5c4d92e",
+    "674a0c7b-cb61-58e8-9849-89315afb4110",
+    "09d086d2-458a-557e-824c-7fc367ecb2fd",
+    "f40fab31-5db6-5413-a669-80fcc9fb22e7",
+    "ab3b5fbb-8827-5192-bbee-faf2d3b29f62",
+    "cbe5438b-e632-5ba3-88a5-c4a4e68d0f6f"
+   ],
+   "at": "2026-11-14T20:23:06.559123+00:00"
+  },
+  {
+   "seq": 1558,
+   "type": "entity_added",
+   "kind": "entity_added",
+   "monitor_id": "5c9348df-1d08-4ec0-9564-eb9249a27381",
+   "subject": {
+    "entity_id": "ca737d655ceff137",
+    "name": "OpenTrade"
+   },
+   "before": null,
+   "after": {
+    "url": "https://www.onebullex.com/news/articles/opentrade-confirms-17-million-raise-and-30-million-valuation-5",
+    "kind": "company",
+    "status": "rejected",
+    "discovered_via": "plan:notion_funding_news"
+   },
+   "fact_ids": [
+    "5d50e674-7431-583b-9c2b-18440c5489a7",
+    "6cce8042-164b-56ce-ac10-c65ecee5e323",
+    "18df7caa-1041-5a8a-adff-4a79641ef11a",
+    "8f698f4d-1798-5a5d-bf14-d1ecd44b2942",
+    "affd046d-1398-5be0-ab2e-056dcccfdf82",
+    "51cd8cd0-d6c0-5caf-b045-53167a3aae4c"
+   ],
+   "at": "2026-11-14T20:23:06.559123+00:00"
+  },
+  {
+   "seq": 1559,
+   "type": "entity_added",
+   "kind": "entity_added",
+   "monitor_id": "5c9348df-1d08-4ec0-9564-eb9249a27381",
+   "subject": {
+    "entity_id": "d761cc24e8b9243e",
+    "name": "Griffin"
+   },
+   "before": null,
+   "after": {
+    "url": "https://cryptorank.io/insights/deals/griffin-series-b-2026-11-12",
+    "kind": "company",
+    "status": "rejected",
+    "discovered_via": "plan:notion_funding_news"
+   },
+   "fact_ids": [
+    "224177c3-3827-58c5-bc60-12930b1e4256",
+    "641aa641-8d49-557e-848f-91250323c3d6",
+    "c5c8c22f-73d3-5cb3-822c-c93c110ac2d5",
+    "bf4dca2e-88e9-5f5c-8735-34612b497834",
+    "8fe8ca7a-3ba4-5bac-9992-ded294cb8919",
+    "7e938bb5-2778-54fd-a409-cc9d234416b9",
+    "ffe242c8-0053-5974-a686-b93f147e3741"
+   ],
+   "at": "2026-11-14T20:23:06.559123+00:00"
+  },
+  {
+   "seq": 1560,
+   "type": "tick",
+   "kind": "run",
+   "monitor_id": "5c9348df-1d08-4ec0-9564-eb9249a27381",
+   "subject": {
+    "entity_id": null,
+    "name": null
+   },
+   "before": null,
+   "after": {
+    "cost": {
+     "llm": 0.1029,
+     "total": 0.1392,
+     "errors": 0,
+     "router": 0.0363
+    },
+    "alerts": 0,
+    "run_id": "0ddf758b-63ad-40ff-b969-194e6f4e9ef4",
+    "objects": 4,
+    "observed": 4,
+    "unobserved": 0,
+    "exploration": null,
+    "new_objects": 4,
+    "stop_reason": "done",
+    "wall_seconds": 76.6,
+    "source_health": [
+     {
+      "new": 1,
+      "usd": 0.001,
+      "kind": "plan",
+      "rows": 1,
+      "step": "notion_site",
+      "thin": 0,
+      "urls": {
+       "https://www.notion.com": "ok"
+      },
+      "error": null,
+      "failed": 0,
+      "status": "ok",
+      "skipped": false,
+      "estimate_usd": 0.001,
+      "price_source": "list"
+     },
+     {
+      "new": 3,
+      "usd": 0.003,
+      "kind": "plan",
+      "rows": 3,
+      "step": "notion_funding_pages",
+      "thin": 0,
+      "urls": {
+       "https://aifundingtracker.com/who-owns-notion": "ok",
+       "https://www.crunchbase.com/organization/notion-so": "ok",
+       "https://www.crunchbase.com/organization/notion-so/financial_details": "ok"
+      },
+      "error": null,
+      "failed": 0,
+      "status": "ok",
+      "skipped": false,
+      "estimate_usd": 0.003,
+      "price_source": "list"
+     },
+     {
+      "new": 9,
+      "usd": 0.01,
+      "kind": "plan",
+      "rows": 10,
+      "step": "notion_funding_news",
+      "thin": 0,
+      "error": null,
+      "failed": 0,
+      "status": "ok",
+      "skipped": false,
+      "estimate_usd": 0.01,
+      "price_source": "list"
+     },
+     {
+      "new": 8,
+      "usd": 0.0003,
+      "kind": "plan",
+      "rows": 10,
+      "step": "notion_funding_sites",
+      "thin": 0,
+      "error": null,
+      "failed": 0,
+      "status": "ok",
+      "skipped": false,
+      "estimate_usd": 0.0003,
+      "price_source": "list"
+     }
+    ],
+    "changed_objects": 0,
+    "carried_unchanged": 0
+   },
+   "fact_ids": [],
+   "at": "2026-11-14T20:23:06.394814+00:00"
+  }
+ ],
+ "next_cursor": 1560,
+ "watermark": 1560
+}

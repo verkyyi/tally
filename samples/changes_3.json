@@ -1,0 +1,103 @@
+{
+ "changes": [
+  {
+   "seq": 1501,
+   "type": "compile.done",
+   "kind": "compile",
+   "monitor_id": "75a60823-bdac-4aff-a03d-66d0e9473632",
+   "subject": {
+    "entity_id": null,
+    "name": null
+   },
+   "before": null,
+   "after": {
+    "error": null,
+    "job_id": "0b04c1ff-a324-4d65-9e3f-194250584bad",
+    "status": "done",
+    "plan_version": 1
+   },
+   "fact_ids": [],
+   "at": "2026-11-14T20:21:18.284782+00:00"
+  },
+  {
+   "seq": 1506,
+   "type": "entity_added",
+   "kind": "entity_added",
+   "monitor_id": "75a60823-bdac-4aff-a03d-66d0e9473632",
+   "subject": {
+    "entity_id": "80e7c06dfd82f214",
+    "name": "papermark/papermark"
+   },
+   "before": null,
+   "after": {
+    "url": "https://github.com/papermark/papermark",
+    "kind": "repository",
+    "status": "age_unclear",
+    "discovered_via": "plan:papermark_repo"
+   },
+   "fact_ids": [
+    "75a0481b-784a-5644-92b6-1a80f4948e48",
+    "d0c84ec7-2f52-5bb4-8248-3cb5a429da1c",
+    "ed42cde5-54cc-55de-9fa9-0a850edfe9a2",
+    "43e5c0bf-b9d8-5f58-bf20-fdae2eafb4b9",
+    "01bdcc00-1d72-5365-b72f-5adcbe03c715",
+    "e0ab76c1-0a42-5723-b979-41088c36a5af",
+    "472c57c5-e6fd-5d25-a4c4-0447337c80ff"
+   ],
+   "at": "2026-11-14T20:21:37.283354+00:00"
+  },
+  {
+   "seq": 1507,
+   "type": "tick",
+   "kind": "run",
+   "monitor_id": "75a60823-bdac-4aff-a03d-66d0e9473632",
+   "subject": {
+    "entity_id": null,
+    "name": null
+   },
+   "before": null,
+   "after": {
+    "cost": {
+     "llm": 0.011181,
+     "total": 0.012181,
+     "errors": 0,
+     "router": 0.001
+    },
+    "alerts": 0,
+    "run_id": "74384f6e-53e3-49b2-b6b9-4d293fc808f8",
+    "objects": 1,
+    "observed": 1,
+    "unobserved": 0,
+    "exploration": null,
+    "new_objects": 1,
+    "stop_reason": "done",
+    "wall_seconds": 18.8,
+    "source_health": [
+     {
+      "new": 1,
+      "usd": 0.001,
+      "kind": "plan",
+      "rows": 1,
+      "step": "papermark_repo",
+      "thin": 0,
+      "urls": {
+       "https://github.com/papermark/papermark": "ok"
+      },
+      "error": null,
+      "failed": 0,
+      "status": "ok",
+      "skipped": false,
+      "estimate_usd": 0.001,
+      "price_source": "list"
+     }
+    ],
+    "changed_objects": 0,
+    "carried_unchanged": 0
+   },
+   "fact_ids": [],
+   "at": "2026-11-14T20:21:37.146168+00:00"
+  }
+ ],
+ "next_cursor": 1507,
+ "watermark": 1507
+}

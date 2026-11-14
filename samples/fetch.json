@@ -1,0 +1,449 @@
+{
+ "instance_id": "use1-prod",
+ "session_id": "caded81f-7943-488c-8646-684f031a70c8",
+ "interaction_id": "d4cc69b8-2b83-4781-ba56-ea4b16f2cc49",
+ "trajectory_id": "ab8df485-e904-4e3c-8f15-1f46f21fc75d",
+ "parent_trajectory_id": null,
+ "trajectory_goal": null,
+ "status": "succeeded",
+ "preprocessor_runs": [
+  {
+   "id": "50cab7bc-4c16-49e3-8021-73ba5de0015f",
+   "preprocessor_name": "web_fetch",
+   "status": "succeeded",
+   "batch_index": 0,
+   "query": "https://gamma.app/pricing",
+   "request_payload": {
+    "preprocessor": "web_fetch",
+    "url_count": 1,
+    "user_input": {
+     "urls": [
+      "https://gamma.app/pricing"
+     ]
+    }
+   },
+   "output_payload": {
+    "fetched_results": [
+     {
+      "url": "https://gamma.app/pricing",
+      "status": "succeeded",
+      "error": null,
+      "content": "[Presentations](/products/presentations)\n[Websites](/products/websites)\n[Social Media](/products/social-media)\n[Documents](/products/documents)\n[API](/products/api)\n[Graphics](/products/graphics)\n[Integrations](/integrations)\n\n[Consultants](/solutions/consultants)\n[Marketing](/solutions/marketing)\n[Sales](/solutions/sales)\n[Educators](/solutions/educators)\n\n[About](/about)\n[Pricing](/pricing)\n\n[Login](/signin)\n[Start for free](/signup)\n\n# Choose the plan that\u2019s right for you\n\nNo credit card required\n\n## Free\n\nFor simple projects and getting to know Gamma\n\n---\n\n[Start for free](/signup)\n\nFree includes:\n\n* 400 credits at signup\n* Create up to 10 slides per prompt\n* Simple presentations, docs, websites, social, and images\n* Import from PDF & PPTX\n* Export to PDF, PPTX, PNG & Google Slides\n\nblah\n\n## Plus\n\nFor extra AI power and removing Gamma branding\n\n---\n\n[Get started](/signup)\n\nEverything in Free, and:\n\n* 1,500 monthly credits\n* Create up to 100 slides per prompt\n* Remove Gamma branding\n* Advanced AI image models\n\nMost popular\n\n## Pro\n\nFor premium AI models and more customization\n\n---\n\n[Get started](/signup)\n\nEverything in Plus, and:\n\n* 4,000 monthly credits\n* Premium AI image models\n* Custom branding\n* Detailed analytics & advanced sharing\n* Publish up to 10 custom domains\n\nblah\n\n## Ultra\n\nFor 20\u00d7 more AI usage and unlocking access to the most advanced models\n\n---\n\n[Get started](/signup)\n\nEverything in Pro, and:\n\n* 20,000 monthly credits\n* Access to the most advanced AI models (text, image, video)\n* Publish up to 100 custom domains\n* Early access to new features\n\nPrices are subject to tax depending on your location.\n\nWe're a **SOC 2 Type II** compliant organization.\n\nLearn more at our [Trust Center](https://trust.gamma.app)\n\n## Frequently asked questions\n\nWe leverage a variety of the most advanced AI models to provide you with the best possible experience. These include:\n\n* Claude (Anthropic)\n* ChatGPT + DALL-E (OpenAI)\n* Gemini (Google)\n* Flux\n* Recraft\n* Playground\n* Ideogram\n* Luma\n* Leonardo\n\nThis combination allows us to offer powerful capabilities in text generation, image creation, and design assistance while ensuring your data privacy and security.\n\nCredits are used for AI features throughout Gamma. The number of credits an action uses can vary based on what you're doing, which AI model is used, and the length or complexity of the generation.\n\nPaid plans include monthly credits:\n\n* Plus: 1,500 / month\n* Pro: 4,000 / month\n* Ultra: 20,000 / month\n* Business: 10,000 / seat / month\n\nUnused credits roll over up to 2\u00d7 the monthly amount. Example: Plus can hold up to 3,000.\n\nPaid users can purchase additional credits.\n\nFree plan includes 400 starter credits that do not refill. Free plan users can invite friends and earn credits when they join.\n\nYes! You can export any content you create as a PowerPoint (PPT) or PDF file. Alternatively, you can also import any PPT file into Gamma to be enriched.\n\nYes! You can save up to by choosing an annual plan compared to monthly billing.\n\nAbsolutely! You can upgrade, downgrade, or cancel your plan at any time from \"Settings & members\". If you cancel, you'll retain access to your paid features and credits until the end of your current billing period. After that, your account automatically transitions to the Free plan. You can learn more about how to manage your plan [here](https://help.gamma.app/en/articles/8568920-how-to-manage-or-cancel-your-gamma-subscription).\n\nWe accept all major credit and debit card brands. You can also pay directly via any US or EU bank. For customers in India, UPI payments are supported.\n\nOn individual paid plans (Plus, Pro, Ultra), you are charged for each additional seat when a member accepts their invitation.\n\nOn Team and Business plans, seats are purchased upfront. You can invite members up to the number of seats you\u2019ve purchased. If you need more seats, you can buy them at any time.\n\nYour content remains yours, regardless of your subscription status. If you downgrade or cancel, you'll retain access to all your created content, but some advanced features may be limited.\n\nYes, you can easily create themes inside our theme builder.\n\nGamma offers an API that lets you connect Gamma to other tools and workflows. It can be used directly by developers or through no-code platforms like Zapier and Make. Access is available on all plans and uses AI credits. You can get an overview [here](/products/api) and read our documentation [here](https://developers.gamma.app).\n\n---\n\n### Product\n\n* [Pricing](/pricing)\n* [Inspiration](/inspiration)\n* [Education](https://lab.gamma.app/)\n* [Prompt guide](/prompts)\n* [Insights](/insights)\n* [Templates](/templates)\n* [Explore](/explore)\n* [Integrations](/integrations)\n* [Accessibility](/accessibility)\n\n### Company\n\n* [About](/about)\n* [Careers](https://careers.gamma.app)\n* [Team](https://team.gamma.app)\n* [Help](https://help.gamma.app)\n* [Community](/community)\n* [Developer docs](https://developers.gamma.app/)\n* [Brand](https://brand.gamma.app)\n* [Trust center](https://trust.gamma.app)\n* [Contact us](mailto:support@gamma.app)\n\n### Social\n\n* [Instagram](https://www.instagram.com/meetgamma/)\n* [LinkedIn](https://www.linkedin.com/company/gamma-app/)\n* [TikTok](https://www.tiktok.com/@gamma.app)\n* [X](https://x.com/gammaapp)\n* [YouTube](https://www.youtube.com/@meetgamma)\n\n### [Legal](/legal)\n\n* [Acceptable Use Policy](/acceptable-use-policy)\n* [Cookie Notice](/cookie-notice)\n* Cookie Preferences\n* [Data Processing Addendum](/dpa)\n* [Privacy Policy](/privacy)\n* [Subprocessors](/subprocessors)\n* [Terms of Service](/terms)\n* [Third Party Terms](/third-party-terms)\n\n### Get the app\n\n\u00a9 2026 Gamma Tech, Inc.",
+      "content_truncated": false,
+      "content_ref": {
+       "storage_backend": "s3",
+       "object_key": "web-fetch/sha256/6d/cc/6dcc636f16d0d7bb3645b508f3f8d5eea06f4ce70c734e2497d406fd875fea89.md"
+      },
+      "source": null,
+      "preprocessor_run_id": null,
+      "result_index": null,
+      "fetched_at": "2026-11-14T20:20:34.848392+00:00",
+      "content_format": "markdown",
+      "js_rendered": null,
+      "pdf_mode": null,
+      "content_length": 5696,
+      "content_sha256": "6dcc636f16d0d7bb3645b508f3f8d5eea06f4ce70c734e2497d406fd875fea89",
+      "canonical_url": "https://gamma.app/pricing",
+      "title": "Plans and pricing | Gamma",
+      "description": null,
+      "http_status": null,
+      "warning": null,
+      "provider": "tavily",
+      "cache_state": null,
+      "request_id": "493a4944-dad1-4a01-8f55-dce677887fc8",
+      "latency_ms": 158,
+      "warnings": [
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `cache_state` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `description` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `http_status` \u2014 tavily reports success/failure by array membership, never an upstream status"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `js_rendered` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `pdf_mode` \u2014 tavily parses PDFs to text but reports no content type, so the mode is unknowable"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `warning` \u2014 tavily has no soft-failure channel; a URL either extracts or lands in failed_results"
+       },
+       {
+        "code": "relative_links",
+        "message": "tavily: body contains site-relative links with no base URL; resolve against the document URL before following them"
+       }
+      ],
+      "cached": false
+     }
+    ],
+    "requested_url_count": 1,
+    "succeeded_count": 1,
+    "failed_count": 0,
+    "live_fetch_count": 1
+   },
+   "raw_payload": null,
+   "error": null,
+   "latency_ms": 457
+  },
+  {
+   "id": "abcec9aa-ff58-43f0-957f-c7f36125684c",
+   "preprocessor_name": "web_fetch",
+   "status": "succeeded",
+   "batch_index": 1,
+   "query": "https://api.github.com/repos/papermark/papermark",
+   "request_payload": {
+    "preprocessor": "web_fetch",
+    "url_count": 1,
+    "user_input": {
+     "urls": [
+      "https://api.github.com/repos/papermark/papermark"
+     ]
+    }
+   },
+   "output_payload": {
+    "fetched_results": [
+     {
+      "url": "https://api.github.com/repos/papermark/papermark",
+      "status": "succeeded",
+      "error": null,
+      "content": "{ \"id\": 646985602, \"node\\_id\": \"R\\_kgDOJpA3gg\", \"name\": \"papermark\", \"full\\_name\": \"papermark/papermark\", \"private\": false, \"owner\": { \"login\": \"papermark\", \"id\": 145220958, \"node\\_id\": \"O\\_kgDOCKflXg\", \"avatar\\_url\": \"https://avatars.githubusercontent.com/u/145220958?v=4\", \"gravatar\\_id\": \"\", \"url\": \"https://api.github.com/users/papermark\", \"html\\_url\": \"https://github.com/papermark\", \"followers\\_url\": \"https://api.github.com/users/papermark/followers\", \"following\\_url\": \"https://api.github.com/users/papermark/following{/other\\_user}\", \"gists\\_url\": \"https://api.github.com/users/papermark/gists{/gist\\_id}\", \"starred\\_url\": \"https://api.github.com/users/papermark/starred{/owner}{/repo}\", \"subscriptions\\_url\": \"https://api.github.com/users/papermark/subscriptions\", \"organizations\\_url\": \"https://api.github.com/users/papermark/orgs\", \"repos\\_url\": \"https://api.github.com/users/papermark/repos\", \"events\\_url\": \"https://api.github.com/users/papermark/events{/privacy}\", \"received\\_events\\_url\": \"https://api.github.com/users/papermark/received\\_events\", \"type\": \"Organization\", \"user\\_view\\_type\": \"public\", \"site\\_admin\": false }, \"html\\_url\": \"https://github.com/papermark/papermark\", \"description\": \"Papermark is the open-source DocSend alternative and secure data rooms with built-in analytics and custom domains.\", \"fork\": false, \"url\": \"https://api.github.com/repos/papermark/papermark\", \"forks\\_url\": \"https://api.github.com/repos/papermark/papermark/forks\", \"keys\\_url\": \"https://api.github.com/repos/papermark/papermark/keys{/key\\_id}\", \"collaborators\\_url\": \"https://api.github.com/repos/papermark/papermark/collaborators{/collaborator}\", \"teams\\_url\": \"https://api.github.com/repos/papermark/papermark/teams\", \"hooks\\_url\": \"https://api.github.com/repos/papermark/papermark/hooks\", \"issue\\_events\\_url\": \"https://api.github.com/repos/papermark/papermark/issues/events{/number}\", \"events\\_url\": \"https://api.github.com/repos/papermark/papermark/events\", \"assignees\\_url\": \"https://api.github.com/repos/papermark/papermark/assignees{/user}\", \"branches\\_url\": \"https://api.github.com/repos/papermark/papermark/branches{/branch}\", \"tags\\_url\": \"https://api.github.com/repos/papermark/papermark/tags\", \"blobs\\_url\": \"https://api.github.com/repos/papermark/papermark/git/blobs{/sha}\", \"git\\_tags\\_url\": \"https://api.github.com/repos/papermark/papermark/git/tags{/sha}\", \"git\\_refs\\_url\": \"https://api.github.com/repos/papermark/papermark/git/refs{/sha}\", \"trees\\_url\": \"https://api.github.com/repos/papermark/papermark/git/trees{/sha}\", \"statuses\\_url\": \"https://api.github.com/repos/papermark/papermark/statuses/{sha}\", \"languages\\_url\": \"https://api.github.com/repos/papermark/papermark/languages\", \"stargazers\\_url\": \"https://api.github.com/repos/papermark/papermark/stargazers\", \"contributors\\_url\": \"https://api.github.com/repos/papermark/papermark/contributors\", \"subscribers\\_url\": \"https://api.github.com/repos/papermark/papermark/subscribers\", \"subscription\\_url\": \"https://api.github.com/repos/papermark/papermark/subscription\", \"commits\\_url\": \"https://api.github.com/repos/papermark/papermark/commits{/sha}\", \"git\\_commits\\_url\": \"https://api.github.com/repos/papermark/papermark/git/commits{/sha}\", \"comments\\_url\": \"https://api.github.com/repos/papermark/papermark/comments{/number}\", \"issue\\_comment\\_url\": \"https://api.github.com/repos/papermark/papermark/issues/comments{/number}\", \"contents\\_url\": \"https://api.github.com/repos/papermark/papermark/contents/{+path}\", \"compare\\_url\": \"https://api.github.com/repos/papermark/papermark/compare/{base}...{head}\", \"merges\\_url\": \"https://api.github.com/repos/papermark/papermark/merges\", \"archive\\_url\": \"https://api.github.com/repos/papermark/papermark/{archive\\_format}{/ref}\", \"downloads\\_url\": \"https://api.github.com/repos/papermark/papermark/downloads\", \"issues\\_url\": \"https://api.github.com/repos/papermark/papermark/issues{/number}\", \"pulls\\_url\": \"https://api.github.com/repos/papermark/papermark/pulls{/number}\", \"milestones\\_url\": \"https://api.github.com/repos/papermark/papermark/milestones{/number}\", \"notifications\\_url\": \"https://api.github.com/repos/papermark/papermark/notifications{?since,all,participating}\", \"labels\\_url\": \"https://api.github.com/repos/papermark/papermark/labels{/name}\", \"releases\\_url\": \"https://api.github.com/repos/papermark/papermark/releases{/id}\", \"deployments\\_url\": \"https://api.github.com/repos/papermark/papermark/deployments\", \"created\\_at\": \"2023-05-29T20:00:15Z\", \"updated\\_at\": \"2026-11-14T17:57:51Z\", \"pushed\\_at\": \"2026-08-28T15:58:25Z\", \"git\\_url\": \"git://github.com/papermark/papermark.git\", \"ssh\\_url\": \"git@github.com:papermark/papermark.git\", \"clone\\_url\": \"https://github.com/papermark/papermark.git\", \"svn\\_url\": \"https://github.com/papermark/papermark\", \"homepage\": \"https://www.papermark.com\", \"size\": 36088, \"stargazers\\_count\": 9364, \"watchers\\_count\": 9364, \"language\": \"TypeScript\", \"has\\_issues\": true, \"has\\_projects\": true, \"has\\_downloads\": false, \"has\\_wiki\": false, \"has\\_pages\": false, \"has\\_discussions\": true, \"forks\\_count\": 1427, \"mirror\\_url\": null, \"archived\": false, \"disabled\": false, \"open\\_issues\\_count\": 240, \"license\": { \"key\": \"other\", \"name\": \"Other\", \"spdx\\_id\": \"NOASSERTION\", \"url\": null, \"node\\_id\": \"MDc6TGljZW5zZTA=\" }, \"allow\\_forking\": true, \"is\\_template\": false, \"web\\_commit\\_signoff\\_required\": false, \"has\\_pull\\_requests\": true, \"pull\\_request\\_creation\\_policy\": \"all\", \"topics\": [ \"dataroom\", \"next-auth\", \"nextjs\", \"open-source\", \"pdf\", \"postgresql\", \"prisma\", \"tailwindcss\", \"typescript\", \"zod\" ], \"visibility\": \"public\", \"forks\": 1427, \"open\\_issues\": 240, \"watchers\": 9364, \"default\\_branch\": \"main\", \"temp\\_clone\\_token\": null, \"custom\\_properties\": { }, \"organization\": { \"login\": \"papermark\", \"id\": 145220958, \"node\\_id\": \"O\\_kgDOCKflXg\", \"avatar\\_url\": \"https://avatars.githubusercontent.com/u/145220958?v=4\", \"gravatar\\_id\": \"\", \"url\": \"https://api.github.com/users/papermark\", \"html\\_url\": \"https://github.com/papermark\", \"followers\\_url\": \"https://api.github.com/users/papermark/followers\", \"following\\_url\": \"https://api.github.com/users/papermark/following{/other\\_user}\", \"gists\\_url\": \"https://api.github.com/users/papermark/gists{/gist\\_id}\", \"starred\\_url\": \"https://api.github.com/users/papermark/starred{/owner}{/repo}\", \"subscriptions\\_url\": \"https://api.github.com/users/papermark/subscriptions\", \"organizations\\_url\": \"https://api.github.com/users/papermark/orgs\", \"repos\\_url\": \"https://api.github.com/users/papermark/repos\", \"events\\_url\": \"https://api.github.com/users/papermark/events{/privacy}\", \"received\\_events\\_url\": \"https://api.github.com/users/papermark/received\\_events\", \"type\": \"Organization\", \"user\\_view\\_type\": \"public\", \"site\\_admin\": false }, \"network\\_count\": 1427, \"subscribers\\_count\": 27 } ",
+      "content_truncated": false,
+      "content_ref": {
+       "storage_backend": "s3",
+       "object_key": "web-fetch/sha256/9f/33/9f3381d2ba6a6cca05d8b1df2858436b82140a4c3b9e4d41a4883912806e71d6.md"
+      },
+      "source": null,
+      "preprocessor_run_id": null,
+      "result_index": null,
+      "fetched_at": "2026-11-14T20:20:35.163692+00:00",
+      "content_format": "markdown",
+      "js_rendered": null,
+      "pdf_mode": null,
+      "content_length": 6820,
+      "content_sha256": "9f3381d2ba6a6cca05d8b1df2858436b82140a4c3b9e4d41a4883912806e71d6",
+      "canonical_url": "https://api.github.com/repos/papermark/papermark",
+      "title": null,
+      "description": null,
+      "http_status": null,
+      "warning": null,
+      "provider": "tavily",
+      "cache_state": null,
+      "request_id": "9ac773a3-9e48-4ba6-b815-8650265458c6",
+      "latency_ms": 514,
+      "warnings": [
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `cache_state` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `description` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `http_status` \u2014 tavily reports success/failure by array membership, never an upstream status"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `js_rendered` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `pdf_mode` \u2014 tavily parses PDFs to text but reports no content type, so the mode is unknowable"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `warning` \u2014 tavily has no soft-failure channel; a URL either extracts or lands in failed_results"
+       }
+      ],
+      "cached": false
+     }
+    ],
+    "requested_url_count": 1,
+    "succeeded_count": 1,
+    "failed_count": 0,
+    "live_fetch_count": 1
+   },
+   "raw_payload": null,
+   "error": null,
+   "latency_ms": 770
+  },
+  {
+   "id": "db9714e6-3608-4787-97fa-d374a69ee80d",
+   "preprocessor_name": "web_fetch",
+   "status": "succeeded",
+   "batch_index": 2,
+   "query": "https://itunes.apple.com/lookup?id=1232780281&country=us",
+   "request_payload": {
+    "preprocessor": "web_fetch",
+    "url_count": 1,
+    "user_input": {
+     "urls": [
+      "https://itunes.apple.com/lookup?id=1232780281&country=us"
+     ]
+    }
+   },
+   "output_payload": {
+    "fetched_results": [
+     {
+      "url": "https://itunes.apple.com/lookup?id=1232780281&country=us",
+      "status": "succeeded",
+      "error": null,
+      "content": "{ \"resultCount\":1, \"results\": [ {\"isGameCenterEnabled\":false, \"features\":[\"iosUniversal\"], \"supportedDevices\":[\"iPhone5s-iPhone5s\", \"iPadAir-iPadAir\", \"iPadAirCellular-iPadAirCellular\", \"iPadMiniRetina-iPadMiniRetina\", \"iPadMiniRetinaCellular-iPadMiniRetinaCellular\", \"iPhone6-iPhone6\", \"iPhone6Plus-iPhone6Plus\", \"iPadAir2-iPadAir2\", \"iPadAir2Cellular-iPadAir2Cellular\", \"iPadMini3-iPadMini3\", \"iPadMini3Cellular-iPadMini3Cellular\", \"iPodTouchSixthGen-iPodTouchSixthGen\", \"iPhone6s-iPhone6s\", \"iPhone6sPlus-iPhone6sPlus\", \"iPadMini4-iPadMini4\", \"iPadMini4Cellular-iPadMini4Cellular\", \"iPadPro-iPadPro\", \"iPadProCellular-iPadProCellular\", \"iPadPro97-iPadPro97\", \"iPadPro97Cellular-iPadPro97Cellular\", \"iPhoneSE-iPhoneSE\", \"iPhone7-iPhone7\", \"iPhone7Plus-iPhone7Plus\", \"iPad611-iPad611\", \"iPad612-iPad612\", \"iPad71-iPad71\", \"iPad72-iPad72\", \"iPad73-iPad73\", \"iPad74-iPad74\", \"iPhone8-iPhone8\", \"iPhone8Plus-iPhone8Plus\", \"iPhoneX-iPhoneX\", \"iPad75-iPad75\", \"iPad76-iPad76\", \"iPhoneXS-iPhoneXS\", \"iPhoneXSMax-iPhoneXSMax\", \"iPhoneXR-iPhoneXR\", \"iPad812-iPad812\", \"iPad834-iPad834\", \"iPad856-iPad856\", \"iPad878-iPad878\", \"iPadMini5-iPadMini5\", \"iPadMini5Cellular-iPadMini5Cellular\", \"iPadAir3-iPadAir3\", \"iPadAir3Cellular-iPadAir3Cellular\", \"iPodTouchSeventhGen-iPodTouchSeventhGen\", \"iPhone11-iPhone11\", \"iPhone11Pro-iPhone11Pro\", \"iPadSeventhGen-iPadSeventhGen\", \"iPadSeventhGenCellular-iPadSeventhGenCellular\", \"iPhone11ProMax-iPhone11ProMax\", \"iPhoneSESecondGen-iPhoneSESecondGen\", \"iPadProSecondGen-iPadProSecondGen\", \"iPadProSecondGenCellular-iPadProSecondGenCellular\", \"iPadProFourthGen-iPadProFourthGen\", \"iPadProFourthGenCellular-iPadProFourthGenCellular\", \"iPhone12Mini-iPhone12Mini\", \"iPhone12-iPhone12\", \"iPhone12Pro-iPhone12Pro\", \"iPhone12ProMax-iPhone12ProMax\", \"iPadAir4-iPadAir4\", \"iPadAir4Cellular-iPadAir4Cellular\", \"iPadEighthGen-iPadEighthGen\", \"iPadEighthGenCellular-iPadEighthGenCellular\", \"iPadProThirdGen-iPadProThirdGen\", \"iPadProThirdGenCellular-iPadProThirdGenCellular\", \"iPadProFifthGen-iPadProFifthGen\", \"iPadProFifthGenCellular-iPadProFifthGenCellular\", \"iPhone13Pro-iPhone13Pro\", \"iPhone13ProMax-iPhone13ProMax\", \"iPhone13Mini-iPhone13Mini\", \"iPhone13-iPhone13\", \"iPadMiniSixthGen-iPadMiniSixthGen\", \"iPadMiniSixthGenCellular-iPadMiniSixthGenCellular\", \"iPadNinthGen-iPadNinthGen\", \"iPadNinthGenCellular-iPadNinthGenCellular\", \"iPhoneSEThirdGen-iPhoneSEThirdGen\", \"iPadAirFifthGen-iPadAirFifthGen\", \"iPadAirFifthGenCellular-iPadAirFifthGenCellular\", \"iPhone14-iPhone14\", \"iPhone14Plus-iPhone14Plus\", \"iPhone14Pro-iPhone14Pro\", \"iPhone14ProMax-iPhone14ProMax\", \"iPadTenthGen-iPadTenthGen\", \"iPadTenthGenCellular-iPadTenthGenCellular\", \"iPadPro11FourthGen-iPadPro11FourthGen\", \"iPadPro11FourthGenCellular-iPadPro11FourthGenCellular\", \"iPadProSixthGen-iPadProSixthGen\", \"iPadProSixthGenCellular-iPadProSixthGenCellular\", \"iPhone15-iPhone15\", \"iPhone15Plus-iPhone15Plus\", \"iPhone15Pro-iPhone15Pro\", \"iPhone15ProMax-iPhone15ProMax\", \"iPadAir11M2-iPadAir11M2\", \"iPadAir11M2Cellular-iPadAir11M2Cellular\", \"iPadAir13M2-iPadAir13M2\", \"iPadAir13M2Cellular-iPadAir13M2Cellular\", \"iPadPro11M4-iPadPro11M4\", \"iPadPro11M4Cellular-iPadPro11M4Cellular\", \"iPadPro13M4-iPadPro13M4\", \"iPadPro13M4Cellular-iPadPro13M4Cellular\", \"iPhone16-iPhone16\", \"iPhone16Plus-iPhone16Plus\", \"iPhone16Pro-iPhone16Pro\", \"iPhone16ProMax-iPhone16ProMax\", \"iPadMiniA17Pro-iPadMiniA17Pro\", \"iPadMiniA17ProCellular-iPadMiniA17ProCellular\", \"iPhone16e-iPhone16e\", \"iPadA16-iPadA16\", \"iPadA16Cellular-iPadA16Cellular\", \"iPadAir11M3-iPadAir11M3\", \"iPadAir11M3Cellular-iPadAir11M3Cellular\", \"iPadAir13M3-iPadAir13M3\", \"iPadAir13M3Cellular-iPadAir13M3Cellular\", \"iPhone17Pro-iPhone17Pro\", \"iPhone17ProMax-iPhone17ProMax\", \"iPhone17-iPhone17\", \"iPhoneAir-iPhoneAir\", \"iPadPro11M5-iPadPro11M5\", \"iPadPro11M5Cellular-iPadPro11M5Cellular\", \"iPadPro13M5-iPadPro13M5\", \"iPadPro13M5Cellular-iPadPro13M5Cellular\", \"iPhone17e-iPhone17e\", \"iPadAir11M4-iPadAir11M4\", \"iPadAir11M4Cellular-iPadAir11M4Cellular\", \"iPadAir13M4-iPadAir13M4\", \"iPadAir13M4Cellular-iPadAir13M4Cellular\", \"iPhone18Pro-iPhone18Pro\", \"iPhone18ProMax-iPhone18ProMax\", \"iPhoneDuo-iPhoneDuo\", \"iPadMiniA20Pro-iPadMiniA20Pro\", \"iPadMiniA20ProCellular-iPadMiniA20ProCellular\"], \"advisories\":[], \"kind\":\"software\", \"artistViewUrl\":\"https://apps.apple.com/us/developer/notion-labs-incorporated/id1232780280?uo=4\", \"artworkUrl60\":\"https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/4a/fa/7a/4afa7a74-b27e-17db-4293-50450fc8423c/AppIconProd-0-0-1x\\_U007epad-0-0-0-1-0-0-85-220.png/60x60bb.jpg\", \"artworkUrl100\":\"https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/4a/fa/7a/4afa7a74-b27e-17db-4293-50450fc8423c/AppIconProd-0-0-1x\\_U007epad-0-0-0-1-0-0-85-220.png/100x100bb.jpg\", \"screenshotUrls\":[ \"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/4e/9c/7b/4e9c7b5a-4e44-af47-6389-1fce93ffc6de/NotionLabs\\_Notion\\_iOS-6.9\\_US\\_Screenshots\\_250924\\_01.png/320x480bb.jpg\", \"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/8f/a4/5c/8fa45ce1-ea9a-8148-1928-b1939028c8ce/NotionLabs\\_Notion\\_iOS-6.9\\_US\\_Screenshots\\_250924\\_02.png/320x480bb.jpg\", \"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/49/67/56/49675696-a92d-ba12-de33-59b79711b0f3/NotionLabs\\_Notion\\_iOS-6.9\\_US\\_Screenshots\\_250924\\_03.png/320x480bb.jpg\", \"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/37/d0/f1/37d0f1dd-0541-712c-85f6-aa1fca59af7a/NotionLabs\\_Notion\\_iOS-6.9\\_US\\_Screenshots\\_250924\\_04.png/320x480bb.jpg\", \"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/9e/45/71/9e457117-05e3-a2ab-8a04-c872306f707a/NotionLabs\\_Notion\\_iOS-6.9\\_US\\_Screenshots\\_250924\\_05.png/320x480bb.jpg\", \"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/46/14/f2/4614f26e-bf71-06f4-932b-dcd7ee4a15ef/NotionLabs\\_Notion\\_iOS-6.9\\_US\\_Screenshots\\_250924\\_06.png/320x480bb.jpg\", \"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/f0/59/6e/f0596edb-d942-60b7-ae93-b47b6c44c868/NotionLabs\\_Notion\\_iOS-6.9\\_US\\_Screenshots\\_250924\\_07.png/320x480bb.jpg\"], \"ipadScreenshotUrls\":[\"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/1d/9c/f6/1d9cf608-5057-04bb-3aab-62dfa53c3f82/1\\_IPAD\\_13.png/576x768bb.png\", \"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/28/47/23/284723c1-9427-b037-e46d-3491765a68dc/2\\_IPAD\\_13.png/576x768bb.png\", \"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/55/40/28/554028c8-83f1-7db3-e160-1bb09ba6af12/3\\_IPAD\\_13.png/576x768bb.png\", \"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/cd/60/63/cd606344-55b2-71f0-2cc5-92d3039fd2f7/4\\_IPAD\\_13.png/576x768bb.png\", \"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/3a/ff/95/3aff95c0-87be-182c-5203-5627cdc1c6e8/5\\_IPAD\\_13.png/576x768bb.png\", \"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/9f/10/65/9f10654a-4deb-2d03-d29c-5b3f807a7358/6\\_IPAD\\_13.png/576x768bb.png\", \"https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/10/00/f3/1000f392-a42f-4814-ba28-a0acaaf1079e/7\\_IPAD\\_13.png/576x768bb.png\"], \"appletvScreenshotUrls\":[], \"artworkUrl512\":\"https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/4a/fa/7a/4afa7a74-b27e-17db-4293-50450fc8423c/AppIconProd-0-0-1x\\_U007epad-0-0-0-1-0-0-85-220.png/512x512bb.jpg\", \"releaseNotes\":\"Bug fixes and performance improvements.\", \"artistId\":1232780280, \"artistName\":\"Notion Labs, Incorporated\", \"genres\":[\"Productivity\", \"Business\"], \"price\":0.00, \"minimumOsVersion\":\"18.0\", \"bundleId\":\"notion.id\", \"sellerName\":\"Notion Labs, Incorporated\", \"primaryGenreName\":\"Productivity\", \"primaryGenreId\":6007, \"releaseDate\":\"2017-09-14T19:07:31Z\", \"trackId\":1232780281, \"trackName\":\"Notion: Notes, Tasks, AI\", \"currentVersionReleaseDate\":\"2026-11-10T02:54:41Z\", \"version\":\"1.7.353\", \"wrapperType\":\"software\", \"currency\":\"USD\", \"description\":\"Notion is an AI-powered all-in-one workspace that helps individuals and teams write notes, manage tasks, organize projects, and collaborate in one place. Whether you\u2019re tracking personal to-do lists, writing and organizing class notes, or managing projects with a team, Notion helps users plan work, stay organized, and achieve goals.\\n\\n\\\"AI's everything app\\\" \u2014 Forbes\\n\\nNotion is a productivity app where you can write, plan, and organize your notes, projects, tasks and more. Ask Notion AI about project updates, upcoming tasks, and suggestions for a more streamlined workflow.\\n\\nSimplify writing notes, project and task management, and collaboration. Whether for personal, student or professional use, Notion scales to meet your individual needs with customization tools for everyone.\\n\\nNEW features:\\n\u2022 AI Meeting Notes: Perfect meeting memory. Your notetaker catches every detail and delivers actionable summaries, right where you work.\\n\u2022 Maps View: Turn databases into interactive maps. Use the new Place property to pin restaurants, trips, offices, clients, and more.\\n\\nFREE FOR PERSONAL USE\\nIndividuals manage day-to-day tasks, notes, and personal organization.\\n\u2022 Create as many notes, docs, and content as you want.\\n\u2022 Use one of thousands of templates to get started.\\n\\nFREE TO TRY WITH YOUR TEAM\\nTeams run on Notion every day, from next-generation startups to established enterprises.\\n\u2022 Import Google Docs, PDFs, and other content types easily to get started\\n\u2022 Write and organize meeting notes, or transcribe with AI.\\n\u2022 Collaboration and team work at your fingertips, in one connected workspace.\\n\u2022 Connect tools like Figma, Slack, and GitHub to Notion.\\n\\nFREE FOR STUDENTS\\nStudents organize notes, assignments, and study plans in one place.\\n\u2022 Your study planner, class notes, to do lists and more, your way. Loved by millions of students worldwide.\\n\u2022 Get organized for your best school year yet with beautiful, customizable templates created by students, for students.\\n\\nNOTES & DOCS\\nCommunication is made efficient with Notion's flexible building blocks.\\n\u2022 Create docs with beautiful templates, images, to-dos, and 50+ more content types.\\n\u2022 Meeting notes, projects, design systems, pitch decks, and more.\\n\u2022 Find exactly what you need using Search with powerful filters to find content across your workspace.\\n\\nTASKS & PROJECTS\\nCatch all details big and small in any workflow.\\n\u2022 Workflow manager: Create your own priority labels, status tags, and automations to choose the exact info you want to track.\\n\u2022 Capture every detail in a table. Break projects into manageable tasks to get the work done.\\n\\nAI\\nOne tool that does it all - search, generate, analyze, and chat - right inside Notion.\\n\u2022 Create notes. Transcribe meeting notes with AI.\\n\u2022 Turn databases into interactive maps. Use the new Place property to pin restaurants, trips, offices, clients, and more.\\n\u2022 Write better. Use Notion AI to help write and brainstorm.\\n\u2022 Get answers. Ask Notion AI questions about all your content and get answers in seconds.\\n\u2022 Autofill tables. Notion AI turns overwhelming data into clear, actionable information \u2014 automatically.\\n\\nSYNCS WITH BROWSER, MAC, AND WINDOWS APPS.\\n\u2022 Pick up on mobile where you left off on desktop.\\n\\nMORE PRODUCTIVITY. FEWER TOOLS.\\n\u2022 Track to-dos, write notes, create docs, and manage projects in one connected workspace.\\n\\nTHINK IT. MAKE IT.\", \"trackCensoredName\":\"Notion: Notes, Tasks, AI\", \"trackViewUrl\":\"https://apps.apple.com/us/app/notion-notes-tasks-ai/id1232780281?uo=4\", \"contentAdvisoryRating\":\"4+\", \"averageUserRating\":4.77432000000000034134473025915212929248809814453125, \"averageUserRatingForCurrentVersion\":4.77432000000000034134473025915212929248809814453125, \"sellerUrl\":\"https://www.notion.so\", \"languageCodesISO2A\":[\"AR\", \"DA\", \"NL\", \"EN\", \"FI\", \"FR\", \"DE\", \"HE\", \"ID\", \"IT\", \"JA\", \"KO\", \"NB\", \"PT\", \"ZH\", \"ES\", \"SV\", \"TH\", \"ZH\", \"VI\"], \"fileSizeBytes\":\"537577472\", \"formattedPrice\":\"Free\", \"userRatingCountForCurrentVersion\":90714, \"trackContentRating\":\"4+\", \"genreIds\":[\"6007\", \"6000\"], \"isVppDeviceBasedLicensingEnabled\":true, \"userRatingCount\":90714}] } ",
+      "content_truncated": false,
+      "content_ref": {
+       "storage_backend": "s3",
+       "object_key": "web-fetch/sha256/80/a7/80a772553821fe815a247447dd884e0f91aac9b0a379d3e3c00c25ad00a31163.md"
+      },
+      "source": null,
+      "preprocessor_run_id": null,
+      "result_index": null,
+      "fetched_at": "2026-11-14T20:20:35.063188+00:00",
+      "content_format": "markdown",
+      "js_rendered": null,
+      "pdf_mode": null,
+      "content_length": 11937,
+      "content_sha256": "80a772553821fe815a247447dd884e0f91aac9b0a379d3e3c00c25ad00a31163",
+      "canonical_url": "https://itunes.apple.com/lookup?id=1232780281&country=us",
+      "title": null,
+      "description": null,
+      "http_status": null,
+      "warning": null,
+      "provider": "tavily",
+      "cache_state": null,
+      "request_id": "a4f95d9b-eeef-4fb4-9717-79b59255f5de",
+      "latency_ms": 427,
+      "warnings": [
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `cache_state` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `description` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `http_status` \u2014 tavily reports success/failure by array membership, never an upstream status"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `js_rendered` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `pdf_mode` \u2014 tavily parses PDFs to text but reports no content type, so the mode is unknowable"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `warning` \u2014 tavily has no soft-failure channel; a URL either extracts or lands in failed_results"
+       }
+      ],
+      "cached": false
+     }
+    ],
+    "requested_url_count": 1,
+    "succeeded_count": 1,
+    "failed_count": 0,
+    "live_fetch_count": 1
+   },
+   "raw_payload": null,
+   "error": null,
+   "latency_ms": 670
+  },
+  {
+   "id": "f5cc90d3-aa74-4760-b0c7-771df75324b6",
+   "preprocessor_name": "web_fetch",
+   "status": "succeeded",
+   "batch_index": 3,
+   "query": "https://jobs.ashbyhq.com/gamma",
+   "request_payload": {
+    "preprocessor": "web_fetch",
+    "url_count": 1,
+    "user_input": {
+     "urls": [
+      "https://jobs.ashbyhq.com/gamma"
+     ]
+    }
+   },
+   "output_payload": {
+    "fetched_results": [
+     {
+      "url": "https://jobs.ashbyhq.com/gamma",
+      "status": "succeeded",
+      "error": null,
+      "content": "*   [![Image 1: Gamma](https://app.ashbyhq.com/api/images/org-theme-wordmark/77d4cf68-aced-4397-bcea-9b9da034bfa5/4b0e0ec4-a86f-4244-a690-1b538c080a25/5b6b88e3-cbe1-4a6f-9056-4ee4017be4db.png)](https://gamma.app/)\n\n# Open Positions (20)\n\nFilters:\n\n Reset filters\n\nNo filters applied\n\n## Customer Success\n\n### [Customer Success Manager Customer Success \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/171f040a-dec1-4129-b0a0-e0e96be8a703)### [Customer Success Manager Customer Success \u2022 New York \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/b9ab4e64-af4c-44b5-aa50-23a3115121af)\n\n## Design\n\n### [Senior Product Designer Design \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/72632694-2a83-4418-bb8e-9d026618d3dd)\n\n## Engineering\n\n### [AI Engineer Engineering \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/6ed26f6b-bb17-41a5-8f63-f1901554cb6b)### [Engineering Manager, Growth Engineering \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/4b2c8b10-acd5-4cbc-923f-488cb8282cf1)### [Security Engineer Engineering \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/79b3efcd-0380-41bc-9556-bc7c681adc43)### [Site Reliability Engineer Engineering \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/365c8133-e9c1-4bcb-b8f1-975d96115503)### [Software Engineer, Backend Engineering \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/a546c0a8-4c8b-471c-909c-9c7b34d1f64d)### [Software Engineer, Data Systems Engineering \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/4b2c97d1-b12b-46b7-9e24-1fcd248e28a3)### [Software Engineer, Distributed Systems - Infra Engineering \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/5902d0ff-c12b-4506-8ef4-ac441a1a156e)### [Software Engineer, Distributed Systems - Trust & Safety Engineering \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/1d76bf68-c948-4594-a6f5-b836eaf33c4b)### [Software Engineer, Frontend Engineering \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/fa99107a-c458-45fa-b856-add887b0a255)### [Software Engineer, Growth Engineering \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/71009abf-dff3-44a9-b347-95e3362bffef)### [Software Engineer, Platform Engineering \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/fb12356a-e868-4a4a-801c-882a6b0ac83f)### [Software Engineer, Trust & Safety Engineering \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/76767d60-e375-456d-a195-984854b256ce)### [UI Engineer Engineering \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/48508f9a-06e6-4394-b97d-b69bab2a5485)\n\n## Marketing\n\n### [AI Creative Strategist Marketing \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/ec461546-f994-46ec-a4b1-659dce3e4703)### [Growth Marketing Manager Marketing \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/a709c69b-eff6-4dbb-a8fa-07cd9be874bf)### [Senior Lifecycle Marketing Manager Marketing \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/5f2501c3-90d4-4385-b0fa-ed3a09269fbc)\n\n## Product\n\n### [Sr. Product Manager, B2B Product \u2022 San Francisco \u2022 Full time \u2022 On-site](https://jobs.ashbyhq.com/gamma/623482be-52fd-464a-901f-8687f50a0f8b)\n\n[Powered by](https://www.ashbyhq.com/)\n[Privacy Policy](https://www.ashbyhq.com/privacy)[Security](https://www.ashbyhq.com/security)[Vulnerability Disclosure](https://www.ashbyhq.com/disclosure)",
+      "content_truncated": false,
+      "content_ref": {
+       "storage_backend": "s3",
+       "object_key": "web-fetch/sha256/63/c3/63c3f0eeaf1dbc0cdd0e31f37d89f1bfb759679dd0a6a7d1175ed66e32d52a03.md"
+      },
+      "source": null,
+      "preprocessor_run_id": null,
+      "result_index": null,
+      "fetched_at": "2026-11-14T20:20:34.811778+00:00",
+      "content_format": "markdown",
+      "js_rendered": null,
+      "pdf_mode": null,
+      "content_length": 3588,
+      "content_sha256": "63c3f0eeaf1dbc0cdd0e31f37d89f1bfb759679dd0a6a7d1175ed66e32d52a03",
+      "canonical_url": "https://jobs.ashbyhq.com/gamma",
+      "title": "Gamma Jobs",
+      "description": null,
+      "http_status": null,
+      "warning": null,
+      "provider": "tavily",
+      "cache_state": null,
+      "request_id": "d5357de6-5ffd-4bf5-8231-e7da3d583fdc",
+      "latency_ms": 138,
+      "warnings": [
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `cache_state` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `description` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `http_status` \u2014 tavily reports success/failure by array membership, never an upstream status"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `js_rendered` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `pdf_mode` \u2014 tavily parses PDFs to text but reports no content type, so the mode is unknowable"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `warning` \u2014 tavily has no soft-failure channel; a URL either extracts or lands in failed_results"
+       }
+      ],
+      "cached": false
+     }
+    ],
+    "requested_url_count": 1,
+    "succeeded_count": 1,
+    "failed_count": 0,
+    "live_fetch_count": 1
+   },
+   "raw_payload": null,
+   "error": null,
+   "latency_ms": 417
+  },
+  {
+   "id": "8ccef2c9-ba66-4c42-9ac5-930387d970a9",
+   "preprocessor_name": "web_fetch",
+   "status": "succeeded",
+   "batch_index": 4,
+   "query": "https://www.papermark.com/changelog",
+   "request_payload": {
+    "preprocessor": "web_fetch",
+    "url_count": 1,
+    "user_input": {
+     "urls": [
+      "https://www.papermark.com/changelog"
+     ]
+    }
+   },
+   "output_payload": {
+    "fetched_results": [
+     {
+      "url": "https://www.papermark.com/changelog",
+      "status": "succeeded",
+      "error": null,
+      "content": "[![Papermark](/_next/static/media/papermark-logo.d2fc4f5c.svg)](https://www.papermark.com/)\n\n[Pricing](/pricing)[Security](/security)\n[Blog](/blog)[Customers](/customers)\n\n[Log in](/login)\n\n# Changelog\n\nLatest updates and improvements to Papermark\n\n[GitHub](https://github.com/papermark)[Twitter](https://twitter.com/papermarkio)[LinkedIn](https://www.linkedin.com/company/papermark-com)\n\n[## Shipped in October \ud83d\udcab](/news/shipped-october-2026)\n\nA hundred small improvements to Papermark in October, plus document signing, access requests, an inbox for every document you viewed, and data room imports from other providers.\n\n[Read the full roundup \u2192](/news/shipped-october-2026)\n\n[## Access requests](/changelog/access-requests)\n\nVisitors who are not on the allow list can request access, and you approve or deny each request.\n\nAn allow list is not always enough. With **access requests**, visitors who are not on the list can ask for access, and you approve or deny each request.\n\n* Visitors outside the allow list request access from the link\n* Approve or deny each request\n* Approved visitors get in without you editing the allow list by hand\n\nPart of [Shipped in October](/news/shipped-october-2026).\n\n[## Document signing in data rooms](/changelog/document-signing)\n\nSign documents inside the data room, with no separate signing tool.\n\nDocuments can now be **signed inside the data room**. No separate signing tool, no exporting and re-uploading.\n\n* Request a signature on a document in the data room\n* See who signed and who is still pending\n* Signatures are recorded in the audit log\n\nPart of [Shipped in October](/news/shipped-october-2026).\n\n[## Faster uploads and bulk downloads](/changelog/faster-uploads-downloads)\n\nUploads and bulk downloads are now faster.\n\nUploading documents and downloading many files at once are both **faster**, which matters most in data rooms with hundreds of files.\n\nPart of [Shipped in October](/news/shipped-october-2026).\n\n[## Folder search, bulk actions and quicker renaming](/changelog/folder-search-bulk-actions)\n\nFind folders faster, act on many items at once, and rename in fewer clicks.\n\nLarge data rooms are easier to manage:\n\n* **Folder search** to find a folder without clicking through the tree\n* **Bulk actions** on many documents and folders at once\n* **Quicker renaming** of documents and folders\n\nPart of [Shipped in October](/news/shipped-october-2026).\n\n[## Import data rooms from other providers](/changelog/import-data-rooms)\n\nMove a data room from another provider to Papermark and bring the whole structure across.\n\nMoving to Papermark from another data room provider? **Import the data room** and bring the whole structure across: folders, files and the index.\n\nPart of [Shipped in October](/news/shipped-october-2026).\n\n[## Inbox](/changelog/inbox)\n\nEvery document link you've viewed, saved in one place.\n\nThe new **Inbox** keeps every document link you've viewed in one place. Decks, teasers and data rooms that others shared with you are one click away, without digging through email.\n\nPart of [Shipped in October](/news/shipped-october-2026).\n\n[## Markdown and HTML support, better presentations](/changelog/markdown-html-presentations)\n\nShare Markdown and HTML files, view presentation files better, and zoom more smoothly.\n\nMore file types look right in Papermark:\n\n* **Markdown and HTML** support\n* **Better presentation files**\n* **Smoother zoom** in the viewer\n\nPart of [Shipped in October](/news/shipped-october-2026).\n\n[## Q&A sharing, notifications and question importing](/changelog/qa-sharing-notifications)\n\nShare Q&A, get notified about questions, and import questions into the data room.\n\n[Data room Q&A](/data-room-questions-and-answers) got three updates:\n\n* **Sharing** of questions and answers\n* **Notifications** for Q&A activity\n* **Question importing**, so an existing question list does not have to be typed in again\n\nPart of [Shipped in October](/news/shipped-october-2026).\n\n[## Team management and bulk invites](/changelog/team-management-bulk-invites)\n\nManage your team, invite many members at once, and see your plan more clearly.\n\nRunning Papermark for a bigger team is simpler:\n\n* **Team management** improvements\n* **Bulk invites** to add many members at once\n* A **clearer plan overview**\n\nPart of [Shipped in October](/news/shipped-october-2026).\n\n## Multiple brands, document thumbnails and richer media\n\nRun more than one brand from a single workspace, preview documents at a glance, and share HTML and richer media formats.\n\n* **Multiple Brands** \u2014 run more than one brand from a single workspace\n* **Document thumbnails** \u2014 preview documents at a glance\n* **HTML files & richer media**\n\n## AI Redaction and Analytics Dashboard 2.0\n\nAutomatic and manual redaction with a full audit trail, a rebuilt data room analytics dashboard, and the first Groups and Permissions API.\n\n* **AI Redaction** \u2014 automatic and manual, audited, reversible\n* **PowerPoint videos & GIFs** auto-extracted and streamed\n* **Data Room Analytics Dashboard 2.0** \u2014 rebuilt from scratch\n* **Data Room Participants** \u2014 one view of invited vs. actually viewed vs. group access\n* **Group & Permissions API v1**\n\n## Papermark Agents \u2014 MCP server with 40+ tools\n\nOur Product Hunt launch and the biggest single release of the period: an MCP server, API and CLI that let Claude and ChatGPT work directly with your documents and data rooms.\n\nMCP server with 40+ tools, API and CLI. Upload documents, create tracked links, spin up rooms and pull analytics straight from Claude or ChatGPT. The biggest single launch of the period \u2014 the tool count has since grown to around 70.\n\n## Signatures, Q&A and due diligence request lists\n\nSign NDAs and term sheets inside Papermark, run structured diligence request lists, and answer questions in a permissioned Q&A module.\n\n* **Signatures** \u2014 NDAs, term sheets and SOWs signed in Papermark with a full audit trail\n* **Team Collaboration** \u2014 per-data-room management access\n* **Due Diligence Request List** \u2014 a structured checklist both sides can track\n* **Q&A module** \u2014 permissions, threaded discussions and a full audit log\n\n## Data Room Layouts, downloadable archive and bulk links\n\nCustomisable data room layouts, a tamper-proof downloadable archive, and bulk link creation from a CSV.\n\n* **Data Room Layouts** \u2014 CTAs, hidden document tree, banner media\n* **Downloadable Data Room Archive** \u2014 tamper-proof, OTP-protected, verifiable\n* **Bulk link creation by CSV** \u2014 hundreds of links at once with per-link settings\n\nv0.20.9\n\n[## Multi-Folder Upload Permissions](/changelog/multi-folder-upload-permissions)\n\nControl upload permissions for multiple folders at once\n\nManaging visitor upload permissions just got easier with bulk folder controls.\n\n**What's new:**\n\n* **Select multiple folders** \u2014 apply upload permissions to several folders at once\n* **Bulk permission updates** \u2014 enable or disable uploads across folder groups\n* **Visitor group support** \u2014 different upload rights for different visitor groups\n* **Granular control** \u2014 some folders allow uploads, others are view-only\n\nGreat for structured due diligence processes where you want buyers to upload specific documents (financial statements, contracts) to designated folders while keeping other sections read-only. Configure in your data room permissions panel.\n\nv0.20.8\n\n[## Download Entire Data Room as Archive](/changelog/download-data-room-archive)\n\nDownload complete data rooms as zip files with one click\n\nNeed an offline backup or local copy of your data room? You can now download the entire data room as a zip archive.\n\n**Key features:**\n\n* **One-click download** \u2014 get all folders and files in a single zip file\n* **Preserves structure** \u2014 folder hierarchy maintained in the archive\n* **Large data room support** \u2014 handles data rooms with hundreds of documents\n* **Owner-only access** \u2014 available to data room owners and admins\n\nPerfect for creating backups before major changes, archiving completed deals, or preparing offline review copies for stakeholders. Find the download option in your data room settings.\n\nv0.20.7\n\n[## Freeze Datarooms](/changelog/freeze-datarooms)\n\nClose datarooms permanently and generate downloadable archives with time-limited access links\n\nYou can now freeze datarooms to close them permanently while preserving all content and activity.\n\n**What freezing does:**\n\n* **Blocks all visitor access** \u2014 No one can view documents or upload files\n* **Prevents modifications** \u2014 Upload, reorder, and indexing are disabled\n* **Triggers archive generation** \u2014 Creates a downloadable ZIP of all dataroom content\n* **Provides secure download links** \u2014 Time-limited URLs for retrieving the archive\n\nPerfect for closing completed deals, archiving old fundraising rounds, or preserving M&A transaction records.\n\nFind the freeze option in your dataroom's **Danger Zone** settings.\n\nv0.20.9\n\n[## Mobile Improvements](/changelog/mobile-improvements)\n\nFully redesigned mobile experience with native navigation, bottom bar, and optimized sharing flows\n\nPapermark now works beautifully on mobile devices with a complete mobile-first redesign.\n\n**Mobile enhancements:**\n\n* **Mobile header & bottom nav** \u2014 Native mobile navigation patterns\n* **Floating share button** \u2014 Quick access to sharing from anywhere\n* **Optimized dialogs & modals** \u2014 Touch-friendly controls and layouts\n* **Responsive grids & cards** \u2014 Better content display on small screens\n* **Streamlined share flows** \u2014 Faster link creation and pre-selection of targets\n\nWhether you're reviewing documents, sharing links, or managing visitors \u2014 everything now works smoothly on your phone.\n\nv0.20.7\n\n[## Data Room Sidebar Improvements](/changelog/data-room-sidebar-improvements)\n\nFaster navigation with improved data room sidebar design\n\nNavigate your data rooms more efficiently with our redesigned sidebar.\n\n**What's improved:**\n\n* **Better folder hierarchy** \u2014 clearer visual structure for nested folders\n* **Faster loading** \u2014 optimized performance for large data rooms\n* **Sticky navigation** \u2014 sidebar stays visible as you scroll through documents\n* **Folder icons** \u2014 easier to distinguish folders from files at a glance\n\nEspecially useful for complex data rooms with dozens of folders and hundreds of documents. The new sidebar makes it easier to jump between sections during due diligence reviews.\n\n[Older posts\u2192](/changelog/page/2)",
+      "content_truncated": false,
+      "content_ref": {
+       "storage_backend": "s3",
+       "object_key": "web-fetch/sha256/b0/27/b027f78b7a02c2d122e203e29f99cd5e5b0ad54b158de98a3459efe3853f145d.md"
+      },
+      "source": null,
+      "preprocessor_run_id": null,
+      "result_index": null,
+      "fetched_at": "2026-11-14T20:20:34.809155+00:00",
+      "content_format": "markdown",
+      "js_rendered": null,
+      "pdf_mode": null,
+      "content_length": 10389,
+      "content_sha256": "b027f78b7a02c2d122e203e29f99cd5e5b0ad54b158de98a3459efe3853f145d",
+      "canonical_url": "https://www.papermark.com/changelog",
+      "title": "Changelog - Papermark",
+      "description": null,
+      "http_status": null,
+      "warning": null,
+      "provider": "tavily",
+      "cache_state": null,
+      "request_id": "a58625e8-9062-4f66-abc9-4d0930515a2d",
+      "latency_ms": 126,
+      "warnings": [
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `cache_state` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `description` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `http_status` \u2014 tavily reports success/failure by array membership, never an upstream status"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `js_rendered` \u2014 the tavily /extract response carries no such field"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `pdf_mode` \u2014 tavily parses PDFs to text but reports no content type, so the mode is unknowable"
+       },
+       {
+        "code": "capability_gap",
+        "message": "tavily: cannot supply `warning` \u2014 tavily has no soft-failure channel; a URL either extracts or lands in failed_results"
+       },
+       {
+        "code": "relative_links",
+        "message": "tavily: body contains site-relative links with no base URL; resolve against the document URL before following them"
+       }
+      ],
+      "cached": false
+     }
+    ],
+    "requested_url_count": 1,
+    "succeeded_count": 1,
+    "failed_count": 0,
+    "live_fetch_count": 1
+   },
+   "raw_payload": null,
+   "error": null,
+   "latency_ms": 417
+  }
+ ],
+ "postprocessor_runs": [],
+ "created_at": "2026-11-14T20:20:34.360975Z",
+ "completed_at": "2026-11-14T20:20:35.190221Z",
+ "normalized_schema_version": null,
+ "missing_snapshots": [],
+ "client_advisory": {
+  "recommended": {
+   "opencode": "0.2.13",
+   "openclaw": "0.2.15",
+   "pi": "0.2.12",
+   "sdk": "0.4.0"
+  }
+ },
+ "routing": null,
+ "pinned_providers": null
+}

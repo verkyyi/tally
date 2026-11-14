@@ -4,7 +4,9 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 
-from fastapi import FastAPI, HTTPException
+import secrets
+
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
@@ -15,6 +17,29 @@ import telem
 HERE = os.path.dirname(__file__)
 app = FastAPI(title="Tally")
 db.init()
+
+
+PASSCODE = os.environ.get("TALLY_PASSCODE")  # unset = open (local dev)
+
+
+@app.middleware("http")
+async def gate(request: Request, call_next):
+    """Anyone can explore. Anything that writes or spends Telem calls needs sign-in."""
+    if PASSCODE and request.method != "GET" and request.url.path.startswith("/api/") \
+            and not secrets.compare_digest(request.headers.get("x-tally-key", ""), PASSCODE):
+        return JSONResponse({"detail": "sign in to do that"}, status_code=401)
+    return await call_next(request)
+
+
+@app.post("/api/login")
+def login():
+    return {"ok": True}  # the middleware has already checked the key
+
+
+@app.get("/api/me")
+def me(request: Request):
+    return {"auth_required": bool(PASSCODE),
+            "signed_in": not PASSCODE or secrets.compare_digest(request.headers.get("x-tally-key", ""), PASSCODE)}
 
 
 class AddMetric(BaseModel):
@@ -33,8 +58,36 @@ def telem_error(_, e):
 
 
 @app.get("/")
+def landing():
+    return FileResponse(os.path.join(HERE, "static", "landing.html"))
+
+
+@app.get("/app")
 def index():
     return FileResponse(os.path.join(HERE, "static", "index.html"))
+
+
+@app.get("/api/catalog")
+def catalog(user: str | None = None):
+    """Every metric anyone tracks. This is the shared catalog."""
+    mine = {r["metric_id"] for r in db.q("SELECT metric_id FROM board_items WHERE user=?", (user,))} if user else set()
+    out = []
+    for m in db.q("SELECT * FROM metrics ORDER BY id"):
+        t = tile(m)
+        out.append({k: t[k] for k in ("id", "title", "question", "kind", "unit", "value", "followers", "last_checked", "monitor")} | {"on_board": m["id"] in mine})
+    return {"metrics": out}
+
+
+class Follow(BaseModel):
+    user: str
+
+
+@app.post("/api/metrics/{mid}/follow")
+def follow(mid: int, body: Follow):
+    if not core.metric(mid):
+        raise HTTPException(404, "no such metric")
+    core.follow(body.user, mid)
+    return {"ok": True}
 
 
 def tile(m, user=None):

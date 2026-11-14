@@ -63,6 +63,7 @@ ul.rows li.new{background:var(--new)}
 .tag.monitor{background:#1d4d8f;color:#fff}.tag.run_now{background:var(--ink);color:var(--paper)}.tag.feedback{border:1px solid var(--line);color:var(--mute)}
 .when{font:11px var(--mono);color:var(--mute)}
 table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+td .followbtn{padding:4px 9px;font-size:12px;white-space:nowrap}
 td,th{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute)}
 #trace{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:var(--paper);padding:10px 24px;display:flex;gap:28px;align-items:center;font-size:12px;z-index:6;overflow-x:auto;white-space:nowrap;min-height:76px}
@@ -76,14 +77,15 @@ th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var
 </head>
 <body>
 <header>
-  <div class="brand"><span class="marks"><i></i><i></i><i></i><i></i></span><b>Tally</b><span>A running tally of the outside world.</span></div>
+  <a href="/" style="text-decoration:none" class="brand"><span class="marks"><i></i><i></i><i></i><i></i></span><b>Tally</b><span>A running tally of the outside world.</span></a>
   <form id="add"><input type="text" id="q" placeholder="Ask for a number: “What does Gamma charge for its Business plan?”" autocomplete="off"><button id="addbtn">Add metric</button></form>
   <select id="user" title="User"><option value="A">User A</option><option value="B">User B</option></select>
+  <button class="ghost" id="signin" hidden>Sign in</button>
   <button class="ghost" id="sync" title="Poll Telem monitor change feeds">Sync</button>
 </header>
-<nav><a data-tab="board" class="on">Board</a><a data-tab="log">Change log</a>
+<nav><a data-tab="board" class="on">Board</a><a data-tab="log">Change log</a><a data-tab="catalog">Shared catalog</a>
   <label id="f24"><input type="checkbox" id="last24"> last 24h</label></nav>
-<main><div id="board" class="grid"></div><div id="log" hidden></div></main>
+<main><div id="board" class="grid"></div><div id="log" hidden></div><div id="catalog" hidden></div></main>
 <aside id="panel"></aside>
 <div id="trace"></div>
 <div id="toast"></div>
@@ -92,19 +94,30 @@ const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>
 const S={user:localStorage.tallyUser||"A",tiles:[],tab:"board",pending:null,flash:null,open:null};
 $("#user").value=S.user;
 
-async function api(path,opts){
-  const r=await fetch(path,opts&&{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(opts)});
+async function api(path,opts,retry){
+  const h={"Content-Type":"application/json","X-Tally-Key":localStorage.tallyKey||""};
+  const r=await fetch(path,opts?{method:"POST",headers:h,body:JSON.stringify(opts)}:{headers:h});
   const j=await r.json().catch(()=>({}));
+  if(r.status==401&&!retry){ if(await signIn()) return api(path,opts,true); throw new Error("sign in to add or refresh metrics") }
   if(!r.ok) throw new Error(j.detail||r.statusText);
   return j;
 }
+async function signIn(){
+  const k=prompt("Exploring is open to everyone. Adding and refreshing metrics needs the passcode:"); if(!k) return false;
+  const r=await fetch("/api/login",{method:"POST",headers:{"X-Tally-Key":k}});
+  if(!r.ok){toast("Wrong passcode");return false}
+  localStorage.tallyKey=k; showMe(); return true;
+}
+async function showMe(){const m=await api("/api/me"); const b=$("#signin");
+  b.hidden=!m.auth_required; b.textContent=m.signed_in?"Sign out":"Sign in"; b.onclick=()=>{ if(m.signed_in){delete localStorage.tallyKey;showMe()} else signIn() }}
 function toast(t,ms=3500){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("on"),ms)}
 function ago(iso){ if(!iso) return "never"; const s=(Date.now()-new Date(iso))/1e3;
   return s<60?"just now":s<3600?Math.floor(s/60)+"m ago":s<86400?Math.floor(s/3600)+"h ago":Math.floor(s/86400)+"d ago"}
 function num(v){const a=Math.abs(v); const t=x=>String(+x.toFixed(2));
   return a>=1e9?t(v/1e9)+"B":a>=1e6?t(v/1e6)+"M":v.toLocaleString("en-US",{maximumFractionDigits:2})}
-function val(v,unit){ if(v==null) return null; const usd=/^(usd|\$)/i.test(unit||"");
-  return {text:(usd?"$":"")+num(v), unit:usd?(unit||"").replace(/^(usd|\$)\s*/i,""):(unit||"")}}
+const CUR={usd:"$",eur:"€",gbp:"£"};
+function val(v,unit){ if(v==null) return null; const m=/^(usd|eur|gbp)\b\s*/i.exec(unit||"");
+  return {text:(m?CUR[m[1].toLowerCase()]:"")+num(v), unit:m?unit.slice(m[0].length):(unit||"")}}
 
 function spark(pts){
   if(pts.length<2) return '<svg class="spark"></svg><div class="seedcap"></div>';
@@ -168,6 +181,13 @@ async function loadLog(){
     :'<div class="empty">No changes yet. Tally only surfaces what moved.</div>';
 }
 
+async function loadCatalog(){
+  const ms=(await api("/api/catalog?user="+S.user)).metrics;
+  $("#catalog").innerHTML=`<table><tr><th>Metric</th><th>Value</th><th>Kind</th><th>Tracked by</th><th>Checked</th><th></th></tr>${ms.map(m=>{const v=val(m.value,m.unit);
+    return `<tr><td><b>${esc(m.title)}</b><div class="when">${esc(m.question)}</div></td><td style="font-family:var(--mono);white-space:nowrap">${v?v.text+" "+esc(v.unit):"no value yet"}</td>
+    <td><span class="kind">${m.kind}</span></td><td>${m.followers}</td><td class="when">${ago(m.last_checked)}</td>
+    <td>${m.on_board?'<span class="when">on your board</span>':`<button class="ghost followbtn" data-id="${m.id}">Add to board</button>`}</td></tr>`}).join("")}</table>`;
+}
 async function openPanel(id){
   S.open=id; const e=await api("/api/metrics/"+id), m=e.metric, v=val(m.value,m.unit); let h=`<button class="ghost x">×</button>
     <h2>${esc(m.title)}</h2><div class="when">${esc(m.question)}</div>
@@ -188,7 +208,7 @@ async function openPanel(id){
   const p=$("#panel"); p.innerHTML=h; p.classList.add("open");
 }
 function closePanel(){$("#panel").classList.remove("open");S.open=null}
-async function refresh(){await Promise.all([loadBoard(),loadTrace(),S.tab=="log"?loadLog():0]); if(S.open) openPanel(S.open)}
+async function refresh(){await Promise.all([loadBoard(),loadTrace(),S.tab=="log"?loadLog():S.tab=="catalog"?loadCatalog():0]); if(S.open) openPanel(S.open)}
 
 $("#add").onsubmit=async ev=>{ev.preventDefault(); const q=$("#q").value.trim(); if(!q) return;
   $("#addbtn").disabled=true; S.pending="Checking the shared catalog, then asking Telem…"; renderBoard();
@@ -217,10 +237,12 @@ $("#sync").onclick=async()=>{const b=$("#sync"); b.disabled=true; b.textContent=
 $("#user").onchange=ev=>{S.user=localStorage.tallyUser=ev.target.value; closePanel(); refresh()};
 document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>{S.tab=a.dataset.tab;
   document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x==a));
-  $("#board").hidden=S.tab!="board"; $("#log").hidden=S.tab!="log"; $("#f24").style.display=S.tab=="log"?"flex":"none"; refresh()});
+  $("#board").hidden=S.tab!="board"; $("#log").hidden=S.tab!="log"; $("#catalog").hidden=S.tab!="catalog"; $("#f24").style.display=S.tab=="log"?"flex":"none"; refresh()});
 $("#last24").onchange=loadLog;
+$("#catalog").onclick=async ev=>{const b=ev.target.closest(".followbtn"); if(!b) return; b.disabled=true;
+  try{await api(`/api/metrics/${b.dataset.id}/follow`,{user:S.user}); toast("Added to your board with its full history. No new Telem calls.")}catch(e){toast(e.message)} refresh()};
 document.onkeydown=ev=>{if(ev.key=="Escape") closePanel()};
-refresh(); setInterval(loadTrace,15000);
+showMe(); refresh(); setInterval(loadTrace,15000);
 </script>
 </body>
 </html>

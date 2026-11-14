@@ -1,0 +1,380 @@
+{
+ "changes": [
+  {
+   "seq": 1514,
+   "type": "compile.done",
+   "kind": "compile",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": null,
+    "name": null
+   },
+   "before": null,
+   "after": {
+    "error": null,
+    "job_id": "3b4a796d-805b-430c-93bf-58e5f6fb48fc",
+    "status": "done",
+    "plan_version": 1
+   },
+   "fact_ids": [],
+   "at": "2026-11-14T20:22:05.610341+00:00"
+  },
+  {
+   "seq": 1574,
+   "type": "entity_added",
+   "kind": "entity_added",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": "2c0a8bee4228008b",
+    "name": "Software Engineer, Frontend"
+   },
+   "before": null,
+   "after": {
+    "url": "https://jobs.ashbyhq.com/gamma/fa99107a-c458-45fa-b856-add887b0a255",
+    "kind": "job_posting",
+    "status": "unclear",
+    "discovered_via": "plan:gamma_jobs_search"
+   },
+   "fact_ids": [
+    "2037a0ec-7aa7-513f-a819-6960294d3961",
+    "a9248b1a-26e8-54f6-8e0a-57b1d0e2b722",
+    "b1c32e72-f1b8-58f7-8ccb-1841a3ba1988",
+    "5366871a-2683-5646-a7f5-b2d14150d96d",
+    "0b6b9323-f407-5a56-9b7c-de2fc3b65861",
+    "a0c553ff-84a2-52eb-93b0-9f65cc7fe3bb"
+   ],
+   "at": "2026-11-14T20:23:08.977318+00:00"
+  },
+  {
+   "seq": 1575,
+   "type": "entity_added",
+   "kind": "entity_added",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": "35399845bce1cc7a",
+    "name": "Software Engineer, Distributed Systems - Infra"
+   },
+   "before": null,
+   "after": {
+    "url": "https://jobs.ashbyhq.com/gamma/5902d0ff-c12b-4506-8ef4-ac441a1a156e",
+    "kind": "job_posting",
+    "status": "qualified",
+    "discovered_via": "plan:gamma_jobs_search"
+   },
+   "fact_ids": [
+    "6fc1b0ed-a72d-5e81-b742-6dfaf6f49973",
+    "ef51441c-394c-5bc2-a457-a4071c2b610e",
+    "94f0c0ec-77ec-5a58-a505-9bb3ff7b6809",
+    "0d1c2e63-b6fa-5196-8f53-0916107b7d9a",
+    "7f417da0-c9fe-5b26-b53c-f1f98c9f5bfa",
+    "0050d608-3616-5b97-a068-f1c374438fc8"
+   ],
+   "at": "2026-11-14T20:23:08.977318+00:00"
+  },
+  {
+   "seq": 1576,
+   "type": "entity_added",
+   "kind": "entity_added",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": "373af61f6d93a285",
+    "name": "Engineering Manager, Growth"
+   },
+   "before": null,
+   "after": {
+    "url": "https://careers.gamma.app/engineering-manager-growth",
+    "kind": "job_posting",
+    "status": "unclear",
+    "discovered_via": "plan:gamma_jobs_search"
+   },
+   "fact_ids": [
+    "8ef28eff-bfb7-5f56-baf5-5e5b3e117b38",
+    "bf35dd6a-cac2-520a-92e7-ca4408813002",
+    "77db19f2-1d45-5bc3-8fd9-5af0b5cc8641",
+    "4b1b0e4e-b15d-5012-99f0-ce37235cc18f",
+    "9eab6d06-5e7b-5a45-a3f0-ec9ce11a00b2"
+   ],
+   "at": "2026-11-14T20:23:08.977318+00:00"
+  },
+  {
+   "seq": 1577,
+   "type": "entity_added",
+   "kind": "entity_added",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": "70030c557c066f70",
+    "name": "Site Reliability Engineer @ Gamma"
+   },
+   "before": null,
+   "after": {
+    "url": "https://jobs.ashbyhq.com/gamma/365c8133-e9c1-4bcb-b8f1-975d96115503",
+    "kind": "job_posting",
+    "status": "unclear",
+    "discovered_via": "plan:gamma_jobs_search"
+   },
+   "fact_ids": [
+    "af065b23-285a-5670-9742-d1323616c08a",
+    "ba29038d-080d-56b8-a0d5-8e75bc799e9f",
+    "cc297bd8-54a7-5b62-bf20-d9c28a033a60",
+    "351c5fc9-c4c5-5c2f-a026-9be3e0623f8e",
+    "0ba61014-bdf0-5858-ac56-9dffd7cb0149",
+    "13f7b520-741c-5cee-b6d5-cc26b84ce956"
+   ],
+   "at": "2026-11-14T20:23:08.977318+00:00"
+  },
+  {
+   "seq": 1578,
+   "type": "entity_added",
+   "kind": "entity_added",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": "83904c14a6d29f48",
+    "name": "Software Engineer, Backend"
+   },
+   "before": null,
+   "after": {
+    "url": "https://jobs.ashbyhq.com/gamma/a546c0a8-4c8b-471c-909c-9c7b34d1f64d",
+    "kind": "job_posting",
+    "status": "unclear",
+    "discovered_via": "plan:gamma_jobs_search"
+   },
+   "fact_ids": [
+    "5fa788af-62a5-5a11-bc13-1a9f8efb43d3",
+    "2c3e67a2-6cc4-5667-b482-ce9f8f570259",
+    "c38eac41-5e95-5ad9-97c5-349e73e2a88a",
+    "c659025a-3820-54fb-aa06-56108e2d13a4",
+    "c25dcd90-7e20-575d-a0c5-cb14bfacdedd"
+   ],
+   "at": "2026-11-14T20:23:08.977318+00:00"
+  },
+  {
+   "seq": 1579,
+   "type": "entity_added",
+   "kind": "entity_added",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": "b9ebdbc5821bf0e6",
+    "name": "Software Engineer, Data Systems"
+   },
+   "before": null,
+   "after": {
+    "url": "https://jobs.ashbyhq.com/gamma/4b2c97d1-b12b-46b7-9e24-1fcd248e28a3",
+    "kind": "job_posting",
+    "status": "qualified",
+    "discovered_via": "plan:gamma_jobs_search"
+   },
+   "fact_ids": [
+    "bac19368-0b2d-5ccb-8952-24c62efadc7e",
+    "5cc8e64d-cb79-5490-9df5-98e81c3d7bb2",
+    "bb1f3cb6-f2d1-5bd5-8fd5-cacc03174e20",
+    "9a04c742-db61-5366-b8ea-64aa32d8a515",
+    "b7e3b8d1-7318-581c-81df-4df90f48f45a",
+    "c7d06b70-82d9-52a0-8106-abee5cd1da8c",
+    "8ebb054e-39b9-5c3c-98f3-49433887f376"
+   ],
+   "at": "2026-11-14T20:23:08.977318+00:00"
+  },
+  {
+   "seq": 1580,
+   "type": "entity_added",
+   "kind": "entity_added",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": "c5c57f7a95087559",
+    "name": "Software Engineer, Distributed Systems - Trust & Safety"
+   },
+   "before": null,
+   "after": {
+    "url": "https://jobs.ashbyhq.com/gamma",
+    "kind": "job_posting",
+    "status": "qualified",
+    "discovered_via": "plan:gamma_careers_pages"
+   },
+   "fact_ids": [
+    "e6dca8d5-b6ce-52c1-9521-4773493556c4",
+    "5c054077-4f0b-5c30-8c2c-930b1a6a13b1",
+    "86ad9968-4bb2-50d2-9f1b-86513ccea9c6",
+    "883d0207-33fc-5fcd-894c-6e559aa25f1a",
+    "cca4a1a9-6e07-52dd-9d5b-acef3d92781e",
+    "de3c961b-2fdb-59a3-8aca-079f71870a2a",
+    "988d4926-bc24-5fb0-bfe2-b4518971000c"
+   ],
+   "at": "2026-11-14T20:23:08.977318+00:00"
+  },
+  {
+   "seq": 1581,
+   "type": "entity_added",
+   "kind": "entity_added",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": "df65c08dbaf5111a",
+    "name": "AI Engineer"
+   },
+   "before": null,
+   "after": {
+    "url": "https://careers.gamma.app/ai-engineer",
+    "kind": "job_posting",
+    "status": "qualified",
+    "discovered_via": "plan:gamma_careers_pages"
+   },
+   "fact_ids": [
+    "c4eb9a18-f1b1-5c1e-8ad2-490fea6b06d5",
+    "a99b9c1c-f592-59f7-a4e9-e25387436d27",
+    "0563b6e5-1305-5991-8bf9-8318183b29b1",
+    "590aa002-96a9-5f0d-aadb-62ce1d78db7c",
+    "8c5bfe83-83c9-5a0f-8fb9-73d1d0968a3f",
+    "153a94dd-569f-5b52-9700-d4a2c7301137"
+   ],
+   "at": "2026-11-14T20:23:08.977318+00:00"
+  },
+  {
+   "seq": 1582,
+   "type": "alert",
+   "kind": "alert",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": "c5c57f7a95087559",
+    "name": "Software Engineer, Distributed Systems - Trust & Safety"
+   },
+   "before": null,
+   "after": {
+    "cause": "qualified",
+    "status": "qualified",
+    "since_tick": 0
+   },
+   "fact_ids": [
+    "e6dca8d5-b6ce-52c1-9521-4773493556c4"
+   ],
+   "at": "2026-11-14T20:23:08.690684+00:00"
+  },
+  {
+   "seq": 1583,
+   "type": "alert",
+   "kind": "alert",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": "df65c08dbaf5111a",
+    "name": "AI Engineer"
+   },
+   "before": null,
+   "after": {
+    "cause": "qualified",
+    "status": "qualified",
+    "since_tick": 0
+   },
+   "fact_ids": [
+    "c4eb9a18-f1b1-5c1e-8ad2-490fea6b06d5"
+   ],
+   "at": "2026-11-14T20:23:08.704111+00:00"
+  },
+  {
+   "seq": 1584,
+   "type": "alert",
+   "kind": "alert",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": "b9ebdbc5821bf0e6",
+    "name": "Software Engineer, Data Systems"
+   },
+   "before": null,
+   "after": {
+    "cause": "qualified",
+    "status": "qualified",
+    "since_tick": 0
+   },
+   "fact_ids": [
+    "bac19368-0b2d-5ccb-8952-24c62efadc7e"
+   ],
+   "at": "2026-11-14T20:23:08.746378+00:00"
+  },
+  {
+   "seq": 1585,
+   "type": "alert",
+   "kind": "alert",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": "35399845bce1cc7a",
+    "name": "Software Engineer, Distributed Systems - Infra"
+   },
+   "before": null,
+   "after": {
+    "cause": "qualified",
+    "status": "qualified",
+    "since_tick": 0
+   },
+   "fact_ids": [
+    "6fc1b0ed-a72d-5e81-b742-6dfaf6f49973"
+   ],
+   "at": "2026-11-14T20:23:08.761074+00:00"
+  },
+  {
+   "seq": 1586,
+   "type": "tick",
+   "kind": "run",
+   "monitor_id": "7d6d0b92-1d20-4db1-bfb5-911b3d4ba641",
+   "subject": {
+    "entity_id": null,
+    "name": null
+   },
+   "before": null,
+   "after": {
+    "cost": {
+     "llm": 0.067863,
+     "total": 0.071163,
+     "errors": 0,
+     "router": 0.0033
+    },
+    "alerts": 4,
+    "run_id": "677301ae-a59e-4413-8f70-3ff190021c71",
+    "objects": 8,
+    "observed": 8,
+    "unobserved": 0,
+    "exploration": null,
+    "new_objects": 8,
+    "stop_reason": "done",
+    "wall_seconds": 63.1,
+    "source_health": [
+     {
+      "new": 3,
+      "usd": 0.003,
+      "kind": "plan",
+      "rows": 3,
+      "step": "gamma_careers_pages",
+      "thin": 0,
+      "urls": {
+       "https://careers.gamma.app/": "ok",
+       "https://jobs.ashbyhq.com/gamma": "ok",
+       "https://careers.gamma.app/ai-engineer": "ok"
+      },
+      "error": null,
+      "failed": 0,
+      "status": "ok",
+      "skipped": false,
+      "estimate_usd": 0.003,
+      "price_source": "list"
+     },
+     {
+      "new": 7,
+      "usd": 0.0003,
+      "kind": "plan",
+      "rows": 10,
+      "step": "gamma_jobs_search",
+      "thin": 0,
+      "error": null,
+      "failed": 0,
+      "status": "ok",
+      "skipped": false,
+      "estimate_usd": 0.0003,
+      "price_source": "list"
+     }
+    ],
+    "changed_objects": 0,
+    "carried_unchanged": 0
+   },
+   "fact_ids": [],
+   "at": "2026-11-14T20:23:08.847493+00:00"
+  }
+ ],
+ "next_cursor": 1586,
+ "watermark": 1586
+}
