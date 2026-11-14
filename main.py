@@ -266,7 +266,7 @@ def catalog(request: Request, q: str = "", sort: str = ""):
         hay = (m["title"] + " " + m["question"]).lower()
         if all(w in hay for w in words):
             t = tile(m, u, ids)
-            out.append({k: t[k] for k in ("id", "title", "question", "kind", "unit", "value", "followers", "last_checked", "monitor", "live", "on_board")})
+            out.append({k: t[k] for k in ("id", "title", "question", "kind", "unit", "value", "followers", "last_checked", "monitor", "live", "on_board", "curated")})
     if sort == "popular":
         last = {r["metric_id"]: r["at"] for r in db.q("SELECT metric_id, MAX(at) at FROM changes WHERE COALESCE(status,'accepted')='accepted' GROUP BY metric_id")}
         out.sort(key=lambda t: (-t["followers"], last.get(t["id"]) or ""), reverse=False)

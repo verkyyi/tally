@@ -17,10 +17,14 @@ header{display:flex;gap:14px;align-items:center;padding:12px 24px;border-bottom:
 .brand b{font:700 25px var(--serif);letter-spacing:-.5px}
 .brand span{color:var(--mute);font:italic 13px var(--serif)}
 form{flex:1;display:flex;gap:8px;min-width:280px;position:relative}
+#ghost{position:absolute;left:0;top:0;width:100%;color:var(--seed);pointer-events:none;z-index:0;flex:none}
+#q{position:relative;z-index:1;background:transparent}
+.srow.sel{background:#ece5d3}
+.srow mark{background:none;color:var(--accent);font-weight:700}
 #sugg{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--card);border:1px solid var(--ink);border-radius:10px;box-shadow:6px 6px 0 var(--ink);z-index:15;max-height:70vh;overflow:auto;padding:6px 0}
 .shead{font:10px var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--mute);padding:10px 14px 4px}
 .srow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 14px;cursor:pointer}
-.srow:hover,.srow:first-of-type{background:#f1ecdf}
+.srow:hover{background:#f1ecdf}
 .sbtn{font:12px inherit;border:1px solid var(--ink);border-radius:6px;padding:3px 10px;white-space:nowrap;background:var(--card)}
 .spack{display:flex;gap:8px;flex-wrap:wrap;padding:4px 14px 8px}
 .spack span,.spack .chip{font:12px var(--mono);border:1px solid var(--line);border-radius:14px;padding:3px 10px;text-decoration:none;background:#fff}
@@ -107,7 +111,7 @@ th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var
 <body>
 <header>
   <a href="/" class="brand"><img src="/static/img/logo.svg" alt=""><b>Tally</b><span>A running tally of the outside world.</span></a>
-  <form id="add"><input type="text" id="q" placeholder="Search a company or ask for a number" autocomplete="off"><div id="sugg" hidden></div></form>
+  <form id="add"><input type="text" id="ghost" tabindex="-1" disabled aria-hidden="true"><input type="text" id="q" placeholder="Search a company or ask for a number" autocomplete="off"><div id="sugg" hidden></div></form>
   <div id="acct"></div>
 </header>
 <div id="banner" hidden></div>
@@ -301,7 +305,7 @@ async function openPanel(id){
   const p=$("#panel"); p.innerHTML=h; p.classList.add("open");
 }
 function closePanel(){$("#panel").classList.remove("open");S.open=null}
-async function refresh(){await Promise.all([loadBoard(),loadTrace(),S.tab=="log"?loadLog():S.tab=="catalog"?loadCatalog():0]); if(S.open) openPanel(S.open)}
+async function refresh(){await Promise.all([loadCat(),loadBoard(),loadTrace(),S.tab=="log"?loadLog():S.tab=="catalog"?loadCatalog():0]); if(S.open) openPanel(S.open)}
 async function followMetric(id){ await api(`/api/metrics/${id}/follow`,{}); toast("Added to your board with its full history. No new Telem calls."); await loadMe(); refresh() }
 
 /* ---------- one search box ---------- */
@@ -316,14 +320,29 @@ async function showEmpty(){
     <div class="shead">Try</div><div class="spack">${["Linear","How many GitHub stars does supabase/supabase have?","What does Figma charge for its Professional plan?"].map(x=>`<a href="#" class="chip" data-fill="${esc(x)}">${esc(x)}</a>`).join("")}</div>`;
   $("#sugg").hidden=false;
 }
+// Suggestions are computed in the browser from the cached catalog, so they appear as you type.
+let CAT=[], COMPANIES=[], sel=0;
+async function loadCat(){try{CAT=(await (await fetch("/api/catalog")).json()).metrics; COMPANIES=[...new Set(CAT.map(m=>m.title.split(" · ")[0]))].sort()}catch(e){}}
+const QW=new Set(["what","how","when","which","who","why","is","are","does","do","many","much","price","count","number"]);
+const isCompany=t=>{const w=t.split(/\s+/).filter(Boolean); return w.length>0&&w.length<=3&&!t.includes("?")&&!w.some(x=>QW.has(x.toLowerCase()))};
+function hl(text,words){let h=esc(text); words.forEach(w=>{if(w.length>1) h=h.replace(new RegExp("("+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig"),"<mark>$1</mark>")}); return h}
+function completion(q){ if(!q) return ""; const l=q.toLowerCase();
+  const c=COMPANIES.find(x=>x.toLowerCase().startsWith(l)&&x.length>q.length)||CAT.map(m=>m.question).find(x=>x.toLowerCase().startsWith(l)&&x.length>q.length);
+  return c?q+c.slice(q.length):""}
+function setSel(n){const rows=[...document.querySelectorAll("#sugg .srow")]; if(!rows.length) return; sel=(n+rows.length)%rows.length;
+  rows.forEach((r,k)=>r.classList.toggle("sel",k==sel)); rows[sel].scrollIntoView({block:"nearest"})}
 async function showResults(){
-  const q=$("#q").value.trim(); if(!q) return showEmpty();
-  const r=await api("/api/search?q="+encodeURIComponent(q)); if(r.q!=$("#q").value.trim().replace(/\s+/g," ")) return;
+  const raw=$("#q").value, q=raw.trim().replace(/\s+/g," "); $("#ghost").value=raw&&raw==raw.trimStart()?completion(raw):"";
+  if(!q) return showEmpty();
+  const words=q.toLowerCase().split(" "), ql=q.toLowerCase(), score=m=>{const t=m.title.toLowerCase(); return t.startsWith(ql)?4:t.split(/[\s·]+/).some(w=>w.startsWith(words[0]))&&words.every(w=>t.includes(w))?3:words.every(w=>t.includes(w))?2:q.length>3&&words.every(w=>(t+" "+m.question.toLowerCase()).includes(w))?1:0},
+    found=CAT.map(m=>[score(m),m]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]||b[1].followers-a[1].followers).map(x=>x[1]);
   let h="";
-  if(r.catalog.length) h+=`<div class="shead">In the catalog${r.catalog_total>r.catalog.length?" · "+r.catalog_total+" matches":""}</div>`+r.catalog.map(catRow).join("");
-  if(r.pack) h+=`<div class="shead">Company pack</div>`+sugRow("pack",r.pack.company,`Track ${esc(r.pack.company)}: ${r.pack.metrics} metrics`,r.pack.in_catalog?`${r.pack.in_catalog} already in the catalog, reused at once`:"entry plan price, engineering roles, GitHub stars, launches, App Store rating, funding","Track");
-  if(r.create) h+=`<div class="shead">Create new</div>`+sugRow("create",r.create.text,`Create a new metric: “${esc(r.create.text)}”`,"Telem finds the source; the catalog is checked first","Create");
-  $("#sugg").innerHTML=h; $("#sugg").hidden=false;
+  if(found.length) h+=`<div class="shead">In the catalog${found.length>7?" · "+found.length+" matches":""}</div>`+found.slice(0,7).map(m=>{const v=val(m.value,m.unit);
+    return sugRow(m.on_board?"open":"follow",m.id,hl(m.title,words),`${v?v.text+" "+esc(v.unit):"no value yet"} · tracked by ${m.followers}${m.live?"":" · delayed"}`,m.on_board?"On your board":"Follow")}).join("");
+  if(isCompany(q)){const have=CAT.filter(m=>m.curated&&m.title.toLowerCase().startsWith(q.toLowerCase()+" ·")).length;
+    h+=`<div class="shead">Company pack</div>`+sugRow("pack",q,`Track ${esc(q)}: 6 metrics`,have?`${have} already in the catalog, reused at once`:"entry plan price, engineering roles, GitHub stars, launches, App Store rating, funding","Track")}
+  h+=`<div class="shead">Create new</div>`+sugRow("create",q,`Create a new metric: “${esc(q)}”`,"Telem finds the source; the catalog is checked first","Create");
+  $("#sugg").innerHTML=h; $("#sugg").hidden=false; setSel(0);
 }
 function hideSugg(){$("#sugg").hidden=true}
 async function doCreate(q){
@@ -342,15 +361,24 @@ async function doPack(c){
   catch(e){toast(e.message,6000)}
   S.pending=null; S.busy=false; await loadMe(); refresh()}
 async function pick(row){
-  const act=row.dataset.act, arg=row.dataset.arg; hideSugg();
+  const act=row.dataset.act, arg=row.dataset.arg; hideSugg(); $("#ghost").value="";
   if(act=="open") return openPanel(+arg);
   if(act=="follow"){ if(!S.me.user) return signInModal("Sign in to follow catalog metrics on your own board."); $("#q").value=""; try{await followMetric(arg); S.flash=+arg; setTab("board")}catch(e){} return }
   if(act=="pack") return doPack(arg);
   if(act=="create") return doCreate(arg);
 }
-$("#q").oninput=()=>{clearTimeout(sugT); sugT=setTimeout(()=>showResults().catch(()=>{}),300)};
+$("#q").oninput=()=>showResults().catch(()=>{});
 $("#q").onfocus=()=>showResults().catch(()=>{});
-$("#add").onsubmit=async ev=>{ev.preventDefault(); clearTimeout(sugT); await showResults().catch(()=>{}); const first=$("#sugg .srow"); if(first&&$("#q").value.trim()) pick(first)};
+$("#q").onkeydown=ev=>{
+  const g=$("#ghost").value, q=$("#q");
+  if((ev.key=="Tab"||(ev.key=="ArrowRight"&&q.selectionStart==q.value.length))&&g&&g!=q.value){ev.preventDefault(); q.value=g; return showResults()}
+  if(ev.key=="ArrowDown"){ev.preventDefault(); if($("#sugg").hidden) return showResults(); return setSel(sel+1)}
+  if(ev.key=="ArrowUp"){ev.preventDefault(); return setSel(sel-1)}
+  if(ev.key=="Enter"){ev.preventDefault(); return submitSearch()}  // a form with two text fields does not submit on Enter by itself
+  if(ev.key=="Escape"){hideSugg(); $("#ghost").value=""}};
+async function submitSearch(){ if(!$("#q").value.trim()) return; if($("#sugg").hidden) await showResults();
+  const rows=document.querySelectorAll("#sugg .srow"); if(rows.length) pick(rows[sel]||rows[0])}
+$("#add").onsubmit=ev=>{ev.preventDefault(); submitSearch()};
 $("#sugg").onclick=ev=>{const c=ev.target.closest(".chip"); if(c){ev.preventDefault(); $("#q").value=c.dataset.fill; $("#q").focus(); return showResults()} const r=ev.target.closest(".srow"); if(r) pick(r)};
 document.addEventListener("click",ev=>{if(!ev.target.closest("#add")) hideSugg()});
 $("#board").onclick=async ev=>{
