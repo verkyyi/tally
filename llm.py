@@ -84,7 +84,8 @@ def define(question):
     return d
 
 
-def _pages(pages, cap=14000):
+def _pages(pages, cap=None):
+    cap = cap or max(14000, 120000 // max(len(pages), 1))  # one long data file may be read whole
     return "\n\n".join(f"<page url=\"{p['url']}\">\n{(p.get('content') or '')[:cap]}\n</page>" for p in pages)
 
 

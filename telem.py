@@ -71,7 +71,7 @@ def search(query, metric_id=None, include=None, auto=True, num_results=8):
     return results, provs
 
 
-def fetch(urls, metric_id=None, fresh=False, max_chars=20000):
+def fetch(urls, metric_id=None, fresh=False, max_chars=100000):
     """Returns one row per URL: {url, status, title, content, provider, http_status}."""
     seen, uniq = set(), []
     for u in urls:

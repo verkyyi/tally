@@ -111,7 +111,7 @@ th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var
 <body>
 <header>
   <a href="/" class="brand"><img src="/static/img/logo.svg" alt=""><b>Tally</b><span>A running tally of the outside world.</span></a>
-  <form id="add"><input type="text" id="ghost" tabindex="-1" disabled aria-hidden="true"><input type="text" id="q" placeholder="Search a company or ask for a number" autocomplete="off"><div id="sugg" hidden></div></form>
+  <form id="add"><input type="text" id="ghost" tabindex="-1" disabled aria-hidden="true"><input type="text" id="q" placeholder="Search anything you want tracked: a company, an investor, a market — or ask for a number" autocomplete="off"><div id="sugg" hidden></div></form>
   <div id="acct"></div>
 </header>
 <div id="banner" hidden></div>
@@ -317,8 +317,10 @@ async function showEmpty(){
   const pop=(await api("/api/catalog?sort=popular")).metrics.filter(m=>m.value!=null&&!m.on_board).slice(0,5);
   if($("#q").value.trim()) return;  // the user started typing while this loaded
   $("#sugg").innerHTML=`<div class="shead">Popular in the catalog</div>${pop.map(catRow).join("")}
-    <div class="shead">What a company pack gives you</div><div class="spack">${tplNames.map(t=>`<span>${esc(t.name)}</span>`).join("")}</div>
-    <div class="shead">Try</div><div class="spack">${["Lovable","How many open engineering roles does Cursor have?","How much total funding has Tavily raised?"].map(x=>`<a href="#" class="chip" data-fill="${esc(x)}">${esc(x)}</a>`).join("")}</div>`;
+    <div class="shead">Starter packs</div>
+    <div class="spack"><a href="#" class="chip" data-fill="Lovable">A company</a>${tplNames.map(t=>`<span>${esc(t.name)}</span>`).join("")}</div>
+    <div class="spack"><a href="#" class="chip" data-fill="YC">An accelerator: YC</a><span>batch size</span><span>new batch so far</span><span>AI companies</span><span>hiring now</span></div>
+    <div class="shead">Or ask for a number that has to be added up</div><div class="spack">${["Total funding announced by AI agent startups this month","Largest seed round announced by an AI startup this month","How many open engineering roles does Cursor have?"].map(x=>`<a href="#" class="chip" data-fill="${esc(x)}">${esc(x)}</a>`).join("")}</div>`;
   $("#sugg").hidden=false;
 }
 // Suggestions are computed in the browser from the cached catalog, so they appear as you type.
@@ -340,8 +342,9 @@ async function showResults(){
   let h="";
   if(found.length) h+=`<div class="shead">In the catalog${found.length>7?" · "+found.length+" matches":""}</div>`+found.slice(0,7).map(m=>{const v=val(m.value,m.unit);
     return sugRow(m.on_board?"open":"follow",m.id,hl(m.title,words),`${v?v.text+" "+esc(v.unit):"no value yet"} · tracked by ${m.followers}${m.live?"":" · delayed"}`,m.on_board?"On your board":"Follow")}).join("");
+  if(found.filter(m=>!m.on_board).length>1&&isCompany(q)) h+=sugRow("followall",found.filter(m=>!m.on_board).slice(0,8).map(m=>m.id).join(","),`Follow all ${Math.min(found.filter(m=>!m.on_board).length,8)} for “${esc(q)}”`,"already tracked in the catalog: arrives at once, no new Telem calls","Follow all");
   if(isCompany(q)){const have=CAT.filter(m=>m.curated&&m.title.toLowerCase().startsWith(q.toLowerCase()+" ·")).length;
-    h+=`<div class="shead">Company pack</div>`+sugRow("pack",q,`Track ${esc(q)}: 6 metrics`,have?`${have} already in the catalog, reused at once`:"entry plan price, engineering roles, GitHub stars, launches, App Store rating, funding","Track")}
+    h+=`<div class="shead">Starter pack, if “${esc(q)}” is a company</div>`+sugRow("pack",q,`Track ${esc(q)} as a company: 6 metrics`,have?`${have} already in the catalog, reused at once`:"entry plan price, engineering roles, GitHub stars, launches, App Store rating, funding","Track")}
   h+=`<div class="shead">Create new</div>`+sugRow("create",q,`Create a new metric: “${esc(q)}”`,"Telem finds the source; the catalog is checked first","Create");
   $("#sugg").innerHTML=h; $("#sugg").hidden=false; setSel(0);
 }
@@ -356,7 +359,7 @@ async function doCreate(q){
   S.pending=null; S.busy=false; await loadMe(); refresh()}
 async function doPack(c){
   if(!S.me.user) return signInModal("Sign in to track a company. Whatever the catalog already tracks arrives at once.");
-  S.busy=true; S.pending=`Building the ${c} pack: matching the catalog, then asking Telem for what is new…`; setTab("board");
+  S.busy=true; S.pending=`Building the ${c} company pack: matching the catalog, then asking Telem for what is new…`; setTab("board");
   try{const r=await api("/api/packs",{company:c}); $("#q").value="";
     toast(`${r.company}: ${r.tiles.length} tiles. ${r.matched} reused from the catalog, ${r.created} new${r.skipped?", "+r.skipped+" not available":""}.`,6000)}
   catch(e){toast(e.message,6000)}
@@ -365,6 +368,8 @@ async function pick(row){
   const act=row.dataset.act, arg=row.dataset.arg; hideSugg(); $("#ghost").value="";
   if(act=="open") return openPanel(+arg);
   if(act=="follow"){ if(!S.me.user) return signInModal("Sign in to follow catalog metrics on your own board."); $("#q").value=""; try{await followMetric(arg); S.flash=+arg; setTab("board")}catch(e){} return }
+  if(act=="followall"){ if(!S.me.user) return signInModal("Sign in to follow catalog metrics on your own board."); $("#q").value="";
+    try{for(const id of arg.split(",")) await api(`/api/metrics/${id}/follow`,{}); toast("Added to your board with their history. No new Telem calls."); setTab("board"); await loadMe(); refresh()}catch(e){} return }
   if(act=="pack") return doPack(arg);
   if(act=="create") return doCreate(arg);
 }

@@ -155,6 +155,47 @@ def prewarm():
             print("   ", m["title"], "|", v, flush=True)
 
 
+YC = [
+    ("YC · companies in the current batch", "How many companies are in the current Y Combinator batch?", "companies"),
+    ("YC · Winter 2027 batch so far", "How many companies have been announced in the YC Winter 2027 batch so far?", "companies"),
+    ("YC · AI companies", "How many YC companies carry the AI tag in the YC directory?", "companies"),
+    ("YC · companies hiring now", "How many YC companies are currently hiring?", "companies"),
+    ("YC · launched companies, all time", "How many launched companies are in the Y Combinator directory in total?", "companies"),
+]
+
+
+def yc():
+    """Curated Y Combinator metrics, read from the open YC directory data."""
+    for title, q, unit in YC:
+        if db.one("SELECT 1 x FROM metrics WHERE question=?", (q,)):
+            continue
+        m, _ = core.create_metric("C", q, {"title": title, "unit": unit, "no_monitor": True}, skip_match=True)
+        core.follow("D", m["id"])
+        o = core.latest_obs(m["id"]) or {}
+        print(m["title"], "|", o.get("value"), "|", (o.get("quote") or "")[:90], flush=True)
+
+
+AGGREGATES = [
+    "What is the total funding announced by AI agent startups in November 2026?",
+    "What is the largest seed round announced by an AI startup in November 2026?",
+    "What is the average App Store rating across Lovable, Cursor, Notion and Linear?",
+]
+
+
+def aggregates():
+    """Metrics that are added up across many entries (sum, max, average), for investor-style questions."""
+    for q in AGGREGATES:
+        if db.one("SELECT 1 x FROM metrics WHERE question=?", (q,)):
+            continue
+        try:
+            m, _ = core.create_metric("C", q, {"no_monitor": True}, skip_match=True)
+            core.follow("D", m["id"])
+            r = db.one("SELECT reducer, field FROM metrics WHERE id=?", (m["id"],))
+            print(m["title"], "|", core.count_value(m["id"]) if m["kind"] == "count" else (core.latest_obs(m["id"]) or {}).get("value"), "|", r, flush=True)
+        except Exception as e:
+            print("FAILED", q, e, flush=True)
+
+
 def tick():
     for m in db.q("SELECT id,title,telem_monitor_id FROM metrics WHERE telem_monitor_id IS NOT NULL"):
         try:
@@ -165,4 +206,4 @@ def tick():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates}[sys.argv[1]]()

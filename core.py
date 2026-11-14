@@ -191,13 +191,27 @@ def record_count_obs(mid, origin):
 
 # ---------- flows ----------
 
+# Questions about a known data source go straight to its curated skill: no cold start, no guessing from search.
+SKILL_ROUTES = [
+    (re.compile(r"\b(yc|y ?combinator)\b", re.I), {"skill": "yc_directory", "source_url": "https://yc-oss.github.io/api/meta.json",
+                                                   "kind": "direct", "curated": 1}),
+]
+
+
+def route_skill(question):
+    for rx, o in SKILL_ROUTES:
+        if rx.search(question):
+            return dict(o)
+    return {}
+
+
 def match_metric(question):
     return llm.match(question, db.q("SELECT id, question FROM metrics"))
 
 
 def create_metric(user, question, overrides=None, skip_match=False):
     """Match the question to the shared catalog, or create a new metric. Returns (metric, matched)."""
-    overrides = overrides or {}
+    overrides = route_skill(question) | (overrides or {})
     mid = None if skip_match else match_metric(question)
     if mid:
         follow(user, mid)
