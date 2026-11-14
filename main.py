@@ -191,6 +191,16 @@ def deck():
     return page("deck.html")
 
 
+@app.get("/privacy")
+def privacy():
+    return page("privacy.html")
+
+
+@app.get("/terms")
+def terms():
+    return page("terms.html")
+
+
 @app.get("/favicon.ico")
 def favicon():
     return FileResponse(os.path.join(HERE, "static", "img", "logo.svg"), media_type="image/svg+xml")
