@@ -185,7 +185,7 @@ function val(v,u){const m=/^(usd|eur|gbp)\b\s*/i.exec(u||"");return (m?CUR[m[1].
     <div class="val">${val(m.value,m.unit)}</div><div class="sub">${m.live?"● live":"delayed"} · tracked by ${m.followers}</div></div>`).join("")||'<div class="sub">The catalog is empty.</div>';
   document.querySelectorAll("[data-m]").forEach(e=>{const m=cat.metrics.find(x=>x.title==e.dataset.m); if(m&&m.value!=null) e.innerHTML=val(m.value,m.unit)});
   const g=cat.metrics.find(m=>m.title=="AI agent startups · Nov funding"&&m.value!=null)||c.find(m=>m.kind=="count"); if(g){const t=document.getElementById("herotile");
-    t.querySelector("h3 span").textContent=g.title; t.querySelector(".val").innerHTML=val(g.value,g.unit); document.getElementById("hf").textContent=Math.max(g.followers,2);
+    t.querySelector("h3 span").textContent=g.title; t.querySelector(".kind").textContent=g.kind=="count"&&/funding|average|largest/i.test(g.title)?"aggregate":g.kind; t.querySelector(".val").innerHTML=val(g.value,g.unit); document.getElementById("hf").textContent=Math.max(g.followers,2);
     document.querySelector(".ask .q").textContent=g.question}
   const tr=await (await fetch("/api/traces")).json(); document.getElementById("saved").textContent=tr.calls_saved_by_sharing+" calls saved so far";
 }catch(e){document.getElementById("live").innerHTML='<div class="sub">Start the app to see live numbers.</div>'}})();
