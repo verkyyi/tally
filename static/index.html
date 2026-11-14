@@ -4,39 +4,47 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tally</title>
+<link rel="icon" href="/static/img/logo.svg" type="image/svg+xml">
 <style>
 :root{--paper:#f4f0e6;--card:#fbf9f3;--ink:#1d1b16;--mute:#7b7566;--line:#d9d2c0;--accent:#c2410c;--up:#15703b;--down:#b3261e;--seed:#a79f8c;--new:#fff1c9;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.45 -apple-system,"Helvetica Neue",Arial,sans-serif;padding-bottom:92px}
-header{display:flex;gap:16px;align-items:center;padding:14px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.brand{display:flex;align-items:baseline;gap:10px}
-.brand b{font:700 26px var(--serif);letter-spacing:-.5px}
-.marks{display:inline-flex;gap:3px;position:relative;height:20px;align-self:center;margin-right:2px}
-.marks i{width:2.5px;height:20px;background:var(--ink);border-radius:1px}
-.marks:after{content:"";position:absolute;left:-4px;right:-4px;top:9px;height:2.5px;background:var(--accent);transform:rotate(-24deg);border-radius:1px}
+header{display:flex;gap:14px;align-items:center;padding:12px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit}
+.brand img{width:30px;height:30px}
+.brand b{font:700 25px var(--serif);letter-spacing:-.5px}
 .brand span{color:var(--mute);font:italic 13px var(--serif)}
 form{flex:1;display:flex;gap:8px;min-width:280px}
-input[type=text]{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--card);font:inherit;color:inherit}
-input[type=text]:focus{outline:2px solid var(--ink);outline-offset:-1px}
-button,select{font:inherit;padding:8px 13px;border:1px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--paper);cursor:pointer}
-button.ghost,select{background:transparent;color:var(--ink);border-color:var(--line)}
+input[type=text],input[type=search]{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--card);font:inherit;color:inherit}
+input:focus{outline:2px solid var(--ink);outline-offset:-1px}
+button{font:inherit;padding:8px 13px;border:1px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--paper);cursor:pointer;white-space:nowrap}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
 button.ghost:hover{border-color:var(--ink)}
+button.pro{background:var(--accent);border-color:var(--accent)}
 button:disabled{opacity:.5;cursor:wait}
+#acct{display:flex;gap:10px;align-items:center}
+#acct img{width:28px;height:28px;border-radius:50%}
+.plan{font:600 10px var(--mono);text-transform:uppercase;letter-spacing:.08em;border-radius:3px;padding:2px 6px;border:1px solid var(--line);color:var(--mute)}
+.plan.pro{background:var(--accent);border-color:var(--accent);color:#fff}
 nav{display:flex;gap:4px;padding:14px 24px 0;align-items:center}
 nav a{padding:6px 12px;border-radius:6px;cursor:pointer;color:var(--mute)}
 nav a.on{background:var(--ink);color:var(--paper)}
 nav label{margin-left:auto;color:var(--mute);display:none;gap:6px;align-items:center}
+#banner{margin:14px 24px 0;padding:10px 14px;border:1px dashed var(--seed);border-radius:8px;color:#4a463c;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 main{padding:16px 24px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
 .tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px 12px;cursor:pointer;position:relative;transition:border-color .15s}
 .tile:hover{border-color:var(--ink)}
 .tile.muted{opacity:.45}
+.tile.delayed{background:repeating-linear-gradient(135deg,var(--card),var(--card) 10px,#f6f2e8 10px,#f6f2e8 20px)}
 .tile.flash{animation:flash 1.6s}
 @keyframes flash{0%{background:var(--new)}100%{background:var(--card)}}
 .tile h3{margin:0;font:600 13px/1.3 inherit;display:flex;justify-content:space-between;gap:8px}
-.kind{font:10px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute);border:1px solid var(--line);border-radius:3px;padding:1px 5px;height:fit-content}
+.kind{font:10px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute);border:1px solid var(--line);border-radius:3px;padding:1px 5px;height:fit-content;white-space:nowrap}
+.kind.live{color:var(--up);border-color:var(--up)}
+.kind.late{color:var(--seed);border-style:dashed}
 .val{font:600 34px/1.15 var(--mono);font-variant-numeric:tabular-nums;margin:10px 0 0;letter-spacing:-1px}
 .val small{font:12px var(--mono);color:var(--mute);letter-spacing:0;margin-left:6px}
 .val.none{font:italic 18px var(--serif);color:var(--mute);letter-spacing:0;padding:9px 0}
@@ -45,14 +53,14 @@ main{padding:16px 24px}
 svg.spark{display:block;width:100%;height:46px;margin:6px 0 2px}
 .seedcap{font:10px var(--mono);color:var(--seed);height:14px}
 .foot{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--mute);margin-top:6px;gap:8px}
-.foot button{padding:4px 9px;font-size:12px;white-space:nowrap}
+.foot button{padding:4px 9px;font-size:12px}
 .badge{position:absolute;top:-8px;right:12px;background:var(--accent);color:#fff;font:600 10px var(--mono);padding:2px 7px;border-radius:9px}
 .pending{border-style:dashed;color:var(--mute);display:flex;align-items:center;justify-content:center;min-height:190px;font:italic 15px var(--serif);text-align:center;cursor:default}
 .empty{color:var(--mute);font:italic 16px var(--serif);padding:40px 0}
 #panel{position:fixed;top:0;right:0;bottom:76px;width:min(460px,100vw);background:var(--card);border-left:1px solid var(--ink);padding:20px 22px;overflow:auto;transform:translateX(105%);transition:transform .2s;z-index:5}
 #panel.open{transform:none}
-#panel h2{font:700 20px/1.25 var(--serif);margin:0 30px 4px 0}
-#panel .x{position:absolute;top:14px;right:14px;padding:2px 9px}
+#panel h2,#modal h2{font:700 20px/1.25 var(--serif);margin:0 30px 4px 0}
+.x{position:absolute;top:14px;right:14px;padding:2px 9px}
 #panel h4{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute);margin:20px 0 6px;border-bottom:1px solid var(--line);padding-bottom:4px}
 #panel q{display:block;font:italic 14px var(--serif);border-left:3px solid var(--accent);padding-left:10px;margin:8px 0;quotes:none}
 a{color:inherit;text-decoration-color:var(--accent);text-underline-offset:2px;word-break:break-word}
@@ -64,53 +72,59 @@ ul.rows li.new{background:var(--new)}
 .tag.monitor{background:#1d4d8f;color:#fff}.tag.run_now{background:var(--ink);color:var(--paper)}.tag.feedback{border:1px solid var(--line);color:var(--mute)}
 .when{font:11px var(--mono);color:var(--mute)}
 table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-td .followbtn{padding:4px 9px;font-size:12px;white-space:nowrap}
+td .followbtn{padding:4px 9px;font-size:12px}
 td,th{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute)}
+.cathead{display:flex;gap:12px;align-items:center;margin-bottom:12px}
 #trace{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:var(--paper);padding:10px 24px;display:flex;gap:28px;align-items:center;font-size:12px;z-index:6;overflow-x:auto;white-space:nowrap;min-height:76px}
 #trace .k{font:10px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:#a8a08c;display:block}
 #trace .v{font:600 18px var(--mono)}
 #trace .v small{font:11px var(--mono);font-weight:400;color:#cfc8b6;margin-left:6px}
 #trace .t{font:700 15px var(--serif);color:#fff}
-#toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9;max-width:80vw}
+#toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;max-width:80vw}
 #toast.on{opacity:1}
+#veil{position:fixed;inset:0;background:#1d1b1699;z-index:20;display:flex;align-items:center;justify-content:center;padding:20px}
+#modal{background:var(--paper);border:1px solid var(--ink);border-radius:14px;box-shadow:8px 8px 0 var(--ink);padding:26px 28px;width:min(860px,100%);position:relative;max-height:92vh;overflow:auto}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:18px}
+.pcard{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:8px}
+.pcard.hot{border:2px solid var(--accent)}
+.pcard b{font:700 20px var(--serif)}
+.pcard .price{font:600 28px var(--mono)}
+.pcard .price small{font:12px var(--mono);color:var(--mute)}
+.pcard ul{margin:4px 0 10px;padding-left:18px;color:#4a463c;font-size:13px;flex:1}
+.pcard li{margin:3px 0}
+#gbtn{min-height:40px}
 </style>
 </head>
 <body>
 <header>
-  <a href="/" style="text-decoration:none" class="brand"><span class="marks"><i></i><i></i><i></i><i></i></span><b>Tally</b><span>A running tally of the outside world.</span></a>
-  <form id="add"><input type="text" id="q" placeholder="Ask for a number: “What does Gamma charge for its Business plan?”" autocomplete="off"><button id="addbtn">Add metric</button></form>
-  <select id="user" title="User"><option value="A">User A</option><option value="B">User B</option></select>
-  <button class="ghost" id="signin" hidden>Sign in</button>
+  <a href="/" class="brand"><img src="/static/img/logo.svg" alt=""><b>Tally</b><span>A running tally of the outside world.</span></a>
+  <form id="add"><input type="text" id="q" placeholder="Ask for a number: “What does Linear charge for its Business plan?”" autocomplete="off"><button id="addbtn">Add metric</button></form>
   <button class="ghost" id="sync" title="Poll Telem monitor change feeds">Sync</button>
+  <div id="acct"></div>
 </header>
+<div id="banner" hidden></div>
 <nav><a data-tab="board" class="on">Board</a><a data-tab="log">Change log</a><a data-tab="catalog">Shared catalog</a>
   <label id="f24"><input type="checkbox" id="last24"> last 24h</label></nav>
-<main><div id="board" class="grid"></div><div id="log" hidden></div><div id="catalog" hidden></div></main>
+<main><div id="board" class="grid"></div><div id="log" hidden></div>
+  <div id="catalog" hidden><div class="cathead"><input type="search" id="cq" placeholder="Search the catalog: a company, “stars”, “price”, “funding”…"><span class="when" id="ccount"></span></div><div id="ctable"></div></div></main>
 <aside id="panel"></aside>
+<div id="veil" hidden><div id="modal"></div></div>
 <div id="trace"></div>
 <div id="toast"></div>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const S={user:localStorage.tallyUser||"A",tiles:[],tab:"board",pending:null,flash:null,open:null};
-$("#user").value=S.user;
+const S={me:{user:null},tiles:[],tab:"board",pending:null,flash:null,open:null,featured:true};
 
-async function api(path,opts,retry){
-  const h={"Content-Type":"application/json","X-Tally-Key":localStorage.tallyKey||""};
-  const r=await fetch(path,opts?{method:"POST",headers:h,body:JSON.stringify(opts)}:{headers:h});
+async function api(path,body){
+  const r=await fetch(path,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:undefined);
   const j=await r.json().catch(()=>({}));
-  if(r.status==401&&!retry){ if(await signIn()) return api(path,opts,true); throw new Error("sign in to add or refresh metrics") }
+  if(r.status==401){signInModal(j.detail); throw new Error(j.detail||"Sign in to do that")}
+  if(r.status==402){plansModal(j.detail); throw new Error(j.detail)}
   if(!r.ok) throw new Error(j.detail||r.statusText);
   return j;
 }
-async function signIn(){
-  const k=prompt("Exploring is open to everyone. Adding and refreshing metrics needs the passcode:"); if(!k) return false;
-  const r=await fetch("/api/login",{method:"POST",headers:{"X-Tally-Key":k}});
-  if(!r.ok){toast("Wrong passcode");return false}
-  localStorage.tallyKey=k; showMe(); return true;
-}
-async function showMe(){const m=await api("/api/me"); const b=$("#signin");
-  b.hidden=!m.auth_required; b.textContent=m.signed_in?"Sign out":"Sign in"; b.onclick=()=>{ if(m.signed_in){delete localStorage.tallyKey;showMe()} else signIn() }}
 function toast(t,ms=3500){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("on"),ms)}
 function ago(iso){ if(!iso) return "never"; const s=(Date.now()-new Date(iso))/1e3;
   return s<60?"just now":s<3600?Math.floor(s/60)+"m ago":s<86400?Math.floor(s/3600)+"h ago":Math.floor(s/86400)+"d ago"}
@@ -120,40 +134,86 @@ const CUR={usd:"$",eur:"€",gbp:"£"};
 function val(v,unit){ if(v==null) return null; const m=/^(usd|eur|gbp)\b\s*/i.exec(unit||"");
   return {text:(m?CUR[m[1].toLowerCase()]:"")+num(v), unit:m?unit.slice(m[0].length):(unit||"")}}
 
+/* ---------- account ---------- */
+async function loadMe(){
+  S.me=await (await fetch("/api/me")).json(); const u=S.me.user, a=$("#acct");
+  a.innerHTML=u?`${u.plan=="pro"?"":`<button class="pro" id="upg">Upgrade</button>`}<span class="plan ${u.plan}">${u.plan}</span>
+      ${u.picture?`<img src="${esc(u.picture)}" alt="" referrerpolicy="no-referrer">`:""}<span title="${esc(u.email)}">${esc((u.name||u.email).split(" ")[0])}</span><button class="ghost" id="out">Sign out</button>`
+    :`<button id="in">Sign in</button>`;
+  if($("#in")) $("#in").onclick=()=>signInModal();
+  if($("#upg")) $("#upg").onclick=()=>plansModal();
+  if($("#out")) $("#out").onclick=async()=>{await api("/api/auth/logout",{}); closePanel(); await loadMe(); refresh()};
+  const b=$("#banner");
+  if(!u){b.hidden=false;b.innerHTML=`<span>You're browsing the <b>featured board</b>. Everything in the catalog is open to read and search; featured numbers are live, the rest are delayed. Sign in for your own board and to ask for new numbers.</span><button id="in2">Sign in with Google</button>`;$("#in2").onclick=()=>signInModal()}
+  else if(u.plan!="pro"){b.hidden=false;b.innerHTML=`<span><b>Free plan:</b> featured metrics, the ones you create (${u.created}/${S.me.free_create}), and your first ${S.me.free_live} catalog picks are live. Everything else shows a delayed value.</span><button class="pro" id="upg2">Go Pro · $${S.me.price_usd}/mo</button>`;$("#upg2").onclick=()=>plansModal()}
+  else b.hidden=true;
+}
+function modal(html){$("#modal").innerHTML=`<button class="ghost x">×</button>`+html; $("#veil").hidden=false}
+function closeModal(){$("#veil").hidden=true}
+$("#veil").onclick=ev=>{if(ev.target.id=="veil"||ev.target.closest(".x")) closeModal()};
+async function afterSignIn(u){closeModal(); toast("Signed in as "+(u.name||u.email)); await loadMe(); refresh()}
+function signInModal(why){
+  modal(`<h2>Sign in to Tally</h2><p style="color:#4a463c;margin:6px 0 18px">${esc(why&&why!="Sign in to do that"?why:"Reading and searching the catalog is open to everyone. Sign in to keep your own board, see more live numbers and ask for new ones.")}</p>
+    <div id="gbtn"></div>${S.me.google_client_id?"":'<div class="when">Google sign-in is not configured on this server yet.</div>'}
+    ${S.me.demo_login?'<p class="when" style="margin-top:18px">Presenting? <a href="#" id="demo">Use the demo passcode</a></p>':""}`);
+  if(S.me.google_client_id&&window.google){
+    google.accounts.id.initialize({client_id:S.me.google_client_id,callback:async r=>{
+      try{const j=await api("/api/auth/google",{credential:r.credential}); afterSignIn(j.user)}catch(e){toast(e.message,6000)}}});
+    google.accounts.id.renderButton($("#gbtn"),{theme:"filled_black",size:"large",shape:"rectangular",text:"continue_with",logo_alignment:"left",width:280});
+  }
+  if($("#demo")) $("#demo").onclick=async ev=>{ev.preventDefault(); const k=prompt("Demo passcode:"); if(!k) return;
+    const r=await fetch("/api/auth/demo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({passcode:k})});
+    const j=await r.json(); r.ok?afterSignIn(j.user):toast(j.detail||"Wrong passcode")};
+}
+function plansModal(why){
+  const u=S.me.user, p=u&&u.plan;
+  modal(`<h2>Plans</h2>${why?`<p style="color:var(--accent);margin:6px 0 0">${esc(why)}</p>`:""}
+  <div class="plans">
+    <div class="pcard"><b>Visitor</b><div class="price">$0</div><ul><li>Read and search the whole catalog</li><li>Featured metrics live</li><li>Everything else delayed</li></ul>${u?"":'<span class="when">You are here</span>'}</div>
+    <div class="pcard"><b>Free account</b><div class="price">$0 <small>with Google</small></div><ul><li>Your own board</li><li>Live on featured metrics, what you create, and ${S.me.free_live} catalog picks</li><li>Create ${S.me.free_create} new metrics</li><li>Run now and change log</li></ul>
+      ${u?(p=="free"?'<span class="when">You are here</span>':""):'<button id="pin">Sign in with Google</button>'}</div>
+    <div class="pcard hot"><b>Pro</b><div class="price">$${S.me.price_usd} <small>/ month</small></div><ul><li>Every metric live, with evidence</li><li>Unlimited new metrics</li><li>Run now on anything</li><li>Hourly Telem monitor on each metric you create</li></ul>
+      ${p=="pro"?'<span class="when">You are here. Thank you.</span>':`<button class="pro" id="buy">${S.me.billing?"Upgrade with Stripe":"Billing opens soon"}</button>`}</div>
+  </div>`);
+  if($("#pin")) $("#pin").onclick=()=>signInModal();
+  if($("#buy")) $("#buy").onclick=async()=>{ if(!S.me.user) return signInModal("Sign in first, then upgrade."); if(!S.me.billing) return toast("Billing is not configured on this server yet.");
+    $("#buy").disabled=true; try{const j=await api("/api/billing/checkout",{}); if(j.url) location.href=j.url; else {toast("You're already on Pro"); loadMe()}}catch(e){toast(e.message,6000); $("#buy").disabled=false}};
+}
+
+/* ---------- board ---------- */
 function spark(pts){
   if(pts.length<2) return '<svg class="spark"></svg><div class="seedcap"></div>';
   const W=240,H=46,P=4,vs=pts.map(p=>p.value),mn=Math.min(...vs),mx=Math.max(...vs),r=mx-mn;
   const xy=pts.map((p,i)=>[P+i*(W-2*P)/(pts.length-1), r?H-P-(p.value-mn)/r*(H-2*P):H/2]);
   const firstReal=pts.findIndex(p=>!p.seeded), cut=firstReal<0?pts.length:firstReal;
   const path=a=>a.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
-  const seeded=xy.slice(0,Math.min(cut+1,xy.length)), real=xy.slice(Math.max(cut,0));
-  const last=xy[xy.length-1];
+  const seeded=xy.slice(0,Math.min(cut+1,xy.length)), real=xy.slice(Math.max(cut,0)), last=xy[xy.length-1];
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     ${seeded.length>1?`<path d="${path(seeded)}" fill="none" stroke="var(--seed)" stroke-width="1.5" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>`:""}
     ${real.length>1?`<path d="${path(real)}" fill="none" stroke="var(--ink)" stroke-width="1.8" vector-effect="non-scaling-stroke"/>`:""}
     <circle cx="${last[0]}" cy="${last[1]}" r="2.6" fill="var(--accent)"/></svg>
     <div class="seedcap">${cut>0?"┄ seeded history · ━ observed":""}</div>`;
 }
-
 function tileHTML(t){
   const v=val(t.value,t.unit); let d='<span class="flat">&nbsp;</span>';
-  if(t.value!=null&&t.previous!=null){const x=t.value-t.previous;
+  if(t.live&&t.value!=null&&t.previous!=null){const x=t.value-t.previous;
     d=`<span class="${x>0?"up":"down"}">${x>0?"▲ +":"▼ −"}${num(Math.abs(x))}</span> <span class="flat">from ${num(t.previous)}</span>`}
-  return `<div class="tile${t.muted?" muted":""}${S.flash==t.id?" flash":""}" data-id="${t.id}">
+  if(!t.live) d=`<span class="flat">delayed · as of ${ago(t.as_of)}</span>`;
+  return `<div class="tile${t.muted?" muted":""}${t.live?"":" delayed"}${S.flash==t.id?" flash":""}" data-id="${t.id}">
     ${t.new_entries?`<span class="badge">${t.new_entries} NEW</span>`:""}
-    <h3><span>${esc(t.title)}</span><span class="kind">${t.kind}</span></h3>
+    <h3><span>${esc(t.title)}</span><span class="kind ${t.live?"live":"late"}">${t.live?"● live":"delayed"}</span></h3>
     ${v?`<div class="val">${v.text}<small>${esc(v.unit)}</small></div>`:`<div class="val none">no value yet</div>`}
     <div class="delta">${d}</div>${spark(t.spark)}
-    <div class="foot"><span>checked ${ago(t.last_checked)} · tracked by ${t.followers}${t.monitor?" · ◉ monitor":""}</span>
-    <button class="ghost run" data-id="${t.id}">Run now</button></div></div>`;
+    <div class="foot"><span>${t.live?"checked "+ago(t.last_checked)+" · ":""}tracked by ${t.followers}${t.monitor?" · ◉ monitor":""}</span>
+    ${t.live?`<button class="ghost run" data-id="${t.id}">Run now</button>`:`<button class="ghost golive" data-id="${t.id}">Go live</button>`}</div></div>`;
 }
 function renderBoard(){
   let h=S.tiles.map(tileHTML).join("");
   if(S.pending) h+=`<div class="tile pending">${esc(S.pending)}</div>`;
-  $("#board").innerHTML=h||'<div class="empty">Nothing tracked yet. Ask for a number above — if someone already tracks it, you get its history for free.</div>';
+  $("#board").innerHTML=h||'<div class="empty">Nothing on your board yet. Ask for a number above, or pick some from the shared catalog.</div>';
   S.flash=null;
 }
-async function loadBoard(){S.tiles=(await api("/api/board?user="+S.user)).tiles;renderBoard()}
+async function loadBoard(){const b=await api("/api/board"); S.tiles=b.tiles; S.featured=b.featured; renderBoard()}
 
 async function loadTrace(){
   const t=await api("/api/traces"), kv=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+" "+v).join(" · ")||"—";
@@ -175,75 +235,103 @@ function changeText(c){
 }
 const originTag=o=>`<span class="tag ${o}">${{monitor:"Telem monitor",run_now:"Run now",feedback:"Feedback"}[o]||o}</span>`;
 async function loadLog(){
-  const since=$("#last24").checked?"&since="+new Date(Date.now()-864e5).toISOString().slice(0,19)+"Z":"";
-  const cs=(await api("/api/changes?user="+S.user+since)).changes;
+  const since=$("#last24").checked?"?since="+new Date(Date.now()-864e5).toISOString().slice(0,19)+"Z":"";
+  const cs=(await api("/api/changes"+since)).changes;
   $("#log").innerHTML=cs.length?`<table><tr><th>When</th><th>Metric</th><th>Change</th><th>Found by</th></tr>${cs.map(c=>
     `<tr><td class="when">${ago(c.at)}</td><td>${esc(c.title)}</td><td>${changeText(c)}</td><td>${originTag(c.origin)}</td></tr>`).join("")}</table>`
     :'<div class="empty">No changes yet. Tally only surfaces what moved.</div>';
 }
-
 async function loadCatalog(){
-  const ms=(await api("/api/catalog?user="+S.user)).metrics;
-  $("#catalog").innerHTML=`<table><tr><th>Metric</th><th>Value</th><th>Kind</th><th>Tracked by</th><th>Checked</th><th></th></tr>${ms.map(m=>{const v=val(m.value,m.unit);
-    return `<tr><td><b>${esc(m.title)}</b><div class="when">${esc(m.question)}</div></td><td style="font-family:var(--mono);white-space:nowrap">${v?v.text+" "+esc(v.unit):"no value yet"}</td>
-    <td><span class="kind">${m.kind}</span></td><td>${m.followers}</td><td class="when">${ago(m.last_checked)}</td>
-    <td>${m.on_board?'<span class="when">on your board</span>':`<button class="ghost followbtn" data-id="${m.id}">Add to board</button>`}</td></tr>`}).join("")}</table>`;
+  const r=await api("/api/catalog?q="+encodeURIComponent($("#cq").value.trim())), ms=r.metrics;
+  $("#ccount").textContent=`${ms.length} of ${r.total} metrics`;
+  $("#ctable").innerHTML=ms.length?`<table><tr><th>Metric</th><th>Value</th><th></th><th>Tracked by</th><th></th></tr>${ms.map(m=>{const v=val(m.value,m.unit);
+    return `<tr data-id="${m.id}" style="cursor:pointer"><td><b>${esc(m.title)}</b><div class="when">${esc(m.question)}</div></td><td style="font-family:var(--mono);white-space:nowrap">${v?v.text+" "+esc(v.unit):"no value yet"}</td>
+    <td><span class="kind ${m.live?"live":"late"}">${m.live?"● live":"delayed"}</span></td><td>${m.followers}</td>
+    <td>${m.on_board?'<span class="when">on your board</span>':`<button class="ghost followbtn" data-id="${m.id}">Add to board</button>`}</td></tr>`}).join("")}</table>`
+    :'<div class="empty">Nothing in the catalog matches. Ask for it above and Tally will start tracking it.</div>';
 }
+
 async function openPanel(id){
   S.open=id; const e=await api("/api/metrics/"+id), m=e.metric, v=val(m.value,m.unit); let h=`<button class="ghost x">×</button>
     <h2>${esc(m.title)}</h2><div class="when">${esc(m.question)}</div>
     <div class="val">${v?v.text+`<small>${esc(v.unit)}</small>`:'<span class="val none">no value yet</span>'}</div>
-    <div class="when">tracked by ${m.followers} · checked ${ago(m.last_checked)}</div>`;
-  if(m.kind=="direct"){
-    const o=e.observation; h+=`<h4>Evidence</h4>`+(o?`${o.quote?`<q>${esc(o.quote)}</q>`:""}
-      <div>Source: <a href="${esc(o.evidence_url||m.source_url)}" target="_blank">${esc(o.evidence_url||m.source_url)}</a>${o.seeded?'<span class="tag seeded">seeded</span>':""}</div>
-      <div class="when">read ${ago(o.as_of)} via Telem Fetch</div>`:"<div class='when'>No value found on any source yet. Tally never guesses.</div>");
+    <div class="when">tracked by ${m.followers} · ${m.live?"checked "+ago(m.last_checked):"delayed value, as of "+ago(m.as_of)}</div>`;
+  if(e.locked){
+    h+=`<h4>Live value and evidence</h4><p style="color:#4a463c">This metric is delayed for you. The live number, its source and quote, the full ledger and the change history are part of ${S.me.user?"Pro, or pick it as one of your live catalog metrics":"a signed-in account"}.</p>
+      ${S.me.user?`<button class="pro" id="pup">See plans</button>`:`<button id="pin2">Sign in with Google</button>`}
+      ${m.on_board?"":` <button class="ghost fol" data-id="${m.id}">Add to board</button>`}`;
   } else {
-    h+=`<h4>Ledger · ${e.entries.length} entries</h4><ul class="rows">${e.entries.map(x=>`<li class="${x.is_new?"new":""}">
-      ${x.url?`<a href="${esc(x.url)}" target="_blank">${esc(x.title)}</a>`:esc(x.title)}${x.is_new?'<span class="tag new">NEW</span>':""}${x.seeded?'<span class="tag seeded">seeded</span>':""}
-      <div class="when">first seen ${ago(x.first_seen_at)}${x.found_via?" · via "+x.found_via:""}</div></li>`).join("")||"<li class='when'>No entries yet.</li>"}</ul>`;
+    if(m.kind=="direct"){
+      const o=e.observation; h+=`<h4>Evidence</h4>`+(o?`${o.quote?`<q>${esc(o.quote)}</q>`:""}
+        <div>Source: <a href="${esc(o.evidence_url||m.source_url)}" target="_blank">${esc(o.evidence_url||m.source_url)}</a>${o.seeded?'<span class="tag seeded">seeded</span>':""}</div>
+        <div class="when">read ${ago(o.as_of)} via Telem Fetch</div>`:"<div class='when'>No value found on any source yet. Tally never guesses.</div>");
+    } else {
+      h+=`<h4>Ledger · ${e.entries.length} entries</h4><ul class="rows">${e.entries.map(x=>`<li class="${x.is_new?"new":""}">
+        ${x.url?`<a href="${esc(x.url)}" target="_blank">${esc(x.title)}</a>`:esc(x.title)}${x.is_new?'<span class="tag new">NEW</span>':""}${x.seeded?'<span class="tag seeded">seeded</span>':""}
+        <div class="when">first seen ${ago(x.first_seen_at)}${x.found_via?" · via "+x.found_via:""}</div></li>`).join("")||"<li class='when'>No entries yet.</li>"}</ul>`;
+    }
+    h+=`<h4>Changes</h4><ul class="rows">${e.changes.map(c=>`<li>${changeText(c)} ${originTag(c.origin)}<div class="when">${ago(c.at)}</div></li>`).join("")||"<li class='when'>No changes recorded.</li>"}</ul>
+      <h4>How Telem tracks this</h4><div class="when">Search: ${esc(e.search_query)}<br>Monitor: ${esc(e.monitor_query)}${e.telem_monitor_id?"<br>hourly · id "+esc(e.telem_monitor_id):"<br>no monitor yet"}</div>
+      <h4>Actions</h4>${m.kind=="direct"?`<button class="ghost fb" data-a="wrong_source">Wrong source</button> `:""}${m.on_board?`<button class="ghost fb" data-a="mute">Mute / unmute</button> <button class="ghost unf">Remove from board</button>`:`<button class="ghost fol" data-id="${m.id}">Add to board</button>`}`;
   }
-  h+=`<h4>Changes</h4><ul class="rows">${e.changes.map(c=>`<li>${changeText(c)} ${originTag(c.origin)}<div class="when">${ago(c.at)}</div></li>`).join("")||"<li class='when'>No changes recorded.</li>"}</ul>
-    <h4>How Telem tracks this</h4><div class="when">Search: ${esc(e.search_query)}<br>Monitor (hourly): ${esc(e.monitor_query)}${e.telem_monitor_id?"<br>id "+esc(e.telem_monitor_id):"<br>no monitor"}</div>
-    <h4>Feedback</h4>${m.kind=="direct"?`<button class="ghost fb" data-a="wrong_source">Wrong source</button> `:""}<button class="ghost fb" data-a="mute">Mute / unmute</button>`;
   const p=$("#panel"); p.innerHTML=h; p.classList.add("open");
 }
 function closePanel(){$("#panel").classList.remove("open");S.open=null}
 async function refresh(){await Promise.all([loadBoard(),loadTrace(),S.tab=="log"?loadLog():S.tab=="catalog"?loadCatalog():0]); if(S.open) openPanel(S.open)}
+async function followMetric(id){ await api(`/api/metrics/${id}/follow`,{}); toast("Added to your board with its full history. No new Telem calls."); await loadMe(); refresh() }
 
 $("#add").onsubmit=async ev=>{ev.preventDefault(); const q=$("#q").value.trim(); if(!q) return;
+  if(!S.me.user) return signInModal("Sign in to ask for a number. If the catalog already tracks it, you get it at once.");
   $("#addbtn").disabled=true; S.pending="Checking the shared catalog, then asking Telem…"; renderBoard();
-  try{const r=await api("/api/metrics",{user:S.user,question:q}); $("#q").value=""; S.flash=r.metric.id;
+  try{const r=await api("/api/metrics",{question:q}); $("#q").value=""; S.flash=r.metric.id;
     toast(r.matched?`Already in the catalog — reused with its history. Tracked by ${r.metric.followers}. No new Telem calls.`
       :(r.metric.value!=null?"New metric: Telem found the source.":"New metric created — no value found yet."),5000)}
-  catch(e){toast("Could not add: "+e.message,6000)}
-  S.pending=null; $("#addbtn").disabled=false; refresh()};
+  catch(e){toast(e.message,6000)}
+  S.pending=null; $("#addbtn").disabled=false; await loadMe(); refresh()};
 $("#board").onclick=async ev=>{
-  const b=ev.target.closest(".run"), t=ev.target.closest(".tile[data-id]");
-  if(b){ev.stopPropagation(); b.disabled=true; b.textContent="Running…";
+  const b=ev.target.closest(".run"), g=ev.target.closest(".golive"), t=ev.target.closest(".tile[data-id]");
+  if(g){ev.stopPropagation(); S.me.user?plansModal("This metric is delayed on your plan."):signInModal()}
+  else if(b){ev.stopPropagation(); if(!S.me.user) return signInModal("Sign in to refresh a metric."); b.disabled=true; b.textContent="Running…";
     try{const r=await api(`/api/metrics/${b.dataset.id}/run`,{}); S.flash=+b.dataset.id;
       if(r.new_entries&&r.new_entries.length){toast(`+${r.new_entries.length} new ${r.new_entries.length>1?"entries":"entry"} found`); S.open=+b.dataset.id}
       else toast(r.found?(r.changed?"Value changed":"Checked — no change"):"Checked — no value found")}
-    catch(e){toast("Run failed: "+e.message,6000)} refresh()}
+    catch(e){toast(e.message,6000)} refresh()}
   else if(t) openPanel(+t.dataset.id)};
 $("#panel").onclick=async ev=>{
   if(ev.target.closest(".x")) return closePanel();
+  if(ev.target.closest("#pup")) return plansModal();
+  if(ev.target.closest("#pin2")) return signInModal();
+  const fo=ev.target.closest(".fol"); if(fo){ try{await followMetric(fo.dataset.id)}catch(e){} return }
+  if(ev.target.closest(".unf")){ try{await api(`/api/metrics/${S.open}/unfollow`,{}); closePanel(); toast("Removed from your board"); await loadMe(); refresh()}catch(e){} return }
   const f=ev.target.closest(".fb"); if(!f) return; f.disabled=true;
-  try{const r=await api(`/api/metrics/${S.open}/feedback`,{user:S.user,action:f.dataset.a});
+  try{const r=await api(`/api/metrics/${S.open}/feedback`,{action:f.dataset.a});
     toast(f.dataset.a=="mute"?(r.muted?"Muted on your board":"Unmuted"):(r.resolved?"Source re-resolved":"No better source found"))}
   catch(e){toast(e.message,6000)} refresh()};
-$("#sync").onclick=async()=>{const b=$("#sync"); b.disabled=true; b.textContent="Syncing…";
+$("#sync").onclick=async()=>{ if(!S.me.user) return signInModal("Sign in to sync with the Telem monitors."); const b=$("#sync"); b.disabled=true; b.textContent="Syncing…";
   try{const r=await api("/api/sync",{}); toast(`${r.changes?r.changes+" new change"+(r.changes==1?"":"s")+" from":"Up to date with"} ${r.metrics} Telem monitor${r.metrics==1?"":"s"}${r.errors.length?" · "+r.errors.length+" error(s): "+r.errors[0]:""}`,5000)}
-  catch(e){toast("Sync failed: "+e.message,6000)} b.disabled=false; b.textContent="Sync"; refresh()};
-$("#user").onchange=ev=>{S.user=localStorage.tallyUser=ev.target.value; closePanel(); refresh()};
-document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>{S.tab=a.dataset.tab;
-  document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x==a));
-  $("#board").hidden=S.tab!="board"; $("#log").hidden=S.tab!="log"; $("#catalog").hidden=S.tab!="catalog"; $("#f24").style.display=S.tab=="log"?"flex":"none"; refresh()});
+  catch(e){toast(e.message,6000)} b.disabled=false; b.textContent="Sync"; refresh()};
+function setTab(tab){S.tab=tab; document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x.dataset.tab==tab));
+  $("#board").hidden=tab!="board"; $("#log").hidden=tab!="log"; $("#catalog").hidden=tab!="catalog"; $("#f24").style.display=tab=="log"?"flex":"none"; refresh()}
+document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>setTab(a.dataset.tab));
 $("#last24").onchange=loadLog;
-$("#catalog").onclick=async ev=>{const b=ev.target.closest(".followbtn"); if(!b) return; b.disabled=true;
-  try{await api(`/api/metrics/${b.dataset.id}/follow`,{user:S.user}); toast("Added to your board with its full history. No new Telem calls.")}catch(e){toast(e.message)} refresh()};
-document.onkeydown=ev=>{if(ev.key=="Escape") closePanel()};
-showMe(); refresh(); setInterval(loadTrace,15000);
+let cqT; $("#cq").oninput=()=>{clearTimeout(cqT); cqT=setTimeout(loadCatalog,180)};
+$("#ctable").onclick=async ev=>{const b=ev.target.closest(".followbtn"), row=ev.target.closest("tr[data-id]");
+  if(b){ if(!S.me.user) return signInModal("Sign in to add catalog metrics to your own board."); b.disabled=true; try{await followMetric(b.dataset.id)}catch(e){} }
+  else if(row) openPanel(+row.dataset.id)};
+document.onkeydown=ev=>{if(ev.key=="Escape"){closeModal();closePanel()}};
+
+(async()=>{
+  await loadMe();
+  const p=new URLSearchParams(location.search);
+  if(p.get("tab")) setTab(p.get("tab")); else refresh();
+  if(p.get("q")){ setTab("catalog"); $("#cq").value=p.get("q"); loadCatalog() }
+  if(p.get("checkout")=="success"&&p.get("session_id")){
+    try{const r=await api("/api/billing/confirm?session_id="+encodeURIComponent(p.get("session_id"))); toast(r.pro?"Welcome to Pro. Every metric is live now.":"Payment not confirmed yet.",6000)}catch(e){toast(e.message,6000)}
+    history.replaceState({},"","/app"); await loadMe(); refresh()}
+  if(p.get("checkout")=="cancel"){toast("Checkout cancelled"); history.replaceState({},"","/app")}
+  if(p.get("plans")) plansModal();
+  setInterval(loadTrace,15000);
+})();
 </script>
 </body>
 </html>

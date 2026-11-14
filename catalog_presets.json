@@ -1,14 +1,568 @@
 [
-  {"users": ["C", "D"], "question": "What is the per-seat monthly price of Notion's Business plan?", "title": "Notion · Business plan price", "kind": "direct", "unit": "USD/seat/mo", "source_url": "https://www.notion.com/pricing"},
-  {"users": ["C"], "question": "What is the per-seat monthly price of Notion's Plus plan?", "title": "Notion · Plus plan price", "kind": "direct", "unit": "USD/seat/mo", "source_url": "https://www.notion.com/pricing"},
-  {"users": ["D"], "question": "What is the listed monthly price of Papermark's Business plan?", "title": "Papermark · Business plan price", "kind": "direct", "unit": "EUR/mo", "source_url": "https://www.papermark.com/pricing"},
-  {"users": ["C", "D", "E"], "question": "What is the App Store rating of the Canva iOS app?", "title": "Canva · App Store rating", "kind": "direct", "unit": "rating /5", "source_url": "https://itunes.apple.com/lookup?id=897446215&country=us"},
-  {"users": ["E"], "question": "How many GitHub stars does the docusealco/docuseal repository have?", "title": "DocuSeal · GitHub stars", "kind": "direct", "unit": "stars", "source_url": "https://api.github.com/repos/docusealco/docuseal"},
-  {"users": ["C", "E"], "question": "How many GitHub stars does the documenso/documenso repository have?", "title": "Documenso · GitHub stars", "kind": "direct", "unit": "stars", "source_url": "https://api.github.com/repos/documenso/documenso"},
-  {"users": ["D"], "question": "How many GitHub stars does the outline/outline repository have?", "title": "Outline · GitHub stars", "kind": "direct", "unit": "stars", "source_url": "https://api.github.com/repos/outline/outline"},
-  {"users": ["C"], "question": "How many GitHub stars does the AppFlowy-IO/AppFlowy repository have?", "title": "AppFlowy · GitHub stars", "kind": "direct", "unit": "stars", "source_url": "https://api.github.com/repos/AppFlowy-IO/AppFlowy"},
-  {"users": ["D", "E"], "question": "How many GitHub stars does the excalidraw/excalidraw repository have?", "title": "Excalidraw · GitHub stars", "kind": "direct", "unit": "stars", "source_url": "https://api.github.com/repos/excalidraw/excalidraw"},
-  {"users": ["C", "D"], "question": "How much total funding has Gamma (gamma.app) raised?", "title": "Gamma · total funding raised", "kind": "direct", "unit": "USD"},
-  {"users": ["E"], "question": "How much total funding has Canva raised?", "title": "Canva · total funding raised", "kind": "direct", "unit": "USD"},
-  {"users": ["C"], "question": "How many open engineering roles does Papermark have?", "title": "Papermark · open engineering roles", "kind": "count", "unit": "roles"}
+ {
+  "users": [
+   "C",
+   "D"
+  ],
+  "question": "What is the per-seat monthly price of Notion's Business plan?",
+  "title": "Notion \u00b7 Business plan price",
+  "kind": "direct",
+  "unit": "USD/seat/mo",
+  "source_url": "https://www.notion.com/pricing"
+ },
+ {
+  "users": [
+   "C"
+  ],
+  "question": "What is the per-seat monthly price of Notion's Plus plan?",
+  "title": "Notion \u00b7 Plus plan price",
+  "kind": "direct",
+  "unit": "USD/seat/mo",
+  "source_url": "https://www.notion.com/pricing"
+ },
+ {
+  "users": [
+   "D"
+  ],
+  "question": "What is the listed monthly price of Papermark's Business plan?",
+  "title": "Papermark \u00b7 Business plan price",
+  "kind": "direct",
+  "unit": "EUR/mo",
+  "source_url": "https://www.papermark.com/pricing"
+ },
+ {
+  "users": [
+   "C",
+   "D",
+   "E"
+  ],
+  "question": "What is the App Store rating of the Canva iOS app?",
+  "title": "Canva \u00b7 App Store rating",
+  "kind": "direct",
+  "unit": "rating /5",
+  "source_url": "https://itunes.apple.com/lookup?id=897446215&country=us"
+ },
+ {
+  "users": [
+   "E"
+  ],
+  "question": "How many GitHub stars does the docusealco/docuseal repository have?",
+  "title": "DocuSeal \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/docusealco/docuseal"
+ },
+ {
+  "users": [
+   "C",
+   "E"
+  ],
+  "question": "How many GitHub stars does the documenso/documenso repository have?",
+  "title": "Documenso \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/documenso/documenso"
+ },
+ {
+  "users": [
+   "D"
+  ],
+  "question": "How many GitHub stars does the outline/outline repository have?",
+  "title": "Outline \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/outline/outline"
+ },
+ {
+  "users": [
+   "C"
+  ],
+  "question": "How many GitHub stars does the AppFlowy-IO/AppFlowy repository have?",
+  "title": "AppFlowy \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/AppFlowy-IO/AppFlowy"
+ },
+ {
+  "users": [
+   "D",
+   "E"
+  ],
+  "question": "How many GitHub stars does the excalidraw/excalidraw repository have?",
+  "title": "Excalidraw \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/excalidraw/excalidraw"
+ },
+ {
+  "users": [
+   "C",
+   "D"
+  ],
+  "question": "How much total funding has Gamma (gamma.app) raised?",
+  "title": "Gamma \u00b7 total funding raised",
+  "kind": "direct",
+  "unit": "USD"
+ },
+ {
+  "users": [
+   "E"
+  ],
+  "question": "How much total funding has Canva raised?",
+  "title": "Canva \u00b7 total funding raised",
+  "kind": "direct",
+  "unit": "USD"
+ },
+ {
+  "users": [
+   "C"
+  ],
+  "question": "How many open engineering roles does Papermark have?",
+  "title": "Papermark \u00b7 open engineering roles",
+  "kind": "count",
+  "unit": "roles"
+ },
+ {
+  "users": [
+   "D",
+   "F"
+  ],
+  "question": "How many GitHub stars does the supabase/supabase repository have?",
+  "title": "Supabase \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/supabase/supabase"
+ },
+ {
+  "users": [
+   "C"
+  ],
+  "question": "How many GitHub stars does the vercel/next.js repository have?",
+  "title": "Next.js \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/vercel/next.js"
+ },
+ {
+  "users": [
+   "C",
+   "E",
+   "F"
+  ],
+  "question": "How many GitHub stars does the PostHog/posthog repository have?",
+  "title": "PostHog \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/PostHog/posthog"
+ },
+ {
+  "users": [
+   "G"
+  ],
+  "question": "How many GitHub stars does the n8n-io/n8n repository have?",
+  "title": "n8n \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/n8n-io/n8n"
+ },
+ {
+  "users": [
+   "C"
+  ],
+  "question": "How many GitHub stars does the langchain-ai/langchain repository have?",
+  "title": "LangChain \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/langchain-ai/langchain"
+ },
+ {
+  "users": [
+   "F"
+  ],
+  "question": "How many GitHub stars does the calcom/cal.com repository have?",
+  "title": "Cal.com \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/calcom/cal.com"
+ },
+ {
+  "users": [
+   "C",
+   "D"
+  ],
+  "question": "How many GitHub stars does the twentyhq/twenty repository have?",
+  "title": "Twenty \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/twentyhq/twenty"
+ },
+ {
+  "users": [
+   "G"
+  ],
+  "question": "How many GitHub stars does the appsmithorg/appsmith repository have?",
+  "title": "Appsmith \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/appsmithorg/appsmith"
+ },
+ {
+  "users": [
+   "C",
+   "G"
+  ],
+  "question": "How many GitHub stars does the nocodb/nocodb repository have?",
+  "title": "NocoDB \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/nocodb/nocodb"
+ },
+ {
+  "users": [
+   "G"
+  ],
+  "question": "How many GitHub stars does the strapi/strapi repository have?",
+  "title": "Strapi \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/strapi/strapi"
+ },
+ {
+  "users": [
+   "G"
+  ],
+  "question": "How many GitHub stars does the directus/directus repository have?",
+  "title": "Directus \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/directus/directus"
+ },
+ {
+  "users": [
+   "F",
+   "C",
+   "G"
+  ],
+  "question": "How many GitHub stars does the plausible/analytics repository have?",
+  "title": "Plausible \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/plausible/analytics"
+ },
+ {
+  "users": [
+   "G"
+  ],
+  "question": "How many GitHub stars does the metabase/metabase repository have?",
+  "title": "Metabase \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/metabase/metabase"
+ },
+ {
+  "users": [
+   "E"
+  ],
+  "question": "How many GitHub stars does the grafana/grafana repository have?",
+  "title": "Grafana \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/grafana/grafana"
+ },
+ {
+  "users": [
+   "D",
+   "C"
+  ],
+  "question": "How many GitHub stars does the mattermost/mattermost repository have?",
+  "title": "Mattermost \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/mattermost/mattermost"
+ },
+ {
+  "users": [
+   "E",
+   "D",
+   "C"
+  ],
+  "question": "How many GitHub stars does the formbricks/formbricks repository have?",
+  "title": "Formbricks \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/formbricks/formbricks"
+ },
+ {
+  "users": [
+   "G",
+   "D",
+   "F"
+  ],
+  "question": "How many GitHub stars does the dubinc/dub repository have?",
+  "title": "Dub \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/dubinc/dub"
+ },
+ {
+  "users": [
+   "G"
+  ],
+  "question": "How many GitHub stars does the immich-app/immich repository have?",
+  "title": "Immich \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/immich-app/immich"
+ },
+ {
+  "users": [
+   "G"
+  ],
+  "question": "How many GitHub stars does the ollama/ollama repository have?",
+  "title": "Ollama \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/ollama/ollama"
+ },
+ {
+  "users": [
+   "G"
+  ],
+  "question": "How many GitHub stars does the langfuse/langfuse repository have?",
+  "title": "Langfuse \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "source_url": "https://api.github.com/repos/langfuse/langfuse"
+ },
+ {
+  "users": [
+   "F"
+  ],
+  "question": "What is the listed monthly price of Linear's Business plan?",
+  "title": "Linear \u00b7 Business plan price",
+  "kind": "direct",
+  "unit": "USD/mo",
+  "source_url": "https://linear.app/pricing"
+ },
+ {
+  "users": [
+   "F",
+   "E",
+   "D"
+  ],
+  "question": "What is the listed monthly price of Figma's Professional plan?",
+  "title": "Figma \u00b7 Professional plan price",
+  "kind": "direct",
+  "unit": "USD/mo",
+  "source_url": "https://www.figma.com/pricing/"
+ },
+ {
+  "users": [
+   "F",
+   "E",
+   "D"
+  ],
+  "question": "What is the listed monthly price of Slack's Pro plan?",
+  "title": "Slack \u00b7 Pro plan price",
+  "kind": "direct",
+  "unit": "USD/mo",
+  "source_url": "https://slack.com/pricing"
+ },
+ {
+  "users": [
+   "D"
+  ],
+  "question": "What is the listed monthly price of Vercel's Pro plan?",
+  "title": "Vercel \u00b7 Pro plan price",
+  "kind": "direct",
+  "unit": "USD/mo",
+  "source_url": "https://vercel.com/pricing"
+ },
+ {
+  "users": [
+   "C"
+  ],
+  "question": "What is the listed monthly price of Supabase's Pro plan?",
+  "title": "Supabase \u00b7 Pro plan price",
+  "kind": "direct",
+  "unit": "USD/mo",
+  "source_url": "https://supabase.com/pricing"
+ },
+ {
+  "users": [
+   "E",
+   "F",
+   "D"
+  ],
+  "question": "What is the listed monthly price of Cal.com's Teams plan?",
+  "title": "Cal.com \u00b7 Teams plan price",
+  "kind": "direct",
+  "unit": "USD/mo",
+  "source_url": "https://cal.com/pricing"
+ },
+ {
+  "users": [
+   "E",
+   "C"
+  ],
+  "question": "What is the listed monthly price of Airtable's Team plan?",
+  "title": "Airtable \u00b7 Team plan price",
+  "kind": "direct",
+  "unit": "USD/mo",
+  "source_url": "https://airtable.com/pricing"
+ },
+ {
+  "users": [
+   "G"
+  ],
+  "question": "What is the listed monthly price of Zapier's Professional plan?",
+  "title": "Zapier \u00b7 Professional plan price",
+  "kind": "direct",
+  "unit": "USD/mo",
+  "source_url": "https://zapier.com/pricing"
+ },
+ {
+  "users": [
+   "D",
+   "E"
+  ],
+  "question": "What is the listed monthly price of Calendly's Standard plan?",
+  "title": "Calendly \u00b7 Standard plan price",
+  "kind": "direct",
+  "unit": "USD/mo",
+  "source_url": "https://calendly.com/pricing"
+ },
+ {
+  "users": [
+   "F"
+  ],
+  "question": "What is the listed monthly price of Miro's Starter plan?",
+  "title": "Miro \u00b7 Starter plan price",
+  "kind": "direct",
+  "unit": "USD/mo",
+  "source_url": "https://miro.com/pricing/"
+ },
+ {
+  "users": [
+   "C",
+   "G"
+  ],
+  "question": "What is the listed monthly price of Canva's Pro plan?",
+  "title": "Canva \u00b7 Pro plan price",
+  "kind": "direct",
+  "unit": "USD/mo",
+  "source_url": "https://www.canva.com/pricing/"
+ },
+ {
+  "users": [
+   "G",
+   "E",
+   "D"
+  ],
+  "question": "What is the listed monthly price of Dub's Pro plan?",
+  "title": "Dub \u00b7 Pro plan price",
+  "kind": "direct",
+  "unit": "USD/mo",
+  "source_url": "https://dub.co/pricing"
+ },
+ {
+  "users": [
+   "G",
+   "F"
+  ],
+  "question": "How much total funding has Linear raised?",
+  "title": "Linear \u00b7 total funding raised",
+  "kind": "direct",
+  "unit": "USD"
+ },
+ {
+  "users": [
+   "F",
+   "C",
+   "G"
+  ],
+  "question": "How much total funding has Vercel raised?",
+  "title": "Vercel \u00b7 total funding raised",
+  "kind": "direct",
+  "unit": "USD"
+ },
+ {
+  "users": [
+   "F",
+   "C"
+  ],
+  "question": "How much total funding has Supabase raised?",
+  "title": "Supabase \u00b7 total funding raised",
+  "kind": "direct",
+  "unit": "USD"
+ },
+ {
+  "users": [
+   "E"
+  ],
+  "question": "How much total funding has PostHog raised?",
+  "title": "PostHog \u00b7 total funding raised",
+  "kind": "direct",
+  "unit": "USD"
+ },
+ {
+  "users": [
+   "F",
+   "E",
+   "G"
+  ],
+  "question": "How much total funding has Cal.com raised?",
+  "title": "Cal.com \u00b7 total funding raised",
+  "kind": "direct",
+  "unit": "USD"
+ },
+ {
+  "users": [
+   "E",
+   "C"
+  ],
+  "question": "How much total funding has Figma raised?",
+  "title": "Figma \u00b7 total funding raised",
+  "kind": "direct",
+  "unit": "USD"
+ },
+ {
+  "users": [
+   "E",
+   "D"
+  ],
+  "question": "How much total funding has Airtable raised?",
+  "title": "Airtable \u00b7 total funding raised",
+  "kind": "direct",
+  "unit": "USD"
+ },
+ {
+  "users": [
+   "C",
+   "F",
+   "G"
+  ],
+  "question": "How much total funding has Miro raised?",
+  "title": "Miro \u00b7 total funding raised",
+  "kind": "direct",
+  "unit": "USD"
+ },
+ {
+  "users": [
+   "E"
+  ],
+  "question": "How much total funding has n8n raised?",
+  "title": "n8n \u00b7 total funding raised",
+  "kind": "direct",
+  "unit": "USD"
+ },
+ {
+  "users": [
+   "D"
+  ],
+  "question": "How much total funding has Langfuse raised?",
+  "title": "Langfuse \u00b7 total funding raised",
+  "kind": "direct",
+  "unit": "USD"
+ }
 ]

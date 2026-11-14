@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS changes(
 CREATE TABLE IF NOT EXISTS board_items(
   user TEXT NOT NULL, metric_id INTEGER NOT NULL, muted INTEGER DEFAULT 0,
   PRIMARY KEY(user, metric_id));
+CREATE TABLE IF NOT EXISTS users(
+  id TEXT PRIMARY KEY, name TEXT, picture TEXT, plan TEXT DEFAULT 'free',
+  stripe_customer_id TEXT, created_at TEXT);
+CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at TEXT);
 CREATE TABLE IF NOT EXISTS telem_calls(
   id INTEGER PRIMARY KEY, metric_id INTEGER, endpoint TEXT, providers_json TEXT,
   latency_ms INTEGER, est_cost REAL, at TEXT);

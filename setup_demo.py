@@ -49,18 +49,23 @@ def build():
 
 
 def presets():
-    """More metrics in the shared catalog, tracked by other users (C, D, E). No monitors, to limit spend."""
-    for d in json.load(open(os.path.join(os.path.dirname(__file__), "catalog_presets.json"))):
+    """More metrics in the shared catalog, tracked by other users. No monitors, to limit spend."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(d):
         if db.one("SELECT 1 x FROM metrics WHERE question=?", (d["question"],)):
-            continue
+            return
         try:
             m, matched = core.create_metric(d["users"][0], d["question"], {k: d.get(k) for k in KEYS} | {"no_monitor": True})
             for u in d["users"][1:]:
                 core.follow(u, m["id"])
             v = core.count_value(m["id"]) if m["kind"] == "count" else (core.latest_obs(m["id"]) or {}).get("value")
-            print(f"{m['id']} {m['title']}: {v}  matched={matched}")
+            print(f"{m['id']} {m['title']}: {v}  matched={matched}", flush=True)
         except Exception as e:
-            print("FAILED", d["title"], e)
+            print("FAILED", d["title"], e, flush=True)
+
+    with ThreadPoolExecutor(4) as ex:
+        list(ex.map(one, json.load(open(os.path.join(os.path.dirname(__file__), "catalog_presets.json")))))
 
 
 def seed(days=14):

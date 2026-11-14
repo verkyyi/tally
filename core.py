@@ -142,11 +142,14 @@ def record_count_obs(mid, origin):
 
 # ---------- flows ----------
 
-def create_metric(user, question, overrides=None):
+def match_metric(question):
+    return llm.match(question, db.q("SELECT id, question FROM metrics"))
+
+
+def create_metric(user, question, overrides=None, skip_match=False):
     """Match the question to the shared catalog, or create a new metric. Returns (metric, matched)."""
     overrides = overrides or {}
-    existing = db.q("SELECT id, question FROM metrics")
-    mid = llm.match(question, existing)
+    mid = None if skip_match else match_metric(question)
     if mid:
         follow(user, mid)
         return metric(mid), True
