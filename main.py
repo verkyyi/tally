@@ -30,6 +30,39 @@ app = FastAPI(title="Tally")
 db.init()
 app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="static")
 
+# ---------- how many people come, and from where: one counter per day, page group and referring site ----------
+# Nothing about the visitor is stored: no IP address, no cookie, no user agent. Crawlers are counted under their own name.
+import re as _re
+from urllib.parse import urlsplit as _urlsplit
+_BOT = _re.compile(r"(googlebot|bingbot|duckduckbot|yandex|baiduspider|slurp|applebot|facebookexternalhit|twitterbot|linkedinbot|slackbot|discordbot|"
+                   r"gptbot|claudebot|perplexitybot|ccbot|ahrefs|semrush|bot\b|crawl|spider|curl|python|httpx|playwright|headless|uptime|monitor)", _re.I)
+_GROUPS = ("/n/", "/c/", "/b/", "/top/")
+
+
+@app.middleware("http")
+async def count_visit(request: Request, call_next):
+    response = await call_next(request)
+    try:
+        path = request.url.path
+        if request.method == "GET" and response.status_code == 200 and not path.startswith(("/api/", "/static/")) and "." not in path.rsplit("/", 1)[-1]:
+            group = next((g.rstrip("/") for g in _GROUPS if path.startswith(g)), path)
+            ua = request.headers.get("user-agent", "")
+            bot = _BOT.search(ua)
+            host = (_urlsplit(request.headers.get("referer", "")).hostname or "").lower()
+            ref = ("bot:" + bot.group(1).lower()) if bot else ("" if host in ("", "tallycatalog.com", "www.tallycatalog.com", "127.0.0.1", "localhost") else host[:60])
+            db.run("INSERT INTO visits(day,path,ref,n) VALUES(?,?,?,1) ON CONFLICT(day,path,ref) DO UPDATE SET n=n+1", (db.now()[:10], group[:60], ref))
+    except Exception as e:  # counting must never break a page
+        print("visit count failed:", str(e)[:100])
+    return response
+
+
+INDEXNOW_KEY = "19bccdf8fa4dfb52e08617be44f6b610"  # public by design: search engines read it back from the site to confirm ownership
+
+
+@app.get("/indexnow-key.txt")
+def indexnow_key():
+    return PlainTextResponse(INDEXNOW_KEY)
+
 PASSCODE = os.environ.get("TALLY_PASSCODE")           # demo sign-in (a Pro demo account)
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 STRIPE_KEY = os.environ.get("STRIPE_SECRET_KEY")
