@@ -339,7 +339,7 @@ def suggest(q: str = ""):
     # a company, sector or investor whose name matches: its page lists every number tracked about it
     boards = sorted(((n, len(ids)) for n, ids in pp.groups().items() if len(ids) >= 2 and all(w in n.lower() for w in words)), key=lambda x: (x[0].lower() != " ".join(words), not x[0].lower().startswith(words[0]), -x[1]))[:3]
     hits = []
-    for m in db.q("SELECT * FROM metrics ORDER BY id"):
+    for m in db.q(f"SELECT * FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id"):
         hay = " ".join([m["title"] or "", m["question"] or "", m.get("company") or ""]).lower()
         if all(w in hay for w in words):
             hits.append(m)
@@ -462,6 +462,9 @@ def public_number(mid: int, request: Request, slug: str = "", range: str = "all"
     m = core.metric(mid)
     if not m:
         raise HTTPException(404, "no such number")
+    into = core.folded_into(m)
+    if into:  # one batch of a series: the series' page has it, with every other batch
+        return RedirectResponse(pp.number_path(into), status_code=301)
     if slug != pp.slug(m["title"]):
         return RedirectResponse(pp.number_path(m) + ("?" + request.url.query if request.url.query else ""), status_code=301)
     if _human(request):
@@ -671,7 +674,7 @@ def copy_board(body: CopyBoard, request: Request):
 
 @app.get("/sitemap.xml")
 def sitemap():
-    urls = ["/", "/app", "/numbers", "/changes", "/top"] + [f"/top/{sl}" for _, sl, _ in _rankings()] + [pp.subject_path(n) for n in pp.groups()] + [pp.number_path(m) for m in db.q("SELECT id, title FROM metrics ORDER BY id")]
+    urls = ["/", "/app", "/numbers", "/changes", "/top"] + [f"/top/{sl}" for _, sl, _ in _rankings()] + [pp.subject_path(n) for n in pp.groups()] + [pp.number_path(m) for m in db.q(f"SELECT id, title FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id")]
     body = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(f"<url><loc>{pp.SITE}{pp.esc(u)}</loc></url>" for u in urls) + "</urlset>"
     return RawResponse(body, media_type="application/xml")
 
@@ -1009,6 +1012,8 @@ def _autosync():
                 core.sync_all()
                 core.refresh_free()
                 core.roll_periods()
+                if os.environ.get("TALLY_DAILY_READ", "1") != "0":
+                    core.refresh_searched()
                 interest.refresh(sorted({pp.subject(m) for m in db.q("SELECT title, company FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%'")}), limit=12)
                 if os.environ.get("TALLY_PACER", "1") != "0":
                     r = core.pace()

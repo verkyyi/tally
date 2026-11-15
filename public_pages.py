@@ -403,7 +403,8 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
                  f'<b>Markdown</b><pre>[![{esc(m["title"])}]({SITE}/n/{m["id"]}/chart.svg)]({url})</pre><b>HTML</b><pre>&lt;a href="{url}"&gt;&lt;img src="{SITE}/n/{m["id"]}/chart.svg" alt="{esc(m["title"])}" width="600"&gt;&lt;/a&gt;</pre>'
                  f'<img src="/n/{m["id"]}/chart.svg" alt="" width="420" style="max-width:100%;margin-top:6px"></div></details></div>')
     else:
-        body += '<p class="meta" style="margin-top:14px">History starts with the next check; the chart appears once there are two readings.</p>'
+        body += (f'<p class="meta" style="margin-top:14px">History starts {esc(when(pts[0]["at"]))}. No source keeps this number\'s past, so Tally builds it from here: it is read again every day.</p>'
+                 if pts else '<p class="meta" style="margin-top:14px">No reading yet. History starts with the first value Tally can quote.</p>')
     if compare:
         body += ('<h2>Compare on one chart</h2><div class="chips">' + "".join(f'<a href="{esc(compare_path(m, o))}">vs {esc(label)}</a>' for o, label in compare) + "</div>")
     if not ev.get("locked"):
@@ -561,6 +562,6 @@ document.addEventListener("click",async ev=>{const a=ev.target.closest(".rv"); i
 
 def groups():
     g = {}
-    for m in db.q("SELECT id, title, company FROM metrics ORDER BY id"):
+    for m in db.q(f"SELECT id, title, company FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id"):
         g.setdefault(subject(m), []).append(m["id"])
     return g

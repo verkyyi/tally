@@ -548,6 +548,33 @@ def run_now(mid):
     return out
 
 
+def refresh_searched(limit=2, older_than_hours=22):
+    """Read again, once a day, the numbers that are found by search and have no automatic monitor (the monitor allowance
+    covers only a few). Without this they keep one value for ever and never grow a history. A few per round, oldest first."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=older_than_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    n = 0
+    for m in db.q("SELECT id, title FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%' AND telem_monitor_id IS NULL AND (last_checked_at IS NULL OR last_checked_at<?) "
+                  "ORDER BY last_checked_at LIMIT ?", (cutoff, limit)):
+        try:
+            run_now(m["id"])
+            n += 1
+        except Exception as e:  # one unreadable source must not stop the round, nor be retried every five minutes
+            print("daily read failed:", m["id"], m["title"], type(e).__name__, str(e)[:120])
+            db.run("UPDATE metrics SET last_checked_at=? WHERE id=?", (db.now(), m["id"]))
+    return n
+
+
+# Numbers that are one fixed fact inside a series kept elsewhere: their pages lead to the series instead of standing alone.
+FOLDED = "COALESCE(skill,'') LIKE 'free|yc|batches|%'"
+
+
+def folded_into(m):
+    """The number whose history already contains this one (a single YC batch -> 'YC · batch size'), or None."""
+    if (m.get("skill") or "").startswith("free|yc|batches|"):
+        return db.one("SELECT * FROM metrics WHERE skill='free|yc|series|batches'")
+    return None
+
+
 def _num(x):
     if isinstance(x, (int, float)):
         return float(x)
