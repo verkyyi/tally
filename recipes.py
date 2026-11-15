@@ -194,6 +194,21 @@ def revise(u, m, body, note):
     return report
 
 
+def set_history(m, text, note):
+    """Record, as a new live version, how this number's past is rebuilt when code does it (archived pages). Source and Read are untouched, so no trial is needed."""
+    cur = live(m)
+    secs = parse(cur["body"])
+    if secs.get("History") == text:
+        return cur["version"]
+    secs["History"] = text
+    body = "\n\n".join(f"## {s}\n{secs[s]}" for s in SECTIONS if secs.get(s)) + "\n"
+    ver = db.one("SELECT MAX(version) v FROM recipes WHERE metric_id=?", (m["id"],))["v"] + 1
+    db.run("UPDATE recipes SET status='superseded' WHERE metric_id=? AND status='live'", (m["id"],))
+    db.run("INSERT INTO recipes(metric_id,version,body,author,note,status,created_at) VALUES(?,?,?,?,?,?,?)", (m["id"], ver, body, "tally", note, "live", db.now()))
+    db.run("UPDATE metrics SET recipe_version=? WHERE id=?", (ver, m["id"]))
+    return ver
+
+
 def revert(u, m, version):
     """Make an earlier adopted version live again. Its text is trusted because it already passed a trial (or is the baseline)."""
     r = db.one("SELECT * FROM recipes WHERE metric_id=? AND version=? AND status IN ('superseded','live')", (m["id"], version))

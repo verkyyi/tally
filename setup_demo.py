@@ -240,7 +240,9 @@ def free():
 def round_history():
     """History for funding, round-size and valuation numbers from dated rounds: each number's recipe gets a History section and is
     tried by the agent; verified past points are kept. Pass metric ids to limit the run; numbers that already have history are skipped."""
+    import agent
     import recipes
+    agent.MODEL = os.environ.get("BATCH_AGENT_MODEL", "claude-sonnet-5-5")  # backfills run on the cheaper model; trials people start on the site keep AGENT_MODEL
     ids = [int(x) for x in sys.argv[2:]]
     done = kept = 0
     for m in db.q("SELECT * FROM metrics WHERE kind='direct' ORDER BY id"):
@@ -260,6 +262,29 @@ def round_history():
     print("numbers tried:", done, "| history points kept:", kept)
 
 
+def price_history():
+    """History for plan-price numbers from archived copies of their pricing page (web.archive.org). Pass metric ids to limit the run."""
+    import archive
+    import recipes
+    ids = [int(x) for x in sys.argv[2:]]
+    total = 0
+    for m in db.q("SELECT * FROM metrics WHERE kind='direct' AND source_url LIKE 'https://%' AND (skill='pricing_page' OR title LIKE '% plan price') ORDER BY id"):
+        if (ids and m["id"] not in ids) or not core.latest_obs(m["id"]):
+            continue
+        if not ids and db.one("SELECT 1 x FROM observations WHERE metric_id=? AND origin='source_history'", (m["id"],)):
+            continue
+        try:
+            n = archive.backfill(m)
+        except Exception as e:
+            print("FAILED", m["id"], m["title"], type(e).__name__, str(e)[:160], flush=True)
+            continue
+        if n:
+            recipes.set_history(m, archive.HISTORY_TEXT, "History from archived copies of the source page.")
+        total += n
+        print(m["id"], m["title"], "| points", n, flush=True)
+    print("history points kept:", total)
+
+
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history}[sys.argv[1]]()
