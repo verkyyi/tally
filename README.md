@@ -1,10 +1,12 @@
 # Tally
 
-**Know the moment your pipeline moves.** Tally tracks funding, hiring and launches at the companies you watch,
-shows the source behind every number, and tells you what changed. Built for angels, scouts and pre-seed funds.
+**Any number, with its history and its source.** Tally keeps a public record of numbers about companies and
+open-source projects: funding, hiring, GitHub stars, downloads, batch sizes. Each number has its own page with a
+chart you can link to or embed, and every point links to where it came from.
 
 - Live: https://tallycatalog.com
-- Every number, with its evidence: https://tallycatalog.com/numbers
+- Every number: https://tallycatalog.com/numbers
+- Rankings: https://tallycatalog.com/top
 
 ## What it does
 

@@ -229,6 +229,11 @@ def free():
         add(f"YC · {t['name']} companies", f"How many Y Combinator companies are tagged {t['name']}?", "companies", f"free|yc|tags|{slug}", "YC", f"yc_tag:{slug}")
     for slug, t in sorted(meta["industries"].items(), key=lambda kv: -kv[1]["count"])[:10]:
         add(f"YC · {t['name']} industry companies", f"How many Y Combinator companies are in the {t['name']} industry?", "companies", f"free|yc|industries|{slug}", "YC", f"yc_ind:{slug}")
+    add("YC · batch size", "How many companies are in each Y Combinator batch?", "companies", "free|yc|series|batches", "YC", "yc_batch_series")
+    pts = 0
+    for m in db.q("SELECT * FROM metrics WHERE skill LIKE 'free|npm|%' OR skill LIKE 'free|pypi|%' OR skill='free|yc|series|batches'"):
+        pts += core.backfill_free(m)
+    print("history points written from the sources' own records:", pts)
     print("free numbers: created", made, "| switched existing to the free source", reused, "| source unavailable", failed, "| total", db.one("SELECT COUNT(*) n FROM metrics WHERE skill LIKE 'free|%'")["n"])
 
 

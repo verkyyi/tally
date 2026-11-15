@@ -79,6 +79,10 @@ ul.rows li span{font:13px var(--mono);color:var(--mute);white-space:nowrap}
 .t:hover{border-color:var(--accent)}.t b{display:block;font-size:14px}.t .v{font-size:26px;font-weight:700;letter-spacing:-.03em;margin-top:6px}
 .t .v small{font:12px var(--mono);font-weight:400;color:var(--mute);margin-left:6px}.t .m{font:12px var(--mono);color:var(--mute)}
 .cta{margin-top:26px;display:flex;gap:10px;flex-wrap:wrap}.cols{columns:3 200px;column-gap:24px}.cols a{display:block;padding:3px 0}
+.rgs{display:inline-flex;gap:4px;font:13px var(--mono)}.rg{padding:3px 9px;border-radius:7px;text-decoration:none;color:var(--mute)}.rg.on{background:var(--ink);color:#fff}
+.emb{position:relative}.emb summary{list-style:none;cursor:pointer}.emb summary::-webkit-details-marker{display:none}
+.embbox{margin-top:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;max-width:680px}
+.embbox pre{white-space:pre-wrap;word-break:break-all;font:12px/1.5 var(--mono);background:var(--paper);border-radius:8px;padding:9px 10px;margin:4px 0 12px}
 footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);color:var(--mute);font-size:14px}"""
 
 
@@ -108,6 +112,77 @@ def tile_link(t):
     txt, unit = fmt(t["value"], t["unit"])
     v = f'<div class="v">{esc(txt)}<small>{esc(unit)}</small></div>' if txt else '<div class="v" style="font-size:16px;color:#667085;font-weight:500">no value yet</div>'
     return f'<a class="t" href="{number_path(t)}"><b>{esc(t["title"])}</b>{v}<div class="m">{"live" if t["live"] else "delayed"} · tracked by {t["followers"]}</div></a>'
+
+
+def _thin(pts, n=420):
+    """Keep a long series drawable: every k-th point, always with the last one."""
+    if len(pts) <= n:
+        return pts
+    k = len(pts) // n + 1
+    return pts[::k] + ([pts[-1]] if (len(pts) - 1) % k else [])
+
+
+def chart(pts, unit, w=820, h=280, card=False):
+    """A real chart: area and line over time, three value gridlines, year marks. pts: [{at, value, origin}], oldest first."""
+    pts = _thin([p for p in pts if p.get("value") is not None])
+    if len(pts) < 2:
+        return ""
+    from datetime import datetime as _dt
+    ts = [_dt.strptime(p["at"][:10], "%Y-%m-%d").timestamp() for p in pts]
+    vs = [p["value"] for p in pts]
+    t0, t1 = ts[0], ts[-1] if ts[-1] > ts[0] else ts[0] + 1
+    lo, hi = min(vs), max(vs)
+    lo = 0 if lo >= 0 and lo < hi * 0.6 else lo  # start at zero unless the series sits far above it
+    hi = hi if hi > lo else lo + 1
+    L, R, T, B = (8, 8, 10, 22) if card else (58, 14, 14, 30)
+    X = lambda t: L + (t - t0) / (t1 - t0) * (w - L - R)
+    Y = lambda v: T + (1 - (v - lo) / (hi - lo)) * (h - T - B)
+    line = " ".join(("L" if i else "M") + f"{X(t):.1f} {Y(v):.1f}" for i, (t, v) in enumerate(zip(ts, vs)))
+    area = line + f" L{X(t1):.1f} {h - B} L{X(t0):.1f} {h - B} Z"
+    grid = ""
+    if not card:
+        for f in (0, .5, 1):
+            v = lo + (hi - lo) * f
+            grid += (f'<line x1="{L}" x2="{w - R}" y1="{Y(v):.1f}" y2="{Y(v):.1f}" stroke="#e1e4ea"/>'
+                     f'<text x="{L - 8}" y="{Y(v) + 4:.1f}" text-anchor="end" font-size="11" fill="#667085">{esc(fmt(v, unit)[0])}</text>')
+    y0, y1 = _dt.fromtimestamp(t0).year, _dt.fromtimestamp(t1).year
+    marks = ""
+    step = max(1, (y1 - y0) // 6 + (1 if (y1 - y0) % 6 else 0)) if y1 > y0 else 1
+    for y in range(y0 + 1, y1 + 1, step):
+        x = X(_dt(y, 1, 1).timestamp())
+        if L <= x <= w - R:
+            marks += f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{T}" y2="{h - B}" stroke="#eef0f4"/><text x="{x:.1f}" y="{h - B + 16}" text-anchor="middle" font-size="11" fill="#667085">{y}</text>'
+    if y1 == y0:
+        marks = (f'<text x="{L}" y="{h - B + 16}" font-size="11" fill="#667085">{_dt.fromtimestamp(t0).strftime("%b %-d, %Y")}</text>'
+                 f'<text x="{w - R}" y="{h - B + 16}" text-anchor="end" font-size="11" fill="#667085">{_dt.fromtimestamp(t1).strftime("%b %-d, %Y")}</text>')
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" role="img" aria-label="History chart" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" '
+            f'style="width:100%;height:auto;display:block">{marks}{grid}<path d="{area}" fill="#2f5bff" fill-opacity=".09"/>'
+            f'<path d="{line}" fill="none" stroke="#2f5bff" stroke-width="2" stroke-linejoin="round"/><circle cx="{X(t1):.1f}" cy="{Y(vs[-1]):.1f}" r="4" fill="#2f5bff"/></svg>')
+
+
+def card_svg(m, t, pts):
+    """A standalone chart image for embedding in a README, a post or a deck."""
+    txt, unit = fmt(t["value"], t["unit"])
+    inner = chart(pts, t["unit"], 600, 150, card=True)
+    inner = inner[inner.index(">") + 1:inner.rindex("</svg>")] if inner else '<text x="24" y="150" font-size="13" fill="#667085">History appears after the next check.</text>'
+    since = when(pts[0]["at"]) if pts else None
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="260" viewBox="0 0 600 260" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">'
+            f'<rect width="600" height="260" rx="14" fill="#fff" stroke="#e1e4ea"/><text x="24" y="36" font-size="15" font-weight="600" fill="#0e1320">{esc(m["title"][:64])}</text>'
+            f'<text x="24" y="76" font-size="34" font-weight="700" fill="#0e1320">{esc(txt or "no value yet")}<tspan font-size="13" font-weight="400" fill="#667085" dx="8">{esc(unit)}</tspan></text>'
+            f'<g transform="translate(0,84)">{inner}</g>'
+            f'<text x="24" y="246" font-size="11" fill="#667085">{esc("since " + since if since else "")}</text>'
+            f'<text x="576" y="246" font-size="11" fill="#2f5bff" text-anchor="end" font-weight="600">tallycatalog.com</text></svg>')
+
+
+def history_csv(m, pts):
+    rows = ["date,value,kind,source"]
+    for p in pts:
+        kind = "source history" if p["origin"] == "source_history" else "computed from entry dates" if p["origin"] == "backfill" else "observed"
+        rows.append(f'{p["at"][:10]},{p["value"]:g},{kind},{(p.get("url") or m.get("source_url") or "").replace(",", "%2C")}')
+    return "\n".join(rows) + "\n"
+
+
+RANGES = (("90d", "90 days", 90), ("1y", "1 year", 365), ("5y", "5 years", 1826), ("all", "All", None))
 
 
 def change_line(c):
@@ -168,8 +243,8 @@ def top_index(items):
     return shell("Company rankings: funding, valuation, headcount, open roles | Tally", "Companies ranked by funding, valuation, headcount, open roles and launches, each figure with its source.", "/top", body)
 
 
-def number_page(m, t, ev, related=()):
-    """m: metric row, t: the signed-out tile, ev: the signed-out evidence dict (may be locked)."""
+def number_page(m, t, ev, related=(), pts=(), rng="all"):
+    """m: metric row, t: the signed-out tile, ev: the signed-out evidence dict (may be locked), pts: the full series."""
     txt, unit = fmt(t["value"], t["unit"])
     sub = subject(m)
     asof = when(t.get("as_of") or t.get("last_checked"))
@@ -178,7 +253,28 @@ def number_page(m, t, ev, related=()):
             else f'{m["question"]} Tally is tracking this and will show the value with its source as soon as one is found.')
     body = f'<div class="crumb"><a href="/numbers">Numbers</a> / <a href="{subject_path(sub)}">{esc(sub)}</a></div><h1>{esc(m["title"])}</h1><p class="q">{esc(m["question"])}</p><div class="card">'
     body += f'<div class="val">{esc(txt)}<small>{esc(unit)}</small></div>' if txt else '<div class="none">No value yet. Tally does not guess.</div>'
-    body += f'<div class="meta">{"Live" if t["live"] else "Delayed value"}{" · as of " + asof if asof else ""} · tracked by {t["followers"]}</div>{spark(t.get("spark") or [])}</div>'
+    body += f'<div class="meta">{"Live" if t["live"] else "Delayed value"}{" · as of " + asof if asof else ""} · tracked by {t["followers"]}</div></div>'
+    pts = list(pts)
+    if len(pts) >= 2:
+        from datetime import datetime as _dt, timedelta as _td
+        days = dict((k, d) for k, _, d in RANGES).get(rng)
+        cut = (_dt.strptime(pts[-1]["at"][:10], "%Y-%m-%d") - _td(days=days)).strftime("%Y-%m-%d") if days else ""
+        shown = [p for p in pts if p["at"][:10] >= cut] if cut else pts
+        shown = shown if len(shown) >= 2 else pts
+        span = (_dt.strptime(pts[-1]["at"][:10], "%Y-%m-%d") - _dt.strptime(pts[0]["at"][:10], "%Y-%m-%d")).days
+        tabs = "".join(f'<a href="{number_path(m)}{"" if k == "all" else "?range=" + k}" class="rg{" on" if k == rng else ""}">{lab}</a>' for k, lab, d in RANGES if d is None or span > d * 0.6)
+        hist = sum(1 for p in pts if p["origin"] == "source_history")
+        note = (f'{len(pts):,} points since {when(pts[0]["at"])}. ' + (f'{hist:,} come from the source\'s own records; the rest were observed by Tally.' if hist else "All observed by Tally.")
+                + (" Computed from the entries\' own dates where marked in the download." if any(p["origin"] == "backfill" for p in pts) else ""))
+        url = SITE + number_path(m)
+        body += (f'<h2 style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><span>History</span><span class="rgs">{tabs}</span></h2>'
+                 f'<div class="card" style="padding:16px 16px 8px">{chart(shown, t["unit"])}</div><p class="meta">{esc(note)}</p>'
+                 f'<div class="cta" style="margin-top:14px"><a class="btn ghost" href="/n/{m["id"]}/history.csv">Download CSV</a>'
+                 f'<details class="emb"><summary class="btn ghost">Embed this chart</summary><div class="embbox"><p class="meta" style="margin:0 0 6px">A live image. Paste into a README, a post or a doc.</p>'
+                 f'<b>Markdown</b><pre>[![{esc(m["title"])}]({SITE}/n/{m["id"]}/chart.svg)]({url})</pre><b>HTML</b><pre>&lt;a href="{url}"&gt;&lt;img src="{SITE}/n/{m["id"]}/chart.svg" alt="{esc(m["title"])}" width="600"&gt;&lt;/a&gt;</pre>'
+                 f'<img src="/n/{m["id"]}/chart.svg" alt="" width="420" style="max-width:100%;margin-top:6px"></div></details></div>')
+    else:
+        body += '<p class="meta" style="margin-top:14px">History starts with the next check; the chart appears once there are two readings.</p>'
     if not ev.get("locked"):
         if m["kind"] == "direct":
             o = ev.get("observation") or {}

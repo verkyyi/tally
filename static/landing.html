@@ -101,7 +101,7 @@ async function loadNames0(){
     NAMES=[...d.companies.map(x=>({n:x.name,t:"company"})),...d.accelerators.map(x=>({n:x.name,t:"accelerator",a:x.alias})),...d.sectors.map(x=>({n:x.name,t:"sector"})),...(d.investors||[]).map(x=>({n:x.name,t:"investor"}))];
     NAMES.forEach(x=>x.d=1) }catch(e){}
   try{ const have=new Set(NAMES.map(x=>x.n.toLowerCase())), c=(await (await fetch("/api/catalog")).json()).metrics, seen={};
-    c.forEach(m=>{const k=m.title.split(" · ")[0]; if(m.title.includes(" · ")&&!have.has(k.toLowerCase())&&k.toLowerCase()!="yc") seen[k]=(seen[k]||0)+1});
+    c.forEach(m=>{const k=m.title.split(" · ")[0]; if(m.title.includes(" · ")&&!k.includes(",")&&!have.has(k.toLowerCase())&&k.toLowerCase()!="yc") seen[k]=(seen[k]||0)+1});
     Object.keys(seen).forEach(k=>NAMES.push({n:k,t:"company",c:seen[k]})); NAMES.forEach(x=>{ if(!x.c){const k=x.n.toLowerCase(); x.c=c.filter(m=>m.title.toLowerCase().startsWith(k+" ·")).length} }) }catch(e){} }
 const Q=document.getElementById("q"), SUG=document.getElementById("sug"), PACK=document.getElementById("pack");
 function hl(t,q){const i=t.toLowerCase().indexOf(q.toLowerCase()); return i<0?esc(t):esc(t.slice(0,i))+"<mark>"+esc(t.slice(i,i+q.length))+"</mark>"+esc(t.slice(i+q.length))}

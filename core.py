@@ -638,6 +638,29 @@ def create_free(title, question, unit, spec, company, template_id):
     return mid, True
 
 
+def backfill_free(m):
+    """Fill a free-source number's past from the source's own records. Safe to run again: it replaces only its own points."""
+    pts = free_sources.history(m["skill"])
+    if not pts:
+        return 0
+    live = latest_obs(m["id"])
+    db.run("DELETE FROM observations WHERE metric_id=? AND origin='source_history'", (m["id"],))
+    n = 0
+    for d, v, url, note in pts:
+        at = d + "T00:00:00Z"
+        if live and live["origin"] != "source_history" and at >= (live["as_of"] or "")[:10] + "T00:00:00Z":
+            continue  # never write history on top of, or after, what was observed live
+        db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote) VALUES(?,?,?,?,?,0,?)", (m["id"], v, at, url, "source_history", note))
+        n += 1
+    return n
+
+
+def series(mid, upto=None):
+    """Every real reading of a number, oldest first: [{at, value, origin, url}]. Simulated points are never included."""
+    rows = db.q("SELECT as_of, value, origin, evidence_url FROM observations WHERE metric_id=? AND value IS NOT NULL AND seeded=0 ORDER BY as_of, id", (mid,))
+    return [{"at": r["as_of"], "value": r["value"], "origin": r["origin"], "url": r["evidence_url"]} for r in rows if not upto or r["as_of"] <= upto]
+
+
 def refresh_free(limit=3, older_than_hours=20):
     """Re-read the free numbers that have not been read today, a few at a time (GitHub allows 60 unauthenticated calls an hour)."""
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=older_than_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")

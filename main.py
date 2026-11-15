@@ -281,9 +281,33 @@ def deck():
 
 
 # ---------- public, crawlable pages ----------
+def _public_series(m, t):
+    """The history a signed-out visitor may see: all of it for a live number, up to the delayed reading otherwise."""
+    return core.series(m["id"], None if t["live"] else (t.get("as_of") or ""))
+
+
+@app.get("/n/{mid}/chart.svg")
+def public_chart(mid: int):
+    m = core.metric(mid)
+    if not m:
+        raise HTTPException(404, "no such number")
+    t = tile(m, None)
+    return RawResponse(pp.card_svg(m, t, _public_series(m, t)), media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/n/{mid}/history.csv")
+def public_csv(mid: int):
+    m = core.metric(mid)
+    if not m:
+        raise HTTPException(404, "no such number")
+    t = tile(m, None)
+    return RawResponse(pp.history_csv(m, _public_series(m, t)), media_type="text/csv",
+                       headers={"Content-Disposition": f'attachment; filename="{pp.slug(m["title"])}.csv"'})
+
+
 @app.get("/n/{mid}")
 @app.get("/n/{mid}/{slug}")
-def public_number(mid: int, slug: str = ""):
+def public_number(mid: int, slug: str = "", range: str = "all"):
     m = core.metric(mid)
     if not m:
         raise HTTPException(404, "no such number")
@@ -298,7 +322,7 @@ def public_number(mid: int, slug: str = ""):
         ev = {"observation": core.latest_obs(mid)}
     sub = pp.subject(m)
     related = [tile(core.metric(i), None) for i in pp.groups().get(sub, []) if i != mid]
-    return HTMLResponse(pp.number_page(m, t, ev, related))
+    return HTMLResponse(pp.number_page(m, t, ev, related, _public_series(m, t), range if range in ("90d", "1y", "5y", "all") else "all"))
 
 
 @app.get("/c/{slug}")

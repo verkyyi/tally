@@ -15,7 +15,13 @@ def _get(url, ttl=1800):
     hit = _cache.get(url)
     if hit and time.time() - hit[0] < ttl:
         return hit[1]
-    r = httpx.get(url, timeout=20, headers={"User-Agent": "tally-catalog", "Accept": "application/json"}, follow_redirects=True)
+    for attempt in range(5):  # a polite client: wait when asked to, then try again
+        r = httpx.get(url, timeout=30, headers={"User-Agent": "tally-catalog", "Accept": "application/json"}, follow_redirects=True)
+        if r.status_code != 429:
+            break
+        time.sleep(min(float(r.headers.get("retry-after") or 0) or 6 * (attempt + 1), 30))
+    if "/downloads/range/" in url:
+        time.sleep(0.4)
     if r.status_code != 200:
         raise RuntimeError(f"{url} -> {r.status_code}")
     _cache[url] = (time.time(), r.json())
@@ -38,12 +44,61 @@ def read(spec):
         if p[1] == "pypi":
             d = _get(f"https://pypistats.org/api/packages/{p[2]}/recent", ttl=600)
             return {"value": d["data"]["last_week"], "quote": f'last_week: {d["data"]["last_week"]}', "evidence_url": f"https://pypistats.org/packages/{p[2]}"}
+        if p[1] == "yc" and p[2] == "series":  # the newest full batch; its history is every batch before it
+            b = [v for v in _get("https://yc-oss.github.io/api/meta.json")["batches"].values() if v["count"] >= 100][0]
+            return {"value": b["count"], "quote": f'{b["name"]}: {b["count"]} companies', "evidence_url": "https://www.ycombinator.com/companies"}
         if p[1] == "yc":
             d = _get("https://yc-oss.github.io/api/meta.json")[p[2]][p[3]]
             return {"value": d["count"], "quote": f'{d["name"]}: {d["count"]} companies', "evidence_url": "https://www.ycombinator.com/companies"}
     except Exception as e:  # a source that is down or renamed gives no value, never a guess
         print("free source failed:", spec, str(e)[:100])
     return None
+
+
+def _weekly(days):
+    """[(date, n)] daily -> [(sunday, weekly sum)] for whole Monday-to-Sunday weeks, leading empty weeks dropped."""
+    from datetime import date, timedelta
+    weeks = {}
+    for d, n in days:
+        y, m, dd = map(int, d.split("-"))
+        dt = date(y, m, dd)
+        end = dt + timedelta(days=6 - dt.weekday())
+        w = weeks.setdefault(end, [0, 0])
+        w[0] += n
+        w[1] += 1
+    out = [(k.isoformat(), v[0]) for k, v in sorted(weeks.items()) if v[1] == 7]
+    while out and out[0][1] == 0:
+        out.pop(0)
+    return out
+
+
+def history(spec):
+    """The number's past, from the source's own records: [(YYYY-MM-DD, value, source url, note)]. Empty when the source keeps none."""
+    from datetime import date, timedelta
+    p = spec.split("|")
+    try:
+        if p[1] == "npm":  # daily counts back to 2015, in 500-day requests
+            days, start, today = [], date(2015, 1, 10), date.today()
+            while start < today:
+                end = min(start + timedelta(days=499), today - timedelta(days=1))
+                d = _get(f"https://api.npmjs.org/downloads/range/{start}:{end}/{p[2]}", ttl=3600)
+                days += [(x["day"], x["downloads"]) for x in d["downloads"]]
+                start = end + timedelta(days=1)
+            return [(d, n, f"https://www.npmjs.com/package/{p[2]}", "weekly downloads, npm registry") for d, n in _weekly(days)]
+        if p[1] == "pypi":  # the public statistics keep 180 days
+            d = _get(f"https://pypistats.org/api/packages/{p[2]}/overall?mirrors=false", ttl=3600)["data"]
+            return [(d, n, f"https://pypistats.org/packages/{p[2]}", "weekly downloads, PyPI statistics") for d, n in _weekly([(x["date"], x["downloads"]) for x in d])]
+        if p[1] == "yc" and p[2] == "series":
+            season = {"winter": "01-01", "spring": "04-01", "summer": "07-01", "fall": "10-01"}
+            out = []
+            for slug, b in _get("https://yc-oss.github.io/api/meta.json")["batches"].items():
+                s, _, y = slug.partition("-")
+                if s in season and y.isdigit() and b["count"] >= 5:
+                    out.append((f"{y}-{season[s]}", b["count"], "https://www.ycombinator.com/companies", b["name"] + " batch"))
+            return sorted(o for o in out if o[0] <= date.today().isoformat())
+    except Exception as e:
+        print("free history failed:", spec, str(e)[:100])
+    return []
 
 
 # name, GitHub repository, npm package, PyPI package
