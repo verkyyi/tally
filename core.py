@@ -263,9 +263,14 @@ def _in(seconds):
     return (datetime.now(timezone.utc) + timedelta(seconds=seconds)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+_monitors_full_until = 0.0  # Telem caps a project's monitors (10 on the hackathon plan); stop asking for a while once it says so
+
+
 def ensure_monitor(m):
     """Give a metric its Telem monitor. Returns True if one was created."""
-    if m["telem_monitor_id"]:
+    global _monitors_full_until
+    import time
+    if m["telem_monitor_id"] or time.time() < _monitors_full_until:
         return False
     mon, paced = None, 1
     for f in BASE_FREQS:
@@ -274,6 +279,9 @@ def ensure_monitor(m):
             break
         except telem.TelemError as e:
             print("monitor create failed:", m["id"], f, str(e)[:120])
+            if "project_limit" in str(e):
+                _monitors_full_until = time.time() + 3600
+                return False
     if not mon:
         try:  # last resort: Telem's hourly schedule, not paced by us
             mon, paced = telem.create_monitor(m["monitor_query"] or m["question"], m["id"]), 0
