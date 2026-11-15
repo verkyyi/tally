@@ -37,7 +37,13 @@ button.ghost:hover{border-color:var(--ink)}
 button.pro{background:var(--accent);border-color:var(--accent)}
 button:disabled{opacity:.5;cursor:wait}
 #acct{display:flex;gap:10px;align-items:center}
-#acct img{width:28px;height:28px;border-radius:50%}
+#acct img,#acct .av{width:28px;height:28px;border-radius:50%}
+#acct .av{background:var(--ink);color:var(--paper);display:grid;place-items:center;font-weight:600;font-size:13px}
+.who{position:relative;display:flex;gap:8px;align-items:center;cursor:default;padding:4px 0;outline:none}
+.who .menu{display:none;position:absolute;right:0;top:100%;padding-top:6px;z-index:25}
+.who:hover .menu,.who:focus-within .menu{display:block}
+.who .menu>div{background:var(--card);border:1px solid var(--ink);border-radius:10px;box-shadow:4px 4px 0 var(--ink);padding:12px;min-width:200px;display:flex;flex-direction:column;gap:10px}
+.who .menu .em{font:12px var(--mono);color:var(--mute);word-break:break-all}
 .plan{font:600 10px var(--mono);text-transform:uppercase;letter-spacing:.08em;border-radius:3px;padding:2px 6px;border:1px solid var(--line);color:var(--mute)}
 .plan.pro{background:var(--accent);border-color:var(--accent);color:#fff}
 nav{display:flex;gap:4px;padding:14px 24px 0;align-items:center}
@@ -75,7 +81,39 @@ svg.i{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .pending{border-style:dashed;color:var(--mute);display:flex;align-items:center;justify-content:center;min-height:190px;font:italic 15px var(--serif);text-align:center;cursor:default}
 .empty{color:var(--mute);font:italic 16px var(--serif);padding:40px 0}
 #panel{position:fixed;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--card);border-left:1px solid var(--ink);padding:20px 22px;overflow:auto;transform:translateX(105%);transition:transform .2s;z-index:5}
-#panel{pointer-events:none}
+#panel{pointer-events:none;padding:0;display:flex;flex-direction:column;overflow:hidden;width:min(500px,100vw)}
+.ph{padding:20px 22px 0;position:relative}
+.ph .q{color:var(--mute);font-size:13px}
+.hero{display:flex;align-items:flex-end;gap:14px;margin:12px 0 2px}
+.hero .val{font-size:42px;line-height:1;margin:0;letter-spacing:-1.5px}
+.hero .val.none{font:italic 20px var(--serif);letter-spacing:0;padding:6px 0}
+.hero .hd{font:13px var(--mono);padding-bottom:4px;white-space:nowrap}
+.hero .hs{flex:1;min-width:60px}.hero .hs .spark{height:40px}.hero .hs .seedcap{display:none}
+.pmeta{display:flex;gap:16px;color:var(--mute);font:12px var(--mono);margin:8px 0 14px;flex-wrap:wrap}
+.pmeta span{display:inline-flex;gap:5px;align-items:center}
+.ptabs{display:flex;gap:2px;padding:0 22px;border-bottom:1px solid var(--line);margin-top:16px}
+.ptabs a{padding:9px 11px;font-weight:600;font-size:13px;color:var(--mute);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.ptabs a.on{color:var(--ink);border-color:var(--accent)}
+.ptabs a i{font:normal 11px var(--mono);color:var(--mute);margin-left:4px}
+.pbody{padding:14px 22px 22px;overflow:auto;flex:1}
+.pbody>div[data-p]{display:none}.pbody>div[data-p].on{display:block}
+.psub{font-size:12.5px;color:var(--mute);margin:0 0 8px}
+ul.rows.one li{display:flex;justify-content:space-between;gap:12px;align-items:baseline;font-size:14px;padding:8px}
+ul.rows.one li.new{border-radius:6px}
+ul.rows.one .r{font:12px var(--mono);color:var(--mute);white-space:nowrap}
+.chg{padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.chg .w{font-size:12px;color:var(--mute);margin-top:2px}
+.fold{margin-top:10px;font-size:13px;color:var(--mute)}.fold summary{cursor:pointer}.fold .chg{font-size:13px;color:var(--body,#4a463c)}
+.steps{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:8px;align-items:stretch;margin:2px 0 14px}
+.steps .st{border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:#fff;font-size:13px}
+.steps .st span{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--accent);display:block;margin-bottom:3px}
+.steps .ar{align-self:center;color:var(--mute)}
+dl.kv{display:grid;grid-template-columns:76px 1fr;gap:6px 12px;margin:0;font-size:13px}dl.kv dt{color:var(--mute)}dl.kv dd{margin:0}
+.fold pre{white-space:pre-wrap;font:12px/1.5 var(--mono);background:#fff;border:1px solid var(--line);border-radius:6px;padding:10px;margin:8px 0 0;color:var(--ink)}
+#panel .tstat{grid-template-columns:repeat(4,1fr);margin:0 0 12px}
+table.calls{width:100%;border-collapse:collapse;font:12px var(--mono)}table.calls td{padding:6px 4px;border-bottom:1px solid var(--line)}table.calls td:last-child{text-align:right;color:var(--mute);white-space:nowrap}
+.pfoot{border-top:1px solid var(--line);padding:10px 22px;display:flex;gap:8px;flex-wrap:wrap}
+.pfoot button{padding:5px 10px;font-size:13px}
 #panel.open{transform:none;pointer-events:auto}
 .tile{user-select:none;-webkit-user-select:none}
 #panel h2,#modal h2{font:700 20px/1.25 var(--serif);margin:0 30px 4px 0}
@@ -167,7 +205,8 @@ function val(v,unit){ if(v==null) return null; const m=/^(usd|eur|gbp)\b\s*/i.ex
 async function loadMe(){
   S.me=await (await fetch("/api/me")).json(); const u=S.me.user, a=$("#acct");
   a.innerHTML=u?`${u.plan=="pro"?"":`<button class="pro" id="upg">Upgrade</button>`}<span class="plan ${u.plan}">${u.plan}</span>
-      ${u.picture?`<img src="${esc(u.picture)}" alt="" referrerpolicy="no-referrer">`:""}<span title="${esc(u.email)}">${esc((u.name||u.email).split(" ")[0])}</span><button class="ghost" id="out">Sign out</button>`
+      <span class="who" tabindex="0">${u.picture?`<img src="${esc(u.picture)}" alt="" referrerpolicy="no-referrer">`:`<span class="av">${esc((u.name||u.email||"?")[0].toUpperCase())}</span>`}<span>${esc((u.name||u.email).split(" ")[0])}</span>
+        <span class="menu"><div><span class="em">${esc(u.email||"")}</span><button class="ghost" id="out">Sign out</button></div></span></span>`
     :`<button id="in">Sign in</button>`;
   if($("#in")) $("#in").onclick=()=>signInModal();
   if($("#upg")) $("#upg").onclick=()=>plansModal();
@@ -305,45 +344,68 @@ async function loadCatalog(){
 async function openPanel(id){
   const was=S.open; S.open=id;
   if(was!==id||!$("#panel").classList.contains("open")){const t0=S.tiles.find(t=>t.id==id);
-    $("#panel").innerHTML=`<button class="ghost x">×</button><h2>${esc(t0?t0.title:"Loading…")}</h2><div class="when">Loading the evidence…</div>`; $("#panel").classList.add("open")}
+    S.ptab="ev"; $("#panel").innerHTML=`<div class="ph"><button class="ghost x">×</button><h2>${esc(t0?t0.title:"Loading…")}</h2><div class="q">Loading the evidence…</div></div>`; $("#panel").classList.add("open")}
   let e; try{e=await api("/api/metrics/"+id)}catch(err){if(S.open===id){closePanel(); toast("Could not open that number: "+err.message,6000)} return}
   if(S.open!==id) return;  // another card was opened while this one was loading
-  const m=e.metric, v=val(m.value,m.unit); let h=`<button class="ghost x">×</button>
-    <h2>${esc(m.title)}</h2><div class="when">${esc(m.question)}</div>
-    <div class="val">${v?v.text+`<small>${esc(v.unit)}</small>`:'<span class="val none">no value yet</span>'}</div>
-    <div class="when">tracked by ${m.followers} · ${m.live?"checked "+ago(m.last_checked):"delayed value, as of "+ago(m.as_of)}</div>
-    ${m.live?`<div style="margin-top:10px;display:flex;gap:10px;align-items:center"><button class="ghost runp">Check now</button><span class="when">${m.next_check?"Checked automatically. Next check "+until(m.next_check)+".":"Checked automatically."} Ask for an early check any time.</span></div>`:""}`;
+  const m=e.metric, v=val(m.value,m.unit); let d="";
+  if(m.live&&m.value!=null&&m.previous!=null){const x=m.value-m.previous; d=`<span class="${x>0?"up":"down"}">${x>0?"▲ +":"▼ −"}${num(Math.abs(x))}</span> <span class="flat">from ${num(m.previous)}</span>`}
+  let h=`<div class="ph"><button class="ghost x">×</button><h2>${esc(m.title)}</h2><div class="q">${esc(m.question)}</div>
+    <div class="hero"><div class="val${v?"":" none"}">${v?v.text+`<small>${esc(v.unit)}</small>`:"no value yet"}</div><div class="hd">${d}</div><div class="hs">${m.live?spark(m.spark):""}</div></div>
+    <div class="pmeta">${m.live?`<span>${ico("clock")}checked ${ago(m.last_checked)}</span>`:`<span>delayed value, as of ${ago(m.as_of)}</span>`}${
+      m.live&&m.next_check?`<span>${ico("radar")}next check ${until(m.next_check)}</span>`:m.monitor?`<span>${ico("radar")}Telem monitor</span>`:""}<span>${ico("people")}tracked by ${m.followers}</span></div>
+    ${m.live?`<button class="runp">Check now</button>`:""}</div>`;
   if(e.locked){
-    h+=`<h4>Live value and evidence</h4><p style="color:#4a463c">This metric is delayed for you. The live number, its source and quote, the full ledger and the change history are part of ${S.me.user?"Pro, or pick it as one of your live catalog metrics":"a signed-in account"}.</p>
+    h+=`<div class="pbody"><p style="color:#4a463c;margin-top:0">This metric is delayed for you. The live number, its source and quote, the full ledger and the change history are part of ${S.me.user?"Pro, or pick it as one of your live catalog metrics":"a signed-in account"}.</p>
       ${S.me.user?`<button class="pro" id="pup">See plans</button>`:`<button id="pin2">Sign in with Google</button>`}
-      ${m.on_board?"":` <button class="ghost fol" data-id="${m.id}">Add to board</button>`}`;
+      ${S.me.user&&!m.on_board?` <button class="ghost fol" data-id="${m.id}">Add to board</button>`:""}</div>`;
   } else {
+    // --- Evidence
+    let ev;
     if(m.kind=="direct"){
-      const o=e.observation; h+=`<h4>Evidence</h4>`+(o?`${o.quote?`<q>${esc(o.quote)}</q>`:""}
-        <div>Source: <a href="${esc(o.evidence_url||m.source_url)}" target="_blank">${esc(o.evidence_url||m.source_url)}</a>${o.seeded?'<span class="tag seeded">seeded</span>':""}</div>
-        <div class="when">read ${ago(o.as_of)} via Telem Fetch</div>`:"<div class='when'>No value found on any source yet. Tally never guesses.</div>");
+      const o=e.observation; ev=o?`${o.quote?`<q>${esc(o.quote)}</q>`:""}
+        <dl class="kv" style="margin-top:10px"><dt>Source</dt><dd><a href="${esc(o.evidence_url||m.source_url)}" target="_blank">${esc(o.evidence_url||m.source_url)}</a>${o.seeded?'<span class="tag seeded">seeded</span>':""}</dd>
+        <dt>Read</dt><dd>${ago(o.as_of)}, via Telem Fetch</dd></dl>`:"<p class='psub'>No value found on any source yet. Tally never guesses.</p>";
     } else {
-      h+=`<h4>Ledger · ${e.entries.length} entries${e.reducer&&e.reducer!="count"?" · "+({sum:"summed",avg:"averaged",max:"largest taken"}[e.reducer]||""):""}</h4><ul class="rows">${e.entries.map(x=>`<li class="${x.is_new?"new":""}">
-        ${x.url?`<a href="${esc(x.url)}" target="_blank">${esc(x.title)}</a>`:esc(x.title)}${x.is_new?'<span class="tag new">NEW</span>':""}${x.seeded?'<span class="tag seeded">seeded</span>':""}
-        <div class="when">${x.value!=null?"<b>"+((val(x.value,m.unit)||{}).text||x.value)+"</b> · ":""}${x.date?"dated "+esc(x.date)+" · ":""}first seen ${ago(x.first_seen_at)}${x.found_via?" · via "+x.found_via:""}</div></li>`).join("")||"<li class='when'>No entries yet.</li>"}</ul>`;
+      const es=[...e.entries].sort((x,y)=>(y.is_new?1:0)-(x.is_new?1:0)), red={sum:"summed",avg:"averaged",max:"the largest is taken"}[e.reducer];
+      ev=`<p class="psub">Ledger of ${es.length} ${es.length==1?"entry":"entries"}, each stored once by its link${red?", "+red:""}.</p><ul class="rows one">${es.map(x=>`<li class="${x.is_new?"new":""}">
+        <span>${x.url?`<a href="${esc(x.url)}" target="_blank">${esc(x.title)}</a>`:esc(x.title)}${x.is_new?'<span class="tag new">NEW</span>':""}${x.seeded?'<span class="tag seeded">seeded</span>':""}</span>
+        <span class="r" title="first seen ${ago(x.first_seen_at)}${x.found_via?" · via "+x.found_via:""}${x.date?" · dated "+esc(x.date):""}">${x.value!=null?"<b>"+((val(x.value,m.unit)||{}).text||x.value)+"</b> · ":""}${x.date?esc(x.date):short(ago(x.first_seen_at))}</span></li>`).join("")||"<li class='when'>No entries yet.</li>"}</ul>`;
     }
-    h+=`<h4>Changes</h4><ul class="rows">${e.changes.map(c=>`<li>${changeText(c)} ${originTag(c.origin)}<div class="when">${ago(c.at)} · <a href="#" class="nac" data-c="${c.id}">not a change</a></div></li>`).join("")||"<li class='when'>No changes recorded.</li>"}</ul>
-      <h4>How this number is made</h4>
-      ${m.spark.some(o=>o.origin=="backfill")?'<div class="when">History of the last 7 days is computed from the entries\' own dates.</div>':""}<div class="when">Recipe: ${m.kind=="count"?"gather many entries → read title, URL, date"+(e.field&&e.reducer!="count"?", "+esc(e.field):"")+" → "+({count:"count",sum:"sum",avg:"average",max:"take the largest"}[e.reducer]||"count")+" across the ledger":"gather one source → read one value"}${m.curated?" · curated template":" · free-form question"}</div>
-      <div style="margin:6px 0">Source: ${e.source_url?`<a href="${esc(e.source_url)}" target="_blank">${esc(e.source_url)}</a>`:"found by search on each run"}</div>
-      <div class="when">Skill: ${e.skill?esc(e.skill)+".md":"general method"}</div>
-      ${e.skill_text?`<pre style="white-space:pre-wrap;font:11px/1.45 var(--mono);background:#fff;border:1px solid var(--line);border-radius:6px;padding:9px;margin:6px 0;max-height:150px;overflow:auto">${esc(e.skill_text)}</pre>`:""}
-      <h4>Telem trace for this number</h4>
-      <div class="tstat"><div><b>${e.trace_summary.calls}</b><span>Telem calls</span></div><div><b>${e.trace_summary.avg_latency_ms!=null?(e.trace_summary.avg_latency_ms/1000).toFixed(1)+"s":"—"}</b><span>avg latency</span></div>
-        <div><b>$${e.trace_summary.est_search_cost.toFixed(3)}</b><span>search cost (estimated)</span></div><div><b>${e.trace_summary.saved_by_sharing}</b><span>calls saved by sharing</span></div></div>
-      <div class="when">By endpoint: ${Object.entries(e.trace_summary.by_endpoint).map(([k,v])=>esc(k)+" "+v).join(" · ")||"—"}</div>
-      <div class="when">Providers that answered: ${Object.entries(e.trace_summary.by_provider).sort((a,b)=>b[1]-a[1]).map(([k,v])=>esc(k)+" "+v).join(" · ")||"—"}</div>
-      <ul class="rows" style="margin-top:6px">${e.trace.map(t=>`<li style="font:11px var(--mono)">${esc(t.endpoint)} · ${provs(t.providers_json)} · ${(t.latency_ms/1000).toFixed(1)}s${t.est_cost?" · $"+t.est_cost.toFixed(3):""} · ${ago(t.at)}</li>`).join("")||"<li class='when'>No Telem calls recorded for this metric.</li>"}</ul>
-      <div class="when" style="margin-top:6px">Search: ${esc(e.search_query)}<br>Monitor: ${esc(e.monitor_query)}${e.telem_monitor_id?"<br>hourly · id "+esc(e.telem_monitor_id):"<br>no monitor yet"}</div>
-      <h4>Actions</h4>${m.kind=="direct"?`<button class="ghost fb" data-a="wrong_source">Wrong source</button> `:""}${m.on_board?`<button class="ghost fb" data-a="mute">Mute / unmute</button> <button class="ghost unf">Remove from board</button>`:`<button class="ghost fol" data-id="${m.id}">Add to board</button>`}`;
+    // --- Changes: what moved the number first; small edits to an entry folded away
+    const pj=x=>{if(x==null) return "(none)"; let o=x; try{if(typeof x=="string"&&/^[\[{]/.test(x.trim())) o=JSON.parse(x)}catch(_){}
+      if(o&&typeof o=="object"){const y=o.value??o.new_value??o.number; return y==null?"(none)":String(y)} return String(o)};
+    const attr=c=>{for(const x of [c.before,c.after]){try{const o=JSON.parse(x); if(o&&o.attribute) return o.attribute}catch(_){}} return null};
+    const major=c=>(c.kind=="entity_added"&&c.before!=null)||c.kind=="source_changed"||(c.kind=="value_changed"&&m.kind=="direct"&&!attr(c));
+    const when=c=>`<div class="w">${ago(c.at)} · <a href="#" class="nac" data-c="${c.id}">not a change</a></div>`;
+    const big=e.changes.filter(major), small=e.changes.filter(c=>!major(c));
+    const bigRow=c=>`<div class="chg">${c.kind=="value_changed"?`<b>${esc(pj(c.before))} → ${esc(pj(c.after))}</b>${c.url?` <a href="${esc(c.url)}" target="_blank">↗</a>`:""}`:changeText(c)} ${originTag(c.origin)}${when(c)}</div>`;
+    const smallRow=c=>`<div class="chg">${c.kind=="value_changed"?`${esc(c.note||"Entry")} · ${esc(attr(c)||"status")}: ${esc(pj(c.before))} → ${esc(pj(c.after))}`:changeText(c)} ${originTag(c.origin)}${when(c)}</div>`;
+    const ch=(big.map(bigRow).join("")||`<p class="psub">${small.length?"Nothing has moved the number yet.":"No changes recorded."}</p>`)+
+      (small.length?`<details class="fold"${big.length?"":" open"}><summary>${small.length} smaller ${small.length==1?"edit":"edits"} to existing entries</summary>${small.map(smallRow).join("")}</details>`:"");
+    // --- How it's made
+    const reduce={count:"Count the ledger",sum:"Add up the ledger",avg:"Average the ledger",max:"Take the largest"}[e.reducer]||"Count the ledger";
+    const how=`<div class="steps"><div class="st"><span>1 · Gather</span>${m.kind=="count"?"Search, then read the listing pages":"Find and read one source"}</div><div class="ar">→</div>
+        <div class="st"><span>2 · Read</span>${m.kind=="count"?"Title, link, date"+(e.field&&e.reducer!="count"?", "+esc(e.field):"")+" of each entry":"One value, with its quote"}</div><div class="ar">→</div>
+        <div class="st"><span>3 · Reduce</span>${m.kind=="count"?reduce:"The value itself"}</div></div>
+      <dl class="kv"><dt>Source</dt><dd>${e.source_url?`<a href="${esc(e.source_url)}" target="_blank">${esc(e.source_url)}</a>`:"found by search on each run"}</dd>
+        <dt>Recipe</dt><dd>${m.curated?"Curated template":"Free-form question"}${m.spark.some(o=>o.origin=="backfill")?". The last 7 days of history are computed from the entries' own dates.":""}</dd>
+        <dt>Monitor</dt><dd>${e.telem_monitor_id?"Telem monitor · “"+esc(e.monitor_query)+"”":"None yet. Updated by Check now."}</dd>
+        <dt>Search</dt><dd>${esc(e.search_query)}</dd><dt>Skill</dt><dd>${e.skill?esc(e.skill)+".md":"General method"}</dd></dl>
+      ${e.skill_text?`<details class="fold"><summary>Show the skill text</summary><pre>${esc(e.skill_text)}</pre></details>`:""}`;
+    // --- Telem trace
+    const ts=e.trace_summary, tr=`<div class="tstat"><div><b>${ts.calls}</b><span>calls</span></div><div><b>${ts.avg_latency_ms!=null?(ts.avg_latency_ms/1000).toFixed(1)+"s":"—"}</b><span>avg latency</span></div>
+        <div><b>$${ts.est_search_cost.toFixed(2)}</b><span>est. cost</span></div><div><b>${ts.saved_by_sharing}</b><span>saved by sharing</span></div></div>
+      <p class="psub">Providers that answered: ${Object.entries(ts.by_provider).sort((a,b)=>b[1]-a[1]).map(([k,v])=>esc(k)+" "+v).join(" · ")||"—"}</p>
+      <p class="psub">By endpoint: ${Object.entries(ts.by_endpoint).map(([k,v])=>esc(k)+" "+v).join(" · ")||"—"}</p>
+      <table class="calls">${e.trace.map(t=>`<tr><td>${esc(t.endpoint)}</td><td>${provs(t.providers_json)}</td><td>${(t.latency_ms/1000).toFixed(1)}s${t.est_cost?" · $"+t.est_cost.toFixed(3):""}</td><td>${ago(t.at)}</td></tr>`).join("")||"<tr><td>No Telem calls recorded for this metric.</td></tr>"}</table>`;
+    const n=m.kind=="count"?e.entries.length:"";
+    h+=`<div class="ptabs"><a data-pt="ev">Evidence${n!==""?`<i>${n}</i>`:""}</a><a data-pt="ch">Changes${e.changes.length?`<i>${e.changes.length}</i>`:""}</a><a data-pt="how">How it's made</a><a data-pt="tr">Telem trace</a></div>
+      <div class="pbody"><div data-p="ev">${ev}</div><div data-p="ch">${ch}</div><div data-p="how">${how}</div><div data-p="tr">${tr}</div></div>
+      ${S.me.user?`<div class="pfoot">${m.on_board?`<button class="ghost fb" data-a="mute">Mute / unmute</button><button class="ghost unf">Remove from board</button>`:`<button class="ghost fol" data-id="${m.id}">Add to board</button>`}${m.kind=="direct"?`<button class="ghost fb" data-a="wrong_source">Wrong source</button>`:""}</div>`:""}`;
   }
-  const p=$("#panel"); p.innerHTML=h; p.classList.add("open");
+  const p=$("#panel"); p.innerHTML=h; p.classList.add("open"); showPtab();
 }
+function showPtab(){const t=S.ptab||"ev"; document.querySelectorAll("#panel [data-pt]").forEach(x=>x.classList.toggle("on",x.dataset.pt==t)); document.querySelectorAll("#panel [data-p]").forEach(x=>x.classList.toggle("on",x.dataset.p==t))}
 function closePanel(){$("#panel").classList.remove("open");S.open=null}
 async function refresh(){await Promise.all([loadCat(),loadBoard(),loadTrace(),S.tab=="log"?loadLog():S.tab=="catalog"?loadCatalog():0]); if(S.open) openPanel(S.open)}
 async function followMetric(id){ await api(`/api/metrics/${id}/follow`,{}); toast("Added to your board with its full history. No new Telem calls."); await loadMe(); refresh() }
@@ -438,8 +500,9 @@ $("#board").onclick=async ev=>{
   else if(t) openPanel(+t.dataset.id)};
 $("#panel").onclick=async ev=>{
   if(ev.target.closest(".x")) return closePanel();
+  const pt=ev.target.closest("[data-pt]"); if(pt){S.ptab=pt.dataset.pt; return showPtab()}
   if(ev.target.closest("#pup")) return plansModal();
-  const rp=ev.target.closest(".runp"); if(rp){ if(!S.me.user) return signInModal("Sign in to ask for an early check."); S.busy=true; rp.disabled=true; rp.textContent="Checking…";
+  const rp=ev.target.closest(".runp"); if(rp){ if(!S.me.user) return signInModal("Sign in to ask for an early check."); S.busy=true; rp.disabled=true; rp.textContent="Checking…"; S.ptab="ev";
     try{const r=await api(`/api/metrics/${S.open}/run`,{}); S.flash=S.open;
       toast(r.new_entries&&r.new_entries.length?`+${r.new_entries.length} new ${r.new_entries.length>1?"entries":"entry"} found`:r.found?(r.changed?"Value changed":"Checked — no change"):"Checked — no value found")}
     catch(e){toast(e.message,6000)} S.busy=false; return refresh()}

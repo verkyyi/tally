@@ -1,0 +1,119 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tally — detail panel redesign</title>
+<style>
+:root{--paper:#f4f0e6;--card:#fbf9f3;--ink:#1d1b16;--mute:#7b7566;--line:#d9d2c0;--accent:#c2410c;--up:#15703b;--new:#fff1c9;--body:#4a463c;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+*{box-sizing:border-box}
+body{margin:0 auto;background:var(--paper);color:var(--ink);font:14px/1.5 -apple-system,"Helvetica Neue",Arial,sans-serif;padding:28px 32px 60px;max-width:1240px}
+h1{font:700 30px var(--serif);letter-spacing:-.6px;margin:0 0 4px}
+.eyebrow{font:12px var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--accent)}
+.note{color:var(--body);max-width:62em;margin:0 0 18px}
+.cols{display:grid;grid-template-columns:400px 500px 1fr;gap:28px;align-items:start}
+.cap{font:700 18px var(--serif);margin:0 0 8px}
+.today{border:1px solid var(--line);border-radius:10px;height:860px;overflow:auto;background:var(--card)}
+.today img{width:100%;display:block}
+.why{margin:0;padding-left:18px;color:var(--body)} .why li{margin:0 0 9px} .why b{color:var(--ink)}
+svg.i{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-3px}
+/* ---- proposed panel ---- */
+.panel{background:var(--card);border:1px solid var(--ink);border-radius:10px;box-shadow:6px 6px 0 var(--ink);height:860px;display:flex;flex-direction:column;overflow:hidden}
+.ph{padding:20px 22px 0}
+.ph h2{font:700 21px/1.25 var(--serif);margin:0 34px 2px 0}
+.q{color:var(--mute);font-size:13px}
+.hero{display:flex;align-items:flex-end;gap:16px;margin:14px 0 4px}
+.val{font:600 44px/1 var(--mono);letter-spacing:-1.5px}
+.val small{font:13px var(--mono);color:var(--mute);letter-spacing:0;margin-left:6px}
+.delta{font:13px var(--mono);color:var(--up);padding-bottom:5px}
+.spark{flex:1;height:44px}
+.meta{display:flex;gap:16px;color:var(--mute);font:12px var(--mono);margin:8px 0 14px;flex-wrap:wrap}
+.meta span{display:inline-flex;gap:5px;align-items:center}
+.btn{background:var(--ink);color:var(--paper);border:1px solid var(--ink);border-radius:7px;padding:9px 16px;font:600 14px inherit;cursor:pointer}
+.x{position:absolute;right:16px;top:16px;border:1px solid var(--line);background:none;border-radius:6px;width:28px;height:28px;cursor:pointer}
+.tabs{display:flex;gap:2px;padding:0 22px;border-bottom:1px solid var(--line);margin-top:16px}
+.tabs a{padding:9px 12px;font-weight:600;font-size:13px;color:var(--mute);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs a.on{color:var(--ink);border-color:var(--accent)}
+.tabs a i{font:normal 11px var(--mono);color:var(--mute);margin-left:4px}
+.body{padding:14px 22px 22px;overflow:auto;flex:1}
+.body>div{display:none}.body>div.on{display:block}
+.sub{font-size:12px;color:var(--mute);margin:0 0 8px}
+.rows{list-style:none;margin:0;padding:0}
+.rows li{display:flex;justify-content:space-between;gap:12px;padding:8px 8px;border-bottom:1px solid var(--line);font-size:14px;align-items:baseline}
+.rows li a{color:inherit;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.rows li.new{background:var(--new);border-radius:6px;border-bottom-color:transparent}
+.rows .r{font:12px var(--mono);color:var(--mute);white-space:nowrap}
+.tag{font:10px var(--mono);border-radius:3px;padding:1px 6px;margin-left:6px}
+.tag.new{background:var(--accent);color:#fff}.tag.mon{background:#1d4d8f;color:#fff}.tag.run{background:var(--ink);color:var(--paper)}
+.chg{padding:10px 0;border-bottom:1px solid var(--line)}
+.chg b{font-weight:600}.chg .w{font-size:12px;color:var(--mute);margin-top:2px}
+.chg .w a{color:inherit}
+.fold{margin-top:10px;font-size:13px;color:var(--mute)} .fold summary{cursor:pointer}
+.steps{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:8px;align-items:stretch;margin:4px 0 14px}
+.step{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff}
+.step span{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--accent);display:block;margin-bottom:3px}
+.arrow{align-self:center;color:var(--mute)}
+dl{display:grid;grid-template-columns:86px 1fr;gap:6px 12px;margin:0;font-size:13px} dt{color:var(--mute)} dd{margin:0}
+pre{white-space:pre-wrap;font:12px/1.5 var(--mono);background:#fff;border:1px solid var(--line);border-radius:6px;padding:10px;margin:8px 0 0}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--ink);color:var(--paper);border-radius:8px;padding:10px 12px}
+.stat b{display:block;font:600 19px var(--mono)} .stat span{font:10px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:#cfc8b6}
+.calls{width:100%;border-collapse:collapse;font:12px var(--mono)} .calls td{padding:6px 4px;border-bottom:1px solid var(--line)} .calls td:last-child{text-align:right;color:var(--mute)}
+.pf{border-top:1px solid var(--line);padding:10px 22px;display:flex;gap:14px;font-size:13px;color:var(--mute)} .pf a{color:inherit}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+ <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.500"/><path d="M12 7.500V12l3 2"/></symbol>
+ <symbol id="people" viewBox="0 0 24 24"><circle cx="8.500" cy="9" r="3"/><path d="M2.500 19.500c0-3 2.700-5.500 6-5.500s6 2.500 6 5.500M16 6.500a3 3 0 010 5.500M17.500 14.300c2.300.700 4 2.700 4 5.200"/></symbol>
+ <symbol id="radar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.800"/><path d="M7.800 16.200a6 6 0 010-8.400M16.200 7.800a6 6 0 010 8.400M4.900 19.100a10 10 0 010-14.200M19.100 4.900a10 10 0 010 14.200"/></symbol>
+</defs></svg>
+<div class="eyebrow">Mockup · not deployed</div>
+<h1>Detail panel: easier to read</h1>
+<p class="note">Left is the panel today (scroll it). Middle is the proposal, with working tabs. Same content, nothing removed; it is regrouped so the first screen answers “what is the number and why should I believe it”.</p>
+<div class="cols">
+ <div><p class="cap">Today</p><div class="today"><img src="panel-today.png" alt="current panel"></div></div>
+ <div><p class="cap">Proposed</p>
+  <div class="panel" style="position:relative"><button class="x">×</button>
+   <div class="ph"><h2>Gamma · open engineering roles</h2><div class="q">How many open engineering roles does Gamma (gamma.app) have?</div>
+    <div class="hero"><div class="val">12<small>roles</small></div><div class="delta">▲ +1 from 11</div>
+     <svg class="spark" viewBox="0 0 240 44" preserveAspectRatio="none"><path d="M4 38 L50 36 L90 28 L140 27 L175 18 L205 17" fill="none" stroke="#a79f8c" stroke-width="1.500" stroke-dasharray="3 3"/><path d="M205 17 L236 17" fill="none" stroke="#1d1b16" stroke-width="1.800"/><circle cx="236" cy="17" r="3" fill="#c2410c"/></svg></div>
+    <div class="meta"><span><svg class="i"><use href="#clock"/></svg>checked 8m ago</span><span><svg class="i"><use href="#radar"/></svg>next check in 37m</span><span><svg class="i"><use href="#people"/></svg>tracked by 3</span></div>
+    <button class="btn">Check now</button></div>
+   <div class="tabs"><a class="on" data-t="ev">Evidence<i>12</i></a><a data-t="ch">Changes<i>4</i></a><a data-t="how">How it's made</a><a data-t="tr">Telem trace</a></div>
+   <div class="body">
+    <div class="on" id="ev"><p class="sub">Ledger of 12 postings, each stored once by its link. All first seen 4h ago, read from jobs.ashbyhq.com/gamma.</p>
+     <ul class="rows"><li class="new"><span><a href="#">AI Engineer</a><span class="tag new">NEW</span></span><span class="r">just now</span></li>
+      <li><a href="#">UI Engineer</a><span class="r">4h</span></li><li><a href="#">Software Engineer, Trust &amp; Safety</a><span class="r">4h</span></li><li><a href="#">Software Engineer, Platform</a><span class="r">4h</span></li>
+      <li><a href="#">Software Engineer, Growth</a><span class="r">4h</span></li><li><a href="#">Software Engineer, Frontend</a><span class="r">4h</span></li><li><a href="#">Software Engineer, Distributed Systems · Trust &amp; Safety</a><span class="r">4h</span></li>
+      <li><a href="#">Software Engineer, Distributed Systems · Infra</a><span class="r">4h</span></li><li><a href="#">Software Engineer, Data Systems</a><span class="r">4h</span></li><li><a href="#">Software Engineer, Backend</a><span class="r">4h</span></li>
+      <li><a href="#">Site Reliability Engineer</a><span class="r">4h</span></li><li><a href="#">Security Engineer</a><span class="r">4h</span></li><li><a href="#">Engineering Manager, Growth</a><span class="r">4h</span></li></ul></div>
+    <div id="ch"><p class="sub">Only what moved the number is listed first. Smaller edits to an entry are folded away.</p>
+     <div class="chg"><b>12 → 13</b> · new posting: <a href="#">AI Engineer</a><span class="tag run">Check now</span><div class="w">just now · <a href="#">not a change</a></div></div>
+     <div class="chg"><b>11 → 12</b> · new posting: <a href="#">Software Engineer, Data Systems</a><span class="tag mon">Telem monitor</span><div class="w">2h ago · <a href="#">not a change</a></div></div>
+     <details class="fold"><summary>3 smaller edits to existing entries</summary>
+      <div class="chg">Software Engineer, Data Systems · status: unclear → yes<div class="w">2h ago</div></div>
+      <div class="chg">Software Engineer, Data Systems · location: (none) → San Francisco<div class="w">2h ago</div></div>
+      <div class="chg">Software Engineer, Data Systems · status: yes → unclear<div class="w">3h ago</div></div></details></div>
+    <div id="how"><div class="steps"><div class="step"><span>1 · Gather</span>Search and read the job board</div><div class="arrow">→</div><div class="step"><span>2 · Read</span>Title, link and date of each posting</div><div class="arrow">→</div><div class="step"><span>3 · Reduce</span>Count the ledger</div></div>
+     <dl><dt>Source</dt><dd><a href="#">jobs.ashbyhq.com/gamma</a></dd><dt>Recipe</dt><dd>Curated template</dd><dt>Monitor</dt><dd>Hourly · “Gamma posts a new engineering job opening”</dd><dt>Search</dt><dd>Gamma gamma.app careers open engineering jobs</dd><dt>Skill</dt><dd>job_board.md</dd></dl>
+     <details class="fold"><summary>Show the skill text</summary><pre># Skill: job board
+List the company's open roles that match the function in the question.
+- One entry per posting, keyed by the posting's own URL.
+- Leave out design, sales, support and recruiting roles.
+- Leave out closed or archived postings.</pre></details></div>
+    <div id="tr"><div class="stats"><div class="stat"><b>151</b><span>calls</span></div><div class="stat"><b>0.4s</b><span>avg latency</span></div><div class="stat"><b>$0.20</b><span>est. cost</span></div><div class="stat"><b>20</b><span>saved</span></div></div>
+     <p class="sub">Providers that answered: tavily 20 · seltz 10 · exa 10 · perplexity 10</p>
+     <table class="calls"><tr><td>fetch</td><td>tavily</td><td>0.3s</td><td>23m ago</td></tr><tr><td>search</td><td>seltz, exa, perplexity</td><td>0.8s · $0.015</td><td>23m ago</td></tr><tr><td>search</td><td>tavily</td><td>1.3s · $0.005</td><td>23m ago</td></tr><tr><td>fetch</td><td>tavily</td><td>0.3s</td><td>1h ago</td></tr><tr><td>search</td><td>seltz, exa, perplexity</td><td>0.9s · $0.015</td><td>1h ago</td></tr></table>
+     <details class="fold"><summary>121 routine monitor polls, hidden</summary></details></div>
+   </div>
+   <div class="pf"><a href="#">Mute</a><a href="#">Remove from board</a><a href="#">Report wrong source</a></div>
+  </div></div>
+ <div><p class="cap">What changes</p><ul class="why">
+  <li><b>Tabs instead of one long scroll.</b> Evidence, Changes, How it's made, Telem trace. The panel today is about 1,750px tall for Gamma; each tab fits in one screen.</li>
+  <li><b>A real header.</b> Bigger number, its change and sparkline together, then three icon facts (as on the card) and one primary “Check now” button that stays visible.</li>
+  <li><b>Ledger rows on one line.</b> The repeated “first seen 4h ago · via fetch” moves into one sentence above the list; new entries are pinned to the top.</li>
+  <li><b>Changes in plain words.</b> No raw data like <code>{"value": null, "attribute": "location"}</code>. Changes that moved the number come first; small edits to an entry are folded.</li>
+  <li><b>Recipe as three steps.</b> Gather, read, reduce shown as boxes; the skill text is one click away, not always open.</li>
+  <li><b>Trace is quieter.</b> Four stats in one row, real calls in a table, routine monitor polls folded.</li>
+  <li><b>Type.</b> Prose in 13–14px sans; mono only for numbers and times. Panel 460 → 500px wide.</li>
+  <li><b>Actions move to a footer</b> that is always visible.</li></ul>
+  <p class="note" style="margin-top:14px"><b>Two bugs seen while reviewing today's panel:</b> a signed-out visitor sees “Add to board” on cards that are on the board, and the new paced monitors are labelled “hourly”.</p></div>
+</div>
+<script>document.querySelectorAll(".tabs a").forEach(a=>a.onclick=()=>{document.querySelectorAll(".tabs a").forEach(x=>x.classList.toggle("on",x==a));document.querySelectorAll(".body>div").forEach(d=>d.classList.toggle("on",d.id==a.dataset.t))});</script>
+</body></html>
