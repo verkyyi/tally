@@ -355,6 +355,26 @@ def create_numbers():
             print(line, flush=True)
 
 
+def resource():
+    """Have the agent re-source existing numbers from a better source. Usage: resource "hint for the agent" id [id ...]"""
+    import lifecycle
+    from concurrent.futures import ThreadPoolExecutor
+    hint, ids = sys.argv[2], [int(x) for x in sys.argv[3:]]
+
+    def one(mid):
+        m = core.metric(mid)
+        try:
+            how, pts = lifecycle.resource(m, hint)
+        except Exception as e:
+            return f"FAILED {mid} {m['title']} | {type(e).__name__} {str(e)[:140]}"
+        m = core.metric(mid)
+        return f"{mid} {m['title']} | {how} | {(core.latest_obs(mid) or {}).get('value'):g} {m['unit'] or ''} | past points {pts} | {(m['source_url'] or '')[:70]}"
+
+    with ThreadPoolExecutor(3) as ex:
+        for line in ex.map(one, ids):
+            print(line, flush=True)
+
+
 def scout():
     """Survey the open web for the numbers about a company worth recording, and save the list (nothing is created). Usage: scout "Anthropic" [out.json]"""
     import agent
@@ -421,4 +441,4 @@ def period_history():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()

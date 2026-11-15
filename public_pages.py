@@ -315,7 +315,7 @@ def landing_card(m, t, pts, rising=False):
     src = "archived pricing pages" if m["title"].lower().endswith("plan price") else "funding announcements" if core.round_kind(m) else (
         "its entries, each with a link" if m["kind"] == "count" else re.sub(r"^www\.", "", (m.get("source_url") or "").split("/")[2]) if (m.get("source_url") or "").count("/") >= 2 else "its source")
     return (f'<a class="num" href="{number_path(m)}"><b>{esc(m["title"])}{"<i>in the news</i>" if rising else ""}</b><div class="v">{esc(txt)}<small>{esc(unit)}</small></div>{svg}'
-            f'<div class="m"><span>since {esc(pts[0]["at"][:4]) if pts else ""}</span><span>{esc(src)}</span></div></a>')
+            f'<div class="m"><span>since {esc(pts[0]["at"][:4]) if pts else ""}</span><span>source: {esc(src)}</span></div></a>')
 
 
 def landing_compare(a, ta, b, tb, kind):
@@ -573,6 +573,7 @@ def points_table(m, pts, limit=40):
         host = re.sub(r"^www\.", "", url.split("/")[2]) if url and url.count("/") >= 2 else ""
         src = f'<a href="{esc(url)}" rel="nofollow noopener">{esc("web.archive.org copy" if host == "web.archive.org" else host)}</a>' if host else ("the entries below" if m["kind"] == "count" else "")
         note = p.get("note") if p["origin"] == "source_history" and p.get("note") and not str(p.get("note")).startswith("recipe v") else ""
+        note = (str(p["note"]).split(": ", 1)[1][:140] if str(p.get("note") or "").startswith("recipe v") and ": " in str(p["note"]) and "running total" not in str(p["note"]) else note)
         rows += (f'<tr><td>{esc(span)}</td><td>{esc(" ".join(x for x in fmt(p["value"], m.get("unit")) if x))}</td>'
                  f'<td>{src}<span style="color:#667085"> · {esc(note or kinds.get(p["origin"], "read by Tally"))}</span></td></tr>')
     more = f'<p class="meta">{len(runs) - limit} earlier rows are in the <a href="/n/{m["id"]}/history.csv">CSV</a>, each with its source.</p>' if len(runs) > limit else ""

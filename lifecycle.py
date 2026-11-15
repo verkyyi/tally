@@ -93,7 +93,9 @@ def _work(did, q):
             steps = steps + again["steps"]
             today = db.now()[:10]
             for h in sorted((again["result"] or {}).get("history") or [], key=lambda x: x["date"]):
-                if re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], recipes._page_for(h.get("url"), again["pages"])):
+                page_h = recipes._page_for(h.get("url"), again["pages"])
+                if (re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], page_h)
+                        and (len(page_h) < recipes.LONG or recipes._quoted(h["value"], h.get("quote"), page_h))):
                     hist.append(h)
             checks.append({"name": "A second run looked only for its past", "ok": True, "detail": f"{len(hist)} past values could be read in the pages they cite."})
             past_note = past_note or ((again["result"] or {}).get("notes") or "")
@@ -232,6 +234,41 @@ def repair(m):
             if not db.one("SELECT 1 x FROM observations WHERE metric_id=? AND substr(as_of,1,7)=?", (m["id"], at[:7])):
                 db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)", (m["id"], h["value"], at, h.get("url"), "source_history", f"recipe v{ver}", ver))
     return "repaired"
+
+
+def resource(m, hint):
+    """Send the agent to find a better source for an existing number (an official filing instead of a news article, say).
+    The new recipe is adopted only if it passes the usual checks; the past it rebuilds replaces the past an earlier recipe rebuilt."""
+    import agent
+    run = agent.create(m["question"] + " " + hint)
+    res = run["result"]
+    checks, _, hist = recipes._verify(m, res, run["pages"])
+    ok = bool(res and res.get("found")) and all(c["ok"] for c in checks if not c["name"].startswith("No unexplained jump"))
+    if not ok:
+        return "kept as it was: " + "; ".join(c["name"] for c in checks if not c["ok"]), 0
+    r, plan, cur = res["recipe"], res.get("plan") or {}, recipes.live(m)
+    if plan.get("running_total") and hist:
+        hist, fits, _ = recipes.running_total(hist, res["value"])
+        hist = hist if fits else []
+    body = (f"## Source\n{res['evidence_url']}\n{r['Source']}\n\n## Read\n{r['Read'] or recipes.parse(cur['body']).get('Read', '')}\n\n"
+            f"## History\n{r['History'] or recipes.parse(cur['body']).get('History', '')}\n\n## Update\n{r['Update'] or 'Once a day.'}\n\n## Checks\n{r['Checks'] or CHECKS}\n")
+    ver = db.one("SELECT MAX(version) v FROM recipes WHERE metric_id=?", (m["id"],))["v"] + 1
+    db.run("UPDATE recipes SET status='superseded' WHERE metric_id=? AND status='live'", (m["id"],))
+    db.run("INSERT INTO recipes(metric_id,version,body,author,note,status,created_at,trial_json) VALUES(?,?,?,?,?,?,?,?)",
+           (m["id"], ver, body, "tally", "Re-sourced by an agent: " + hint[:140], "live", db.now(),
+            json.dumps({"checks": checks, "notes": res.get("notes"), "steps": run["steps"], "model": run["model"], "usage": run["usage"], "adopted": True, "created": True})))
+    secs = recipes.parse(body)
+    db.run("UPDATE metrics SET source_url=?, instructions=?, search_query=COALESCE(?,search_query), update_json=?, recipe_version=?, read_failures=0, last_checked_at=? WHERE id=?",
+           (res["evidence_url"], secs.get("Read"), recipes._search_line(secs.get("Source", "")), json.dumps(plan), ver, db.now(), m["id"]))
+    core.record_direct(core.metric(m["id"]), {"value": res["value"], "evidence_url": res["evidence_url"], "quote": res["quote"]}, "agent")
+    if hist:
+        db.run("DELETE FROM observations WHERE metric_id=? AND origin='source_history' AND quote LIKE 'recipe v%'", (m["id"],))
+        today = db.now()[:10]
+        for h in hist:
+            if h["date"] < today and not db.one("SELECT 1 x FROM observations WHERE metric_id=? AND as_of=?", (m["id"], h["date"] + "T00:00:00Z")):
+                db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)",
+                       (m["id"], h["value"], h["date"] + "T00:00:00Z", h.get("url"), "source_history", f"recipe v{ver}" + (": " + h["quote"][:200] if h.get("quote") else ""), ver))
+    return "re-sourced", len(hist)
 
 
 def repair_due(limit=1):

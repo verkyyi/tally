@@ -24,6 +24,7 @@ How to work
 - Use the tools to read the source the recipe names. Prefer the exact page or API it gives over searching. Search only when the recipe says to, or when the named source is unreachable.
 - Read the value from text you fetched in this run. Never use a number from memory, and never compute or estimate one unless the recipe tells you to add up entries you have listed.
 - The quote you report must be copied from the fetched text and must contain the number as written there.
+- A long document (a filing, an annual report) is searched with grep, not read from the top.
 - If the recipe has a History section that names a way to get past values (an API with dates, dated announcements, archived pages), collect what it yields, each point with its date and the URL you read it from. Skip history when the recipe says the past is not available.
 - Stop as soon as you have what the recipe asks for. A few tool calls is normal.
 - The number has a fixed question. A recipe may change where and how the answer is found, never what is being asked. If the recipe reads a different thing (another company, total funding where the question asks for the latest round, a yearly figure where it asks for a monthly one), still report what it yields, and set on_topic to false with a note saying what differs.
@@ -53,6 +54,26 @@ def _public_host(url):
         return True
     except Exception:
         return False
+
+
+def page_text(raw):
+    """HTML as text that keeps a table's rows together: one line per row, cells separated by ' | ', so a figure stays next to its label."""
+    import html as _html
+    import re as _re
+    h = _re.sub(r"(?is)<(script|style|noscript|svg|head)\b.*?</\1>", " ", raw)
+    h = _re.sub(r"(?i)</(td|th)>", " | ", h)
+    h = _re.sub(r"(?i)</(tr|p|div|li|h[1-6])>|<br\s*/?>", "\n", h)
+    h = _html.unescape(_re.sub(r"(?s)<[^>]+>", "", h)).replace("\xa0", " ")
+    h = _re.sub(r"[ \t]+", " ", h)
+    h = _re.sub(r"( \| )+(?=\| |\n)", " | ", h)
+    return _re.sub(r"\n\s*\n+", "\n", h).strip()
+
+
+FILINGS = """Official filings first. When the company files with a securities regulator, the filing is the best source there is for financial and operating figures: audited, dated, permanent, and it states several periods side by side.
+- US companies: find the company's CIK (search "<company> SEC CIK", or https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=<name>), list its filings with get_json on https://data.sec.gov/submissions/CIK<10-digit CIK>.json, and open a document at https://www.sec.gov/Archives/edgar/data/<CIK>/<accession number without dashes>/<document name>. Use the latest S-1 or S-1/A, 10-K, 10-Q or 8-K.
+- A filing is hundreds of pages. Do not read it from the top: use grep with the row label or phrase you need ("Total revenue", "customers with $100,000", "employees", "Run-Rate Revenue"), then grep again around what you find.
+- Every period column in a table is a past value: date it at the period's last day and cite the filing's address. Mind the table's scale ("in millions", "in thousands") and report plain numbers. Earlier filings and amendments give earlier values of figures that are restated or updated.
+- Prefer the filing over a news article that quotes it. Use news only for what filings do not state."""
 
 
 def _toolbox(pages, steps, mid, on_step=None):
@@ -120,7 +141,52 @@ def _toolbox(pages, steps, mid, on_step=None):
         pages[url] = r.text[:400000]
         return r.text[:20000]
 
-    return search, fetch, get_json
+    @beta_tool
+    def grep(url: str, pattern: str) -> str:
+        """Search inside one long page (a regulatory filing, an annual report, a long changelog) and get the passages that match, instead of reading it from the top.
+        The whole page is kept, so figures you quote from the passages can be checked. Tables come back one row per line with cells separated by " | ".
+
+        Args:
+            url: The https address of the page.
+            pattern: A phrase or a regular expression (case is ignored), e.g. "Total revenue" or "customers with \\$1 million".
+        """
+        import re as _re
+        log("grep", f"{pattern[:80]} in {url[:220]}")
+        if not _public_host(url):
+            return "refused: only public https pages can be read"
+        if url not in pages or len(pages[url]) < 30000:
+            try:
+                r = httpx.get(url, timeout=60, follow_redirects=True, headers={"User-Agent": "tally-catalog", "Accept": "text/html,application/xhtml+xml"})
+                text = page_text(r.text) if r.status_code == 200 else ""
+            except httpx.HTTPError:
+                text = ""
+            if len(text) < 500:  # a site that refuses a plain request is read through the fetch service instead
+                try:
+                    rows = [p for p in telem.fetch([url], mid, fresh=True, max_chars=3000000) if p["ok"]]
+                    text = rows[0]["content"] if rows else ""
+                except Exception:
+                    text = ""
+            if not text:
+                return "the page could not be read"
+            pages[url] = text[:6000000]
+        text = pages[url]
+        try:
+            hits = list(_re.finditer(pattern, text, _re.I))
+        except _re.error:
+            hits = list(_re.finditer(_re.escape(pattern), text, _re.I))
+        if not hits:
+            return f"no match in {len(text):,} characters. Try a shorter phrase or another wording of the row label."
+        out, last = [], -10000
+        for h in hits:
+            if h.start() - last < 900:
+                continue
+            last = h.start()
+            out.append(f"[at {h.start():,}] …{text[max(0, h.start() - 350): h.end() + 1100]}…")
+            if len(out) == 8:
+                break
+        return f"{len(hits)} matches in {len(text):,} characters; {len(out)} passages:\n\n" + "\n\n".join(out)
+
+    return search, fetch, get_json, grep
 
 
 def _run(system, user, tools, max_iterations, effort=None):
@@ -147,7 +213,7 @@ def _history(history_json):
 def run_recipe(metric, recipe_text, max_iterations=12, on_step=None):
     """Have the agent follow a recipe once. Returns {"result": dict or None, "pages": {url: text}, "steps": [...], "usage": {...}, "model": str}."""
     pages, steps, out = {}, [], {}
-    search, fetch, get_json = _toolbox(pages, steps, metric.get("id"), on_step)
+    search, fetch, get_json, grep = _toolbox(pages, steps, metric.get("id"), on_step)
 
     @beta_tool
     def submit(found: bool, on_topic: bool = True, value: float = 0, quote: str = "", evidence_url: str = "", history_json: str = "[]", notes: str = "") -> str:
@@ -167,7 +233,7 @@ def run_recipe(metric, recipe_text, max_iterations=12, on_step=None):
 
     user = (f"Number: {metric['title']}\nQuestion it answers: {metric['question']}\nUnit: {metric.get('unit') or 'none'}\n"
             f"Kind: {'one value read from a source' if metric['kind'] == 'direct' else 'a list of entries reduced to one number'}\n\nRecipe to follow:\n\n{recipe_text}")
-    meta = _run(SYSTEM, user, [search, fetch, get_json, submit], max_iterations)  # run first: the result is only filled in by the agent's last call
+    meta = _run(SYSTEM, user, [search, fetch, get_json, grep, submit], max_iterations)  # run first: the result is only filled in by the agent's last call
     return {"result": out or None, "pages": pages, "steps": steps} | meta
 
 
@@ -179,7 +245,10 @@ You are given a request in a person's words. You decide how to do the research; 
 - A title in the form "Subject · what" (at most six words), the unit, today's value, a quote copied from a page you fetched that states the value, and that page's address.
 - Prefer the subject's own page or filing, then a primary report of the event, then a reputable database. Prefer a page with a stable address that will still state the value next month.
 - The past. This is the reason Tally exists: anyone can ask a search engine for today's figure, and nobody else keeps how it got here. So rebuilding the past is not optional and is where most of your effort goes. Find every earlier value stated with a date, each with the page that states it. Look where it naturally lives: the source's own table, changelog or earlier filings; dated announcements of each change; an API with dates; archived copies of the same page (list them with https://web.archive.org/cdx/search/cdx?url=<page>&output=json&collapse=timestamp:6 and read a copy with https://web.archive.org/web/<timestamp>/<page>). Aim for the whole life of the number, not the last year. Report the values themselves; never fill in between two of them, and never estimate.
+- For history taken from a long document, add to each point the "quote": the table row or sentence, copied from the passage, that states it.
 - If the number truly has no past (it came into existence days ago), say so in no_past_reason with what you checked. A number with no past and no such reason is sent back to be researched again.
+
+{FILINGS}
 
 2. The artifact that keeps it alive: a recipe, written by you from what you actually did, that someone else (or a cheaper program) can follow without you
 - source: the page or API address the value is read from, and the search to fall back on.
@@ -201,7 +270,7 @@ Work efficiently: a handful of searches and page reads is typical; go further on
 def create(question, on_step=None, max_iterations=24):
     """Have the agent research a requested number and write the recipe that keeps it alive. Returns {"result", "pages", "steps", "usage", "model"}."""
     pages, steps, out = {}, [], {}
-    search, fetch, get_json = _toolbox(pages, steps, None, on_step)
+    search, fetch, get_json, grep = _toolbox(pages, steps, None, on_step)
 
     @beta_tool
     def submit(found: bool, title: str = "", unit: str = "", value: float = 0, quote: str = "", evidence_url: str = "", history_json: str = "[]",
@@ -235,7 +304,7 @@ def create(question, on_step=None, max_iterations=24):
                     "recipe": {"Source": source.strip()[:1500], "Read": read.strip()[:1500], "History": history.strip()[:1500], "Update": update.strip()[:800], "Checks": checks.strip()[:1200]}})
         return "recorded"
 
-    meta = _run(CREATE, f"Request: {question}", [search, fetch, get_json, submit], max_iterations)
+    meta = _run(CREATE, f"Request: {question}", [search, fetch, get_json, grep, submit], max_iterations)
     return {"result": out or None, "pages": pages, "steps": steps} | meta
 
 
@@ -250,6 +319,8 @@ What makes a number worth it
 - Prefer numbers that are hard to get in one place: they need several pages read and reconciled, or they sit on a page nobody keeps the history of (a price list, a job board, a model card, a rate limit table). Those are what only open-web research gives.
 - Also cover the broad current figures anyone would expect (valuation, funding, revenue, headcount, users), so the record is complete.
 
+{FILINGS}
+
 Be concrete. A number is one figure with one unit: "Claude Opus · API input price per million tokens", not "pricing". Split a table into the two or three rows people actually cite. Leave out anything you could not see stated on a page, and anything about private individuals.
 
 Hand back 25 to 40 numbers through submit, most interesting first. Call submit exactly once."""
@@ -258,7 +329,7 @@ Hand back 25 to 40 numbers through submit, most interesting first. Call submit e
 def scout(company, max_iterations=40):
     """Have the agent survey the open web for the numbers about a company worth recording. Returns {"result": {"numbers": [...], "notes"}, "steps", "usage", "model"}."""
     pages, steps, out = {}, [], {}
-    search, fetch, get_json = _toolbox(pages, steps, None)
+    search, fetch, get_json, grep = _toolbox(pages, steps, None)
 
     @beta_tool
     def submit(numbers_json: str, notes: str = "") -> str:
@@ -275,7 +346,7 @@ def scout(company, max_iterations=40):
         out.update({"numbers": [x for x in items if isinstance(x, dict) and x.get("title")][:60], "notes": notes[:1200]})
         return "recorded"
 
-    meta = _run(SCOUT, f"Company: {company}", [search, fetch, get_json, submit], max_iterations, effort="high")
+    meta = _run(SCOUT, f"Company: {company}", [search, fetch, get_json, grep, submit], max_iterations, effort="high")
     return {"result": out or None, "steps": steps} | meta
 
 
@@ -287,7 +358,9 @@ Find every earlier value of this same number that a page states with a date. Wor
 3. Archived copies of the page that states it today: list them with https://web.archive.org/cdx/search/cdx?url=<page>&output=json&collapse=timestamp:6 and read copies spread across the years with https://web.archive.org/web/<timestamp>/<page>.
 4. An API that carries dates.
 
-One point per date, the value as it was then, with the address of the page you read it on. Use the first day of the month when only the month is known. Never fill in between two points and never estimate: a value that is not readable on the page you cite is discarded by a program afterwards. If after all four places there is nothing, say exactly what you tried.
+{FILINGS}
+
+One point per date, the value as it was then, with the address of the page you read it on. For a point taken from a long document, add "quote": the table row or sentence that states it. Use the first day of the month when only the month is known. Never fill in between two points and never estimate: a value that is not readable on the page you cite is discarded by a program afterwards. If after all four places there is nothing, say exactly what you tried.
 
 Call submit exactly once."""
 
@@ -295,7 +368,7 @@ Call submit exactly once."""
 def backfill(metric, value, source_url, on_step=None, max_iterations=24):
     """A run that does nothing but look for a number's earlier values. Returns {"result": {"history", "notes"}, "pages", "steps", ...}."""
     pages, steps, out = {}, [], {}
-    search, fetch, get_json = _toolbox(pages, steps, metric.get("id"), on_step)
+    search, fetch, get_json, grep = _toolbox(pages, steps, metric.get("id"), on_step)
 
     @beta_tool
     def submit(history_json: str = "[]", notes: str = "") -> str:
@@ -309,5 +382,8 @@ def backfill(metric, value, source_url, on_step=None, max_iterations=24):
         return "recorded"
 
     user = f"Number: {metric['title']}\nQuestion it answers: {metric['question']}\nUnit: {metric.get('unit') or 'none'}\nToday's value: {value:g}\nRead today from: {source_url}"
-    meta = _run(PAST, user, [search, fetch, get_json, submit], max_iterations, effort="high")
+    meta = _run(PAST, user, [search, fetch, get_json, grep, submit], max_iterations, effort="high")
     return {"result": out or None, "pages": pages, "steps": steps} | meta
+
+
+CREATE, PAST, SCOUT = (t.replace("{FILINGS}", FILINGS) for t in (CREATE, PAST, SCOUT))

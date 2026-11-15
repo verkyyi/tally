@@ -102,6 +102,21 @@ def _page_for(url, pages):
     return next((t for u, t in pages.items() if norm(u) == want), "")
 
 
+LONG = 200000  # characters; a page longer than this is a document, where a bare number can turn up anywhere
+
+
+def _quoted(value, quote, page):
+    """True if some part of the quote both carries the value and sits on the page. A quote may join two passages with an
+    ellipsis; white space and table bars are ignored when comparing."""
+    squash = lambda t: re.sub(r"[\s|]+", "", t or "").lower()
+    where = squash(page)
+    for part in re.split(r"\.\.\.|…", quote or ""):
+        q = squash(part)
+        if len(q) >= 8 and core.supported(value, part) and (q[:120] in where or q[-120:] in where):
+            return True
+    return False
+
+
 def _verify(m, res, pages):
     """Check what the agent reported against the pages it fetched. Returns (checks, value or None, kept history)."""
     checks, value, hist = [], None, []
@@ -113,7 +128,7 @@ def _verify(m, res, pages):
     page = _page_for(res["evidence_url"], pages)
     fetched = bool(page)
     checks.append({"name": "The evidence page was actually read in this run", "ok": fetched, "detail": "" if fetched else "The reported source was not among the pages fetched."})
-    readable = fetched and core.supported(res["value"], page) and core.supported(res["value"], res["quote"])
+    readable = fetched and core.supported(res["value"], page) and core.supported(res["value"], res["quote"]) and (len(page) < LONG or _quoted(res["value"], res["quote"], page))
     checks.append({"name": "The value can be read in the source text", "ok": readable, "detail": "" if readable else "The number is not in the page text or in the quote."})
     old = core.latest_obs(m["id"]) if m["kind"] == "direct" else {"value": core.count_value(m["id"])}
     ov = (old or {}).get("value")
@@ -123,7 +138,8 @@ def _verify(m, res, pages):
         value = res["value"]
     today = db.now()[:10]
     for h in sorted(res.get("history") or [], key=lambda x: x["date"]):
-        if re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], _page_for(h.get("url"), pages)):
+        page_h = _page_for(h.get("url"), pages)
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], page_h) and (len(page_h) < LONG or _quoted(h["value"], h.get("quote"), page_h)):
             hist.append(h)
     if res.get("history"):
         checks.append({"name": "Past points can be read in the pages they cite", "ok": len(hist) > 0, "detail": f"{len(hist)} of {len(res['history'])} kept."})
