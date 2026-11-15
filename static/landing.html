@@ -8,141 +8,81 @@
 <link rel="canonical" href="https://tallycatalog.com/">
 <meta name="description" content="Tally tracks funding, hiring and launches at the companies you watch, shows the source behind every number, and tells you what changed. Built for angels, scouts and pre-seed funds.">
 <meta property="og:title" content="Tally — know the moment your pipeline moves">
-<meta property="og:description" content="Pick the companies you watch. Tally tracks their funding, hiring and launches, shows the source behind every number, and tells you what changed.">
+<meta property="og:description" content="Funding, hiring and launches at the companies you watch, each with its source. Pick one company to start.">
 <meta property="og:image" content="https://tallycatalog.com/static/img/board.png">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <style>
-:root{--paper:#f5f6f8;--card:#fff;--ink:#0e1320;--body:#475467;--mute:#667085;--line:#e1e4ea;--accent:#2f5bff;--up:#0a8f5b;
+:root{--paper:#f5f6f8;--card:#fff;--ink:#0e1320;--body:#475467;--mute:#667085;--line:#e1e4ea;--accent:#2f5bff;--tint:#eaf0ff;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--display:"Inter","SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
 body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.55 var(--display)}
-.wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+.wrap{max-width:900px;margin:0 auto;padding:0 24px}
 a{color:inherit}
 header{display:flex;justify-content:space-between;align-items:center;padding:20px 0}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:23px;letter-spacing:-.03em;text-decoration:none}
-nav{display:flex;gap:8px;align-items:center}
-nav a.link{text-decoration:none;font-weight:600;padding:0 10px;font-size:15px}
-.btn{display:inline-block;white-space:nowrap;padding:12px 20px;border-radius:9px;background:var(--ink);color:#fff;text-decoration:none;font-weight:600;border:1px solid var(--ink);font-size:16px}
-.btn.blue{background:var(--accent);border-color:var(--accent)}
-.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
-.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:56px;align-items:center;padding:64px 0 72px}
+header a.in{font-size:15px;color:var(--mute);text-decoration:none}
+.hero{padding:56px 0 44px;text-align:center}
 .eyebrow{font:13px var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--accent)}
-h1{font-size:clamp(40px,6vw,66px);line-height:1.02;letter-spacing:-.045em;margin:14px 0 20px;text-wrap:balance}
-.lede{font-size:20px;color:var(--body);max-width:30em;margin:0 0 28px}
-.cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-.note{font-size:14px;color:var(--mute);margin:14px 0 0}
-.stack{display:flex;flex-direction:column;gap:12px}
-.tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 10px 30px rgba(14,19,32,.07)}
-.tile b{display:block;font-size:14px;font-weight:600}
-.tile .v{font-size:34px;font-weight:700;letter-spacing:-.035em;line-height:1.15;font-variant-numeric:tabular-nums;margin-top:4px}
-.tile .v small{font:13px var(--mono);font-weight:400;color:var(--mute);margin-left:7px;letter-spacing:0}
-.tile .d{font:13px var(--mono);color:var(--up);min-height:18px}
-.tile:nth-child(2){margin-left:28px}.tile:nth-child(3){margin-left:56px}
-section{padding:64px 0;border-top:1px solid var(--line)}
-h2{font-size:clamp(28px,3.6vw,38px);line-height:1.1;letter-spacing:-.035em;margin:10px 0 28px;text-wrap:balance}
-.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;max-width:720px}
-.box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
-.box .n{font:13px var(--mono);color:var(--accent)}
-.box b{display:block;font-size:20px;letter-spacing:-.02em;margin:6px 0 6px}
-.box p{margin:0;color:var(--body);font-size:16px}
-.box ul{margin:8px 0 0;padding:0;list-style:none;color:var(--body);font-size:15px}.box li{padding:3px 0}
-.box.hot{border:2px solid var(--accent)}
-.price{font-size:30px;font-weight:700;letter-spacing:-.03em}
-.price small{font-size:15px;font-weight:500;color:var(--mute)}
-.final{text-align:center;padding:72px 0}
-.final h2{margin-bottom:22px}
-footer{padding:26px 0 48px;color:var(--mute);font-size:14px;border-top:1px solid var(--line)}
-@media(max-width:820px){.hero{grid-template-columns:1fr;gap:32px;padding:36px 0 48px}.g3,.g4,.g2{grid-template-columns:1fr}.tile:nth-child(n){margin-left:0}header nav a:not(:last-child){display:none}section{padding:44px 0}}
+h1{font-size:clamp(38px,6.4vw,62px);line-height:1.03;letter-spacing:-.045em;margin:14px auto 16px;max-width:12.5em;text-wrap:balance}
+.lede{font-size:19px;color:var(--body);max-width:30em;margin:0 auto 30px}
+.ask{font-weight:600;margin:0 0 14px}
+.picks{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.pick{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 17px;text-align:left;text-decoration:none;transition:border-color .15s,box-shadow .15s}
+.pick:hover,.pick:focus-visible{border-color:var(--accent);box-shadow:0 0 0 3px var(--tint);outline:none}
+.pick b{display:flex;align-items:center;gap:9px;font-size:17px;letter-spacing:-.01em}
+.av{width:26px;height:26px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none}
+.pick span.b{display:block;font:13px/1.45 var(--mono);color:var(--mute);margin-top:7px}
+form{display:flex;gap:8px;margin:14px 0 0}
+form input{flex:1;min-width:0;padding:13px 15px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:inherit}
+form input:focus{outline:2px solid var(--accent);outline-offset:1px}
+form button{padding:13px 22px;border-radius:10px;background:var(--accent);color:#fff;font:600 16px var(--display);border:0;cursor:pointer}
+.tiny{font-size:14px;color:var(--mute);margin:14px 0 0}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;padding:30px 0 36px;border-top:1px solid var(--line)}
+.three b{display:block;font-size:17px;letter-spacing:-.01em;margin-bottom:3px}.three p{margin:0;color:var(--body);font-size:15.500px}
+footer{padding:18px 0 40px;color:var(--mute);font-size:14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+@media(max-width:720px){.picks,.three{grid-template-columns:1fr}.hero{padding:30px 0 34px}.three{gap:18px}}
 </style>
 </head>
 <body>
 <div class="wrap">
 <header>
   <a class="brand" href="/"><img src="/static/img/logo.svg" alt="" width="32" height="32">Tally</a>
-  <nav><a class="link" href="#pricing">Pricing</a><a class="link" href="/app">Sign in</a><a class="btn" href="/app?setup=1">Build my board</a></nav>
+  <a class="in" href="/app">Sign in</a>
 </header>
 
 <div class="hero">
-  <div>
-    <div class="eyebrow">For angels, scouts and pre-seed funds</div>
-    <h1>Know the moment your pipeline moves.</h1>
-    <p class="lede">Pick the companies you watch. Tally tracks their funding, hiring and launches, shows the source behind every number, and tells you what changed.</p>
-    <div class="cta"><a class="btn blue" href="/app?setup=1">Build my board</a><a class="btn ghost" href="/app">See a live board</a></div>
-    <p class="note">Free to start. No spreadsheet, nothing to set up.</p>
+  <div class="eyebrow">For angels, scouts and pre-seed funds</div>
+  <h1>Know the moment your pipeline moves.</h1>
+  <p class="lede">Funding, hiring and launches at the companies you watch, each with its source.</p>
+  <p class="ask">Pick one to start. You can add more later.</p>
+  <div class="picks" id="picks">
+    <a class="pick" href="/app?start=Cursor"><b><span class="av">C</span>Cursor</b><span class="b">funding · open roles · launches</span></a>
+    <a class="pick" href="/app?start=Lovable"><b><span class="av">L</span>Lovable</b><span class="b">funding · open roles · launches</span></a>
+    <a class="pick" href="/app?start=Y%20Combinator&pack=accelerator"><b><span class="av">Y</span>Y Combinator</b><span class="b">batch sizes · AI companies</span></a>
+    <a class="pick" href="/app?start=Linear"><b><span class="av">L</span>Linear</b><span class="b">funding · open roles · launches</span></a>
+    <a class="pick" href="/app?start=LangChain"><b><span class="av">L</span>LangChain</b><span class="b">GitHub stars · downloads</span></a>
+    <a class="pick" href="/app?start=Tavily"><b><span class="av">T</span>Tavily</b><span class="b">funding · open roles · launches</span></a>
   </div>
-  <div class="stack" id="stack">
-    <div class="tile"><b>Cursor · open engineering roles</b><div class="v">27<small>roles</small></div><div class="d">&nbsp;</div></div>
-    <div class="tile"><b>AI agent startups · funding this month</b><div class="v">$460M</div><div class="d">&nbsp;</div></div>
-    <div class="tile"><b>YC · companies in the current batch</b><div class="v">233<small>companies</small></div><div class="d">&nbsp;</div></div>
-  </div>
+  <form action="/app" method="get"><input name="start" placeholder="Or type any company" aria-label="Company name" required><button>Start</button></form>
+  <p class="tiny">Free. One click, then sign in with Google to keep your board.</p>
 </div>
 
-<section>
-  <div class="eyebrow">How it works</div>
-  <h2>Three steps. About a minute.</h2>
-  <div class="g3">
-    <div class="box"><span class="n">1</span><b>Pick who you watch</b><p>Tap the companies, accelerators and sectors you follow. Nothing to type, nothing to configure.</p></div>
-    <div class="box"><span class="n">2</span><b>Get your board</b><p>Funding, valuation, headcount, open roles and launches for each one. Every number opens to its source.</p></div>
-    <div class="box"><span class="n">3</span><b>See what changed</b><p>Tally re-checks in the background and lists what moved since you last looked.</p></div>
-  </div>
-</section>
-
-<section>
-  <div class="eyebrow">What you can track</div>
-  <h2>The numbers investors ask about.</h2>
-  <div class="g4">
-    <div class="box"><b>Companies</b><ul><li>Total funding</li><li>Latest round and valuation</li><li>Headcount</li><li>Open roles</li><li>Launches</li></ul></div>
-    <div class="box"><b>Accelerators</b><ul><li>Size of the current batch</li><li>AI companies in it</li><li>Companies funded</li></ul></div>
-    <div class="box"><b>Sectors</b><ul><li>Funding this month</li><li>Largest round</li><li>Number of rounds</li></ul></div>
-    <div class="box"><b>Investors</b><ul><li>New investments this month</li><li>Latest fund size</li></ul></div>
-  </div>
-  <p class="note" style="margin-top:18px"><span id="ctotal">100+</span> numbers are already tracked. <a href="/numbers">Browse them all</a>.</p>
-</section>
-
-<section>
-  <div class="eyebrow">Why you can trust it</div>
-  <h2>Every number shows its work.</h2>
-  <div class="g3">
-    <div class="box"><b>A source for every number</b><p>Each value links to the page and the sentence it came from.</p></div>
-    <div class="box"><b>It never guesses</b><p>If a value is not on the page, Tally says “no value yet”.</p></div>
-    <div class="box"><b>Counts you can open</b><p>“27 open roles” is a list of 27 postings, each with its link.</p></div>
-  </div>
-</section>
-
-<section id="pricing">
-  <div class="eyebrow">Pricing</div>
-  <h2>Two plans. Start free.</h2>
-  <div class="g2">
-    <div class="box"><b>Free</b><div class="price">$0</div><ul><li>Read and search every number</li><li>Your own board</li><li>Live values on the numbers you pick first; the rest a day behind</li></ul>
-      <p style="margin-top:16px"><a class="btn ghost" href="/app?setup=1">Start free</a></p></div>
-    <div class="box hot"><b>Pro</b><div class="price">$<span id="price">19</span> <small>/ month</small></div><ul><li>Every number live, checked automatically</li><li>Add any company, accelerator, sector or investor</li><li>Check any number on demand</li></ul>
-      <p style="margin-top:16px"><a class="btn blue" href="/app?plans=1">Get Pro</a></p></div>
-  </div>
-</section>
-
-<div class="final">
-  <h2>Start with the companies you already watch.</h2>
-  <a class="btn blue" href="/app?setup=1">Build my board</a>
+<div class="three">
+  <div><b>Every number has a source</b><p>Each value links to the sentence it came from.</p></div>
+  <div><b>It never guesses</b><p>Not on the page? Tally says “no value yet”.</p></div>
+  <div><b>You see what changed</b><p>Checked in the background; changes are listed for you.</p></div>
 </div>
 
-<footer>Tally · <a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="https://github.com/verkyyi/tally">Source</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · Search and page reading by Telem and Tavily.</footer>
+<footer><span>Free to start · <a href="/app?plans=1">Pro $<span id="price">19</span> a month</a> for everything live</span>
+  <span><a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="https://github.com/verkyyi/tally">Source</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span></footer>
 </div>
 <script>
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function num(v){const a=Math.abs(v),t=x=>String(+x.toFixed(2));return a>=1e9?t(v/1e9)+"B":a>=1e6?t(v/1e6)+"M":v.toLocaleString("en-US",{maximumFractionDigits:2})}
-const CUR={usd:"$",eur:"€",gbp:"£"};
-function val(v,u){const m=/^(usd|eur|gbp)\b\s*/i.exec(u||"");return (m?CUR[m[1].toLowerCase()]:"")+num(v)+`<small>${esc(m?u.slice(m[0].length):u||"")}</small>`}
 (async()=>{try{
   fetch("/api/me").then(r=>r.json()).then(m=>document.getElementById("price").textContent=m.price_usd).catch(()=>{});
-  fetch("/api/catalog").then(r=>r.json()).then(c=>document.getElementById("ctotal").textContent=c.total).catch(()=>{});
-  const tiles=(await (await fetch("/api/board")).json()).tiles.filter(t=>t.value!=null);
-  const want=[/roles/i,/funding/i,/batch|companies/i], pick=want.map(rx=>tiles.find(t=>rx.test(t.title)&&t.previous!=null)||tiles.find(t=>rx.test(t.title))).filter(Boolean);
-  if(pick.length==3) document.getElementById("stack").innerHTML=pick.map(t=>{const x=t.previous!=null?t.value-t.previous:0;
-    return `<div class="tile"><b>${esc(t.title)}</b><div class="v">${val(t.value,t.unit)}</div><div class="d">${x>0?"▲ +"+num(x)+" since last check":"&nbsp;"}</div></div>`}).join("");
+  const st=(await (await fetch("/api/starters")).json()).starters;
+  if(st.length>=3) document.getElementById("picks").innerHTML=st.map(e=>`<a class="pick" href="/app?start=${encodeURIComponent(e.name)}${e.type!="company"?"&pack="+e.type:""}"><b><span class="av">${esc(e.name[0])}</span>${esc(e.name)}</b><span class="b">${esc(e.blurb.join(" · "))}</span></a>`).join("");
 }catch(e){}})();
 </script>
 </body>

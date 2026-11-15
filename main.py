@@ -498,6 +498,42 @@ def search(request: Request, q: str = ""):
 TEMPLATES = json.load(open(os.path.join(HERE, "templates.json")))
 
 
+STARTERS = [("Cursor", "company"), ("Lovable", "company"), ("Y Combinator", "accelerator"), ("Linear", "company"), ("LangChain", "company"), ("Tavily", "company"),
+            ("Supabase", "company"), ("PostHog", "company")]
+BLURBS = [("total funding raised", "{} raised"), ("open engineering roles", "{} open roles"), ("github stars", "{} GitHub stars"), ("latest valuation", "valued at {}"),
+          ("launches this quarter", "{} launches this quarter"), ("pypi downloads, weekly", "{} PyPI downloads a week"), ("npm downloads, weekly", "{} npm downloads a week")]
+
+
+@app.get("/api/starters")
+def starters():
+    """Names a newcomer can start with in one click: each already has numbers in the catalog. Two of them are shown as a preview."""
+    out = []
+    for name, pack in STARTERS:
+        bits = []
+        if pack == "accelerator":
+            for title, text in (("YC · companies in the current batch", "{} companies in the current batch"), ("YC · AI companies", "{} AI companies funded")):
+                m = db.one("SELECT * FROM metrics WHERE title=?", (title,))
+                t = tile(m, None) if m else None
+                if t and t["value"] is not None:
+                    bits.append(text.format(pp.fmt(t["value"], t["unit"])[0]))
+            if len(bits) < 2:  # the newest full batch, from the open directory
+                m = db.one("SELECT * FROM metrics WHERE skill LIKE 'free|yc|batches|%' ORDER BY id LIMIT 1")
+                t = tile(m, None) if m else None
+                if t and t["value"] is not None:
+                    bits.insert(0, f'{pp.fmt(t["value"], t["unit"])[0]} in the {m["title"].split(" · ")[1].replace(" batch size", "")} batch')
+        else:
+            ms = {m["title"].split(" · ", 1)[1].lower(): m for m in db.q("SELECT * FROM metrics WHERE title LIKE ?", (name + " · %",))}
+            for suffix, text in BLURBS:
+                t = tile(ms[suffix], None) if suffix in ms else None
+                if t and t["value"] is not None:
+                    bits.append(text.format(pp.fmt(t["value"], t["unit"])[0]))
+                if len(bits) == 2:
+                    break
+        if bits:
+            out.append({"name": name, "type": pack, "blurb": bits[:2]})
+    return {"starters": out[:6]}
+
+
 @app.get("/api/templates")
 def templates():
     return {"templates": [{"id": t["id"], "name": t["title"].replace("{company} · ", "").replace(", {mon}", ", this month").replace("{mon} ", "this month's "), "kind": t["kind"],

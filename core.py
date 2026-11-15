@@ -596,7 +596,7 @@ def add_pack(user, company, can_create=True, pack="company", view=None, only=Non
         tid = t["id"] + ("@" + today.strftime("%Y-%m") if t.get("monthly") else "")  # a monthly recipe is a new number each month
         q = t["question"].format(**fill)
         row = db.one("SELECT id FROM metrics WHERE template_id=? AND lower(company)=?", (tid, company.lower()))
-        mid = row["id"] if row else match_metric(q)
+        mid = row["id"] if row else (match_metric(q) if can_create else None)  # a free account takes what the pack already has: instant, no model call
         if mid:
             follow(user, mid)
             return metric(mid), False

@@ -31,6 +31,14 @@ form{flex:1;display:flex;gap:8px;min-width:280px;position:relative}
 .spack .chip{border-color:var(--ink)}
 .spack .chip.on{background:var(--ink);color:var(--paper)}
 #starter .shead{padding:14px 0 6px}#starter .spack{padding:0}
+#starter{max-width:520px;margin:0 auto}
+.spicks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.spick{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;text-decoration:none}
+.spick:hover{border-color:var(--accent);box-shadow:0 0 0 3px #eaf0ff}
+.spick b{display:block;font-size:16px}.spick span{display:block;font:12px var(--mono);color:var(--mute);margin-top:4px}
+#addmore{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#eaf0ff;border-radius:10px;padding:10px 14px;margin:0 0 14px;font-size:14px}
+#addmore .chip{font:12px var(--mono);border:1px solid var(--accent);color:var(--accent);background:#fff;border-radius:16px;padding:3px 10px;text-decoration:none}
+@media(max-width:560px){.spicks{grid-template-columns:1fr}}
 input[type=text],input[type=search]{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--card);font:inherit;color:inherit}
 input:focus{outline:2px solid var(--ink);outline-offset:-1px}
 button{font:inherit;padding:8px 13px;border:1px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--paper);cursor:pointer;white-space:nowrap}
@@ -188,7 +196,7 @@ h1 em,h2 em{font-style:normal}
 <div id="banner" hidden></div>
 <nav><a data-tab="board" class="on">Board</a><a data-tab="log">Activity</a><a data-tab="catalog">Explore</a>
   <label id="f24"><input type="checkbox" id="last24"> last 24h &nbsp; <input type="checkbox" id="smalled"> small edits</label></nav>
-<main><div id="board" class="grid"></div><div id="log" hidden></div>
+<main><div id="addmore" hidden></div><div id="board" class="grid"></div><div id="log" hidden></div>
   <div id="tracetab" hidden><div id="trace"></div><div id="tracecalls"></div></div>
   <div id="catalog" hidden><div class="cathead"><input type="search" id="cq" placeholder="Search the catalog: a company, “stars”, “price”, “funding”…"><span class="when" id="ccount"></span></div><div id="ctable"></div></div></main>
 <aside id="panel"></aside>
@@ -222,7 +230,7 @@ async function loadMe(){
   S.me=await (await fetch("/api/me")).json(); const u=S.me.user, a=$("#acct");
   a.innerHTML=u?`${u.plan=="pro"?"":`<button class="pro" id="upg">Upgrade</button>`}<span class="plan ${u.plan}">${u.plan}</span>
       <span class="who" tabindex="0">${u.picture?`<img src="${esc(u.picture)}" alt="" referrerpolicy="no-referrer">`:`<span class="av">${esc((u.name||u.email||"?")[0].toUpperCase())}</span>`}<span>${esc((u.name||u.email).split(" ")[0])}</span>
-        <span class="menu"><div><span class="em">${esc(u.email||"")}</span><button class="ghost" id="setup">Set up my board</button><button class="ghost" id="share">Share my board</button><button class="ghost" id="alerts">Alerts to Slack${u.alerts?" · on":""}</button><button class="ghost" id="out">Sign out</button></div></span></span>`
+        <span class="menu"><div><span class="em">${esc(u.email||"")}</span><button class="ghost" id="setup">Add a company</button><button class="ghost" id="share">Share my board</button><button class="ghost" id="alerts">Alerts to Slack${u.alerts?" · on":""}</button><button class="ghost" id="out">Sign out</button></div></span></span>`
     :`<button id="in">Sign in</button>`;
   if($("#in")) $("#in").onclick=()=>signInModal();
   if($("#upg")) $("#upg").onclick=()=>plansModal();
@@ -239,39 +247,43 @@ function modal(html){$("#modal").innerHTML=`<button class="ghost x">×</button>`
 function closeModal(){$("#veil").hidden=true}
 $("#veil").onclick=ev=>{if(ev.target.id=="veil"||ev.target.closest(".x")) closeModal()};
 async function afterSignIn(u){closeModal(); toast("Signed in as "+(u.name||u.email)); await loadMe(); await refresh(); if(S.wantCopy){const t=S.wantCopy; S.wantCopy=null; return copyShared(t)}
-  const ps=pendingSetup(); if(ps&&ps.es&&ps.es.length) return buildStarter(ps.es,ps.view);
+  const ps=pendingSetup(); if(ps&&ps.es&&ps.es.length) return buildStarter(ps.es,null,!!u.new);
   if(u.new||S.wantSetup){S.wantSetup=false; starterModal()}}
 // First-run setup: pick a role and a few names; the board is built from curated recipes. Nothing to compose.
-async function buildStarter(es,view){
-  S.busy=true; setTab("board"); let got=0, missed=[];
-  for(const [i,e] of es.entries()){ S.pending=`Building your board, ${i+1} of ${es.length}: ${e.name}…`; renderBoard();
-    try{const r=await api("/api/packs",{company:e.name,pack:e.type,phrase:e.adj,view:e.type=="company"&&view=="investor"?"investor":null,replace_board:got==0,hide_empty:true}); got+=r.tiles.length; if(!r.tiles.length) missed.push(e.name); await loadBoard()}catch(err){missed.push(e.name)} }
-  S.pending=null; S.busy=false; await loadMe(); refresh(); toast(`Your board is ready: ${got} numbers.${missed.length?" Nothing found yet for: "+missed.join(", ")+".":""}`,7000)}
+// First run is one decision: pick one name. The board is built from what the catalog already has; more names are added one at a time afterwards.
+async function buildStarter(es,view,replace){
+  S.busy=true; setTab("board"); let got=0, missed=[]; const pro=S.me.user&&S.me.user.plan=="pro";
+  for(const [i,e] of es.entries()){ S.pending=`Building your ${e.name} board…`; renderBoard();
+    try{const r=await api("/api/packs",{company:e.name,pack:e.type||"company",phrase:e.adj||null,view:pro&&(e.type||"company")=="company"?"investor":null,replace_board:!!replace&&got==0,hide_empty:true});
+      got+=r.tiles.length; if(!r.tiles.length) missed.push(e.name); await loadBoard()}catch(err){missed.push(e.name)} }
+  S.pending=null; S.busy=false; await loadMe(); await refresh();
+  if(got){ S.addMore={left:3,done:es.map(e=>e.name)}; renderAddMore(); toast(`Your board is ready: ${got} numbers.`,5000) }
+  else toast(`Nothing in the catalog yet for ${missed.join(", ")}. New names are built with Pro; here is the example board.`,8000)}
 function pendingSetup(){ try{const v=sessionStorage.getItem("tally_setup"); if(!v) return null; sessionStorage.removeItem("tally_setup"); return JSON.parse(v)}catch(e){return null} }
+let STARTERS=null;
+async function loadStarters(){ if(!STARTERS){ try{STARTERS=(await (await fetch("/api/starters")).json()).starters}catch(e){STARTERS=[]} } return STARTERS }
+function startWith(e){ closeModal();
+  if(!S.me.user){ try{sessionStorage.setItem("tally_setup",JSON.stringify({es:[e]}))}catch(_){} return signInModal(`Sign in to keep your ${e.name} board. It is built as soon as you are in.`) }
+  return buildStarter([e],null,!!S.me.user.new) }
 async function starterModal(){
-  await loadDir(); if(!CAT.length) await loadCat();
-  const pro=S.me.user&&S.me.user.plan=="pro", by={}; CAT.filter(m=>m.curated).forEach(m=>{const k=m.title.split(" · ")[0]; by[k]=(by[k]||0)+1});
-  const known=entities(), find=n=>known.find(e=>e.name.toLowerCase()==n.toLowerCase()||(e.alias||"").toLowerCase()==n.toLowerCase());
-  const ready=Object.keys(by).filter(k=>by[k]>=3).map(k=>find(k)||{name:k,type:"company"}).filter((e,i,a)=>a.findIndex(x=>x.name==e.name)==i);
-  const rest=t=>known.filter(e=>e.type==t&&!ready.some(r=>r.name==e.name));
-  const chips=(es,n)=>`<div class="spack">${es.slice(0,n).map(e=>`<a href="#" class="chip pick" data-e="${esc(JSON.stringify({name:e.name,type:e.type,adj:e.adj||null}))}">${esc(e.name)}</a>`).join("")}</div>`;
-  modal(`<div id="starter"><h2>Set up your board</h2><p style="color:#475467;margin:6px 0 0">Pick what you watch. Tally builds the board from curated numbers, each with its evidence. You can change it any time.</p>
-    <div class="shead">I am</div><div class="spack">${[["investor","An angel or scout"],["investor","A pre-seed fund"],["all","A founder"]].map((r,i)=>`<a href="#" class="chip role${i?"":" on"}" data-view="${r[0]}">${r[1]}</a>`).join("")}</div>
-    <div class="shead">Ready now · already in the catalog, added at once</div>${chips(ready,24)}
-    ${pro?`<div class="shead">Companies · built when you pick them</div>${chips(rest("company"),24)}
-      <div class="shead">Accelerators</div>${chips(rest("accelerator"),10)}<div class="shead">Sectors</div>${chips(rest("sector"),10)}<div class="shead">Investors</div>${chips(rest("investor"),10)}`
-      :`<p class="when" style="margin-top:14px">${S.me.user?"":"No account needed to pick. "}More companies, accelerators, sectors and investors are built on request with Pro.</p>`}
-    <p style="margin:20px 0 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button id="stgo" disabled>Build my board</button><button class="ghost" id="stskip">Keep the featured board</button><span class="when" id="stn">Pick up to 5.</span></p></div>`);
-  const picks=()=>[...document.querySelectorAll("#starter .pick.on")];
-  $("#starter").onclick=async ev=>{
-    const r=ev.target.closest(".role"); if(r){ev.preventDefault(); document.querySelectorAll("#starter .role").forEach(x=>x.classList.toggle("on",x==r)); return}
-    const c=ev.target.closest(".pick"); if(c){ev.preventDefault(); if(!c.classList.contains("on")&&picks().length>=5) return toast("Five to start with. You can add more from the search box later.");
-      c.classList.toggle("on"); const n=picks().length; $("#stgo").disabled=!n; $("#stn").textContent=n?`${n} of 5 picked.`:"Pick up to 5."; return}
-    if(ev.target.closest("#stskip")) return closeModal();
-    if(ev.target.closest("#stgo")){ const es=picks().map(x=>JSON.parse(x.dataset.e)), view=document.querySelector("#starter .role.on").dataset.view; closeModal();
-      if(!S.me.user){ try{sessionStorage.setItem("tally_setup",JSON.stringify({es,view}))}catch(e){} return signInModal(`Sign in to save your board of ${es.length} ${es.length==1?"pick":"picks"}. It builds as soon as you are in.`) }
-      return buildStarter(es,view)}};
+  const st=(await loadStarters()).slice(0,4);
+  modal(`<div id="starter"><h2>Pick one to start</h2><p style="color:#475467;margin:6px 0 16px">You can add more later.</p>
+    <div class="spicks">${st.map(e=>`<a href="#" class="spick" data-e="${esc(JSON.stringify({name:e.name,type:e.type}))}"><b>${esc(e.name)}</b><span>${esc(e.blurb.join(" · "))}</span></a>`).join("")}</div>
+    <form id="stform" style="margin-top:12px;min-width:0"><input type="text" id="stname" placeholder="Or type a company name"><button>Start</button></form>
+    <p style="margin:14px 0 0;text-align:center"><a href="#" id="stskip" class="when">Skip, show me the example board</a></p></div>`);
+  $("#starter").onclick=ev=>{ const c=ev.target.closest(".spick"); if(c){ev.preventDefault(); return startWith(JSON.parse(c.dataset.e))}
+    if(ev.target.closest("#stskip")){ev.preventDefault(); closeModal()} };
+  $("#stform").onsubmit=ev=>{ev.preventDefault(); const v=$("#stname").value.trim(); if(v) startWith({name:v,type:"company"})};
 }
+// After the first board: three gentle chances to add one more name, then it goes away.
+async function renderAddMore(){
+  const box=$("#addmore"); if(!S.addMore||S.addMore.left<=0){ box.hidden=true; return }
+  const have=new Set(S.tiles.map(t=>t.title.split(" · ")[0].toLowerCase())), opts=(await loadStarters()).filter(e=>!S.addMore.done.includes(e.name)&&!have.has(e.name.toLowerCase())&&!(e.type=="accelerator"&&have.has("yc"))).slice(0,3);
+  if(!opts.length){ box.hidden=true; return }
+  box.hidden=false; box.innerHTML=`<span><b>Your board is ready.</b> Add another?</span>${opts.map(e=>`<a href="#" class="chip" data-e="${esc(JSON.stringify({name:e.name,type:e.type}))}">+ ${esc(e.name)}</a>`).join("")}<a href="#" class="when" id="amx" style="margin-left:auto">Not now</a>`;
+  box.onclick=async ev=>{ ev.preventDefault(); if(ev.target.closest("#amx")){ S.addMore=null; return renderAddMore() }
+    const c=ev.target.closest(".chip"); if(!c) return; const e=JSON.parse(c.dataset.e); S.addMore.left--; S.addMore.done.push(e.name); box.hidden=true;
+    await doPack(JSON.stringify({company:e.name,pack:e.type,hide_empty:true})); renderAddMore() } }
 function alertsModal(){
   const on=S.me.user&&S.me.user.alerts;
   modal(`<h2>Alerts to Slack or Discord</h2><p style="color:#475467;margin:6px 0 16px">When a number on your board moves, Tally posts one line to your channel: what changed, and a link to the evidence. ${on?"<b>Alerts are on.</b>":""}</p>
@@ -628,7 +640,7 @@ $("#panel").onclick=async ev=>{
     toast(f.dataset.a=="mute"?(r.muted?"Muted on your board":"Unmuted"):(r.resolved?"Source re-resolved":"No better source found"))}
   catch(e){toast(e.message,6000)} refresh()};
 function setTab(tab){S.tab=tab; document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x.dataset.tab==tab));
-  $("#board").hidden=tab!="board"; $("#log").hidden=tab!="log"; $("#catalog").hidden=tab!="catalog"; $("#tracetab").hidden=tab!="trace"; $("#f24").style.display=tab=="log"?"flex":"none"; refresh()}
+  $("#board").hidden=tab!="board"; $("#log").hidden=tab!="log"; $("#catalog").hidden=tab!="catalog"; $("#tracetab").hidden=tab!="trace"; if(tab!="board") $("#addmore").hidden=true; else renderAddMore(); $("#f24").style.display=tab=="log"?"flex":"none"; refresh()}
 document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>setTab(a.dataset.tab));
 $("#last24").onchange=loadLog; $("#smalled").onchange=loadLog;
 let cqT; $("#cq").oninput=()=>{clearTimeout(cqT); cqT=setTimeout(loadCatalog,180)};
@@ -644,7 +656,8 @@ document.onkeydown=ev=>{if(ev.key=="Escape"){closeModal();closePanel()}};
   if(p.get("q")){ setTab("catalog"); $("#cq").value=p.get("q"); loadCatalog() }
   if(p.get("open")){ openPanel(+p.get("open")); history.replaceState({},"","/app") }
   if(p.get("copy")){ const tok=p.get("copy"); history.replaceState({},"","/app"); if(S.me.user) copyShared(tok); else {S.wantCopy=tok; signInModal("Sign in to copy this board to your own.")} }
-  if(p.get("setup")){ history.replaceState({},"","/app"); starterModal() }  // pick first; signing in comes when the board is built
+  if(p.get("start")){ const e={name:p.get("start").slice(0,60),type:p.get("pack")||"company"}; history.replaceState({},"","/app"); startWith(e) }  // picked on the landing page
+  else if(p.get("setup")){ history.replaceState({},"","/app"); starterModal() }
   if(p.get("checkout")=="success"&&p.get("session_id")){
     try{const r=await api("/api/billing/confirm?session_id="+encodeURIComponent(p.get("session_id"))); toast(r.pro?"Welcome to Pro. Every metric is live now.":"Payment not confirmed yet.",6000)}catch(e){toast(e.message,6000)}
     history.replaceState({},"","/app"); await loadMe(); refresh()}
