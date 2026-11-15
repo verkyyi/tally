@@ -12,6 +12,7 @@ IID=$(aws ec2 describe-instances --region $REGION --filters Name=tag:Project,Val
 { grep -v '^TALLY_DB=' .env; cat infra/server.env; } > /tmp/tally.env.$$
 aws ssm put-parameter --region $REGION --name /tally/env --type SecureString --overwrite --value "file:///tmp/tally.env.$$" --query Version --output text
 rm -f /tmp/tally.env.$$
+sleep 6  # the parameter store can serve the old value for a few seconds; the server must not fetch it before the new one is readable
 ARG=""
 if [ "${1:-}" = "--db" ]; then
   .venv/bin/python -c "import sqlite3;c=sqlite3.connect('tally.db');c.execute('PRAGMA wal_checkpoint(TRUNCATE)');c.close()"
