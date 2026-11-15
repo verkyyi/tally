@@ -359,6 +359,8 @@ def suggest(q: str = ""):
 @app.get("/track")
 def track(q: str = ""):
     """Ask for a number the record does not have yet. The page signs the visitor in, has Tally find the number, and opens its new page."""
+    if q.strip():
+        asked(q, "request", 0)  # someone asked for this number by name: the strongest sign that it is wanted
     return HTMLResponse(pp.track_page(" ".join(q.split())[:120]))
 
 
@@ -444,6 +446,38 @@ def recipe_revert(mid: int, body: Revert, request: Request):
 OPEN = {"Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=600"}  # data meant to be read from other sites and by scripts
 
 
+def asked(q, via, found):
+    """Remember that these words were searched for and whether the record had an answer. This is the list of what people want:
+    words that keep coming back with nothing found are the next numbers to add. Only the words are kept."""
+    q = " ".join((q or "").lower().split())[:80]
+    if len(q) < 3 or not any(c.isalpha() for c in q):
+        return
+    try:
+        db.run("INSERT INTO asks(day,q,via,found,n) VALUES(?,?,?,?,1) ON CONFLICT(day,q,via) DO UPDATE SET n=n+1, found=excluded.found", (db.now()[:10], q, via, int(found)))
+    except Exception as e:
+        print("ask not recorded:", str(e)[:80])
+
+
+def fetched(kind, mid=0):
+    try:
+        db.run("INSERT INTO fetches(day,kind,metric_id,n) VALUES(?,?,?,1) ON CONFLICT(day,kind,metric_id) DO UPDATE SET n=n+1", (db.now()[:10], kind, mid))
+    except Exception as e:
+        print("fetch not counted:", str(e)[:80])
+
+
+class Asked(BaseModel):
+    q: str
+    found: int = 0
+
+
+@app.post("/api/asked")
+def api_asked(body: Asked, request: Request):
+    """The search box reports a finished search (the visitor stopped typing, or picked a row): its words and how many numbers matched."""
+    if _human(request):
+        asked(body.q, "site", body.found)
+    return {"ok": True}
+
+
 def _number_or_404(mid):
     m = core.metric(mid)
     if not m or core.folded_into(m):
@@ -454,16 +488,19 @@ def _number_or_404(mid):
 
 @app.get("/n/{mid}.json")
 def number_json(mid: int):
+    fetched("json", mid)
     return JSONResponse(pp.number_data(*_number_or_404(mid)), headers=OPEN)
 
 
 @app.get("/n/{mid}.md")
 def number_md(mid: int):
+    fetched("md", mid)
     return PlainTextResponse(pp.number_text(*_number_or_404(mid)), media_type="text/markdown; charset=utf-8", headers=OPEN)
 
 
 @app.get("/embed/n/{mid}")
 def number_embed(mid: int):
+    fetched("embed", mid)
     return HTMLResponse(pp.embed_page(*_number_or_404(mid)), headers={"Cache-Control": "public, max-age=600"})
 
 
@@ -484,6 +521,8 @@ def subject_json(slug: str):
 def search_json(q: str = ""):
     """Find numbers by words, for scripts and agents: each hit with its value and the address of its full record."""
     r = suggest(q)
+    fetched("search")
+    asked(q, "agent", len(r["numbers"]) + len(r.get("boards", [])))
     for n in r["numbers"]:
         mid = n["path"].split("/")[2]
         n.update(page=pp.SITE + n["path"], json=f"{pp.SITE}/n/{mid}.json", csv=f"{pp.SITE}/n/{mid}/history.csv")
@@ -520,6 +559,7 @@ Past values: use the "history" list; each entry has the date, the value, and the
 
 @app.get("/llms.txt")
 def llms():
+    fetched("llms")
     return PlainTextResponse(LLMS, headers=OPEN)
 
 
@@ -540,6 +580,7 @@ def public_chart(mid: int):
     m = core.metric(mid)
     if not m:
         raise HTTPException(404, "no such number")
+    fetched("svg", mid)
     t = tile(m, None)
     return RawResponse(pp.card_svg(m, t, _public_series(m, t)), media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=3600"})
 
@@ -549,6 +590,7 @@ def public_csv(mid: int):
     m = core.metric(mid)
     if not m:
         raise HTTPException(404, "no such number")
+    fetched("csv", mid)
     t = tile(m, None)
     return RawResponse(pp.history_csv(m, _public_series(m, t)), media_type="text/csv",
                        headers={"Content-Disposition": f'attachment; filename="{pp.slug(m["title"])}.csv"'})

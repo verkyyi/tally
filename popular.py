@@ -3,6 +3,7 @@ by name; they are ranked by how much their Wikipedia article was read this week,
 get their valuation, total funding and latest round, each with its history rebuilt from dated announcements."""
 import json
 import os
+from datetime import datetime, timedelta, timezone
 
 import core
 import db
@@ -27,11 +28,15 @@ def ranked(limit=200):
     """Candidates the catalog lacks, most-read first: [(reads this week, times its usual level, name)]."""
     names = [n for n in candidates() if not has(n)]
     interest.refresh(names, limit=limit)
+    since = (datetime.now(timezone.utc) - timedelta(days=14)).strftime("%Y-%m-%d")
+    wanted = db.q("SELECT q, SUM(n) n FROM asks WHERE day>=? AND found=0 GROUP BY q", (since,))
     out = []
     for n in names:
         r = db.one("SELECT week, base FROM interest WHERE subject=?", (n,))
-        if r and r["week"]:
-            out.append((r["week"], r["week"] / r["base"] if r["base"] else 1.0, n))
+        asks = sum(a["n"] for a in wanted if n.lower() in a["q"])  # searches in the last two weeks that named it and found nothing
+        if asks or (r and r["week"]):
+            week = (r or {}).get("week") or 0
+            out.append((week + 20000 * asks, week / r["base"] if r and r["base"] else 1.0, n))
     return sorted(out, reverse=True)
 
 

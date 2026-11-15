@@ -15,7 +15,10 @@
     const box = document.createElement("div");
     box.className = "sug"; box.hidden = true;
     input.parentNode.appendChild(box);
-    let timer, seq = 0, sel = -1;
+    let timer, seq = 0, sel = -1, told = "", settle;
+    // Tell the site what was searched for once the visitor has stopped typing (or picks a row): the words and how many numbers matched.
+    const tell = (q, found) => { if (q.length < 3 || q === told) return; told = q;
+      try { navigator.sendBeacon("/api/asked", new Blob([JSON.stringify({ q, found })], { type: "application/json" })); } catch (e) {} };
     const mark = () => [...box.children].forEach((a, i) => a.classList.toggle("sel", i === sel));
     const show = async () => {
       const q = input.value.trim();
@@ -26,6 +29,8 @@
       box.innerHTML = (j.boards || []).map(b => `<a class="board" href="${esc(b.path)}"><span><b>${esc(b.name)}</b> · all ${b.count} numbers</span><em>board</em></a>`).join("") + j.numbers.map(n => `<a href="${esc(n.path)}"><span>${esc(n.title)}</span><em>${esc(n.value)}</em></a>`).join("")
         + `<a class="new" href="/track?q=${encodeURIComponent(q)}"><span>Track “${esc(q)}” as a new number</span><em>Pro</em></a>`;
       sel = -1; box.hidden = false;
+      clearTimeout(settle); settle = setTimeout(() => { if (input.value.trim() === q) tell(q, j.numbers.length + (j.boards || []).length); }, 1500);
+      box.onclick = () => tell(q, j.numbers.length + (j.boards || []).length);
     };
     input.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(show, 140); });
     input.addEventListener("focus", show);
