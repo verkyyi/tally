@@ -70,9 +70,6 @@ svg.i{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .chips{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .chip-i{display:inline-flex;gap:4px;align-items:center;font:12px var(--mono);white-space:nowrap}
 .chip-i.acc{color:var(--accent)}
-.thead{display:flex;gap:9px;align-items:flex-start;min-width:0}
-.theme{width:26px;height:26px;border-radius:7px;background:var(--ink);color:var(--paper);display:grid;place-items:center;flex:none;margin-top:-2px}
-.theme svg.i{width:16px;height:16px}
 .livedot{width:8px;height:8px;border-radius:50%;background:var(--up);box-shadow:0 0 0 3px #15703b22;flex:none;margin:5px 2px 0 0}
 .foot button{padding:4px 9px;font-size:12px}
 .badge{position:absolute;top:-8px;right:12px;background:var(--accent);color:#fff;font:600 10px var(--mono);padding:2px 7px;border-radius:9px}
@@ -123,13 +120,6 @@ th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
- <symbol id="i-funding" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/></symbol>
- <symbol id="i-roles" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M18.5 8v6M15.5 11h6"/></symbol>
- <symbol id="i-launch" viewBox="0 0 24 24"><path d="M12 3c3.2 2.3 5 6 5 10l-2 3H9l-2-3c0-4 1.8-7.700 5-10z"/><circle cx="12" cy="10" r="1.7"/><path d="M10 19.500l2 2 2-2"/></symbol>
- <symbol id="i-batch" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.500"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.500"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.500"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.500"/></symbol>
- <symbol id="i-price" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.800" cy="8.800" r="1.300"/></symbol>
- <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.500l2.600 5.400 5.900.800-4.300 4.100 1 5.900L12 16.900 6.800 19.700l1-5.900L3.500 9.700l5.900-.800z"/></symbol>
- <symbol id="i-number" viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></symbol>
  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.500"/><path d="M12 7.500V12l3 2"/></symbol>
  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="8.500" cy="9" r="3"/><path d="M2.500 19.500c0-3 2.700-5.500 6-5.500s6 2.500 6 5.500M16 6.500a3 3 0 010 5.500M17.500 14.300c2.300.700 4 2.700 4 5.200"/></symbol>
  <symbol id="i-radar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.800"/><path d="M7.800 16.200a6 6 0 010-8.400M16.200 7.800a6 6 0 010 8.400M4.900 19.100a10 10 0 010-14.200M19.100 4.900a10 10 0 010 14.200"/></symbol>
@@ -233,20 +223,16 @@ function spark(pts){
     <div class="seedcap">${cut>0?"┄ seeded history · ━ observed":""}</div>`;
 }
 const ico=(n,cls="")=>`<svg class="i ${cls}"><use href="#i-${n}"/></svg>`;
-const THEMES=[[/fund|raised|\bround\b|valuation/,"funding","Funding"],[/roles?\b|hiring|jobs?\b|headcount/,"roles","Hiring"],[/launch|release|shipped/,"launch","Launches"],
-  [/price|pricing|plan\b|\/mo/,"price","Price"],[/rating|stars?\b|reviews?\b/,"star","Rating"],[/\byc\b|y ?combinator|batch|companies|startups/,"batch","Companies"]];
-function theme(t){const s=(t.title+" "+(t.unit||"")).toLowerCase(); const m=THEMES.find(x=>x[0].test(s)); return m?[m[1],m[2]]:["number","Number"]}
 const short=s=>String(s||"").replace(/ ago$/,"").replace(/^in /,"");
 function tileHTML(t){
-  const th=theme(t), plainUnit=/^(roles|launches|companies|stars)$/i.test(t.unit||"");  // the badge already says it
   const v=val(t.value,t.unit); let d='<span class="flat">&nbsp;</span>';
   if(t.live&&t.value!=null&&t.previous!=null){const x=t.value-t.previous;
     d=`<span class="${x>0?"up":"down"}">${x>0?"▲ +":"▼ −"}${num(Math.abs(x))}</span> <span class="flat">from ${num(t.previous)}</span>`}
   if(!t.live) d=`<span class="flat">delayed · as of ${ago(t.as_of)}</span>`;
   return `<div class="tile${t.muted?" muted":""}${t.live?"":" delayed"}${S.flash==t.id?" flash":""}" data-id="${t.id}">
     ${t.new_entries?`<span class="badge">${t.new_entries} NEW</span>`:""}
-    <h3><span class="thead"><span class="theme" title="${th[1]}">${ico(th[0])}</span><span>${esc(t.title)}</span></span>${t.live?'<span class="livedot" title="Live"></span>':'<span class="kind late">delayed</span>'}</h3>
-    ${v?`<div class="val">${v.text}<small>${plainUnit?"":esc(v.unit)}</small></div>`:`<div class="val none">no value yet</div>`}
+    <h3><span>${esc(t.title)}</span>${t.live?'<span class="livedot" title="Live"></span>':'<span class="kind late">delayed</span>'}</h3>
+    ${v?`<div class="val">${v.text}<small>${esc(v.unit)}</small></div>`:`<div class="val none">no value yet</div>`}
     <div class="delta">${d}</div>${spark(t.spark)}
     <div class="foot"><span class="chips">${t.live&&t.last_checked?`<span class="chip-i" title="Checked ${ago(t.last_checked)}">${ico("clock")}${short(ago(t.last_checked))}</span>`:""}${
       t.live&&t.next_check?`<span class="chip-i" title="Next check ${until(t.next_check)}, by a Telem monitor">${ico("radar")}${short(until(t.next_check))}</span>`:t.monitor?`<span class="chip-i" title="Watched by a Telem monitor">${ico("radar")}</span>`:""}<span class="chip-i" title="Tracked by ${t.followers}">${ico("people")}${t.followers}</span>${
