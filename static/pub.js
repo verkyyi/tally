@@ -81,7 +81,7 @@
     const set = on => {
       fb.textContent = on ? "Following" : "Follow";
       fb.classList.toggle("on", on); fb.setAttribute("aria-pressed", on);
-      note.innerHTML = on ? 'This number is on <a href="/app">your board</a>, where you can have changes sent to Slack or Discord.' : "";
+      note.innerHTML = on ? 'You will get an email when it moves. It is on <a href="/app">your board</a>.' : "";
     };
     me().then(async m => { if (m.user) { const j = await fetch("/api/metrics/" + mid).then(r => r.json()); set(!!(j.metric && j.metric.on_board)); } });
     fb.addEventListener("click", async () => {

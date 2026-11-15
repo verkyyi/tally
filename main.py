@@ -31,6 +31,7 @@ import interest
 import cards
 import popular
 import lifecycle
+import alerts
 
 HERE = os.path.dirname(__file__)
 app = FastAPI(title="Tally")
@@ -138,7 +139,7 @@ def public_user(u):
     if not u:
         return None
     created = db.one("SELECT COUNT(*) n FROM metrics WHERE created_by=?", (u["id"],))["n"]
-    return {"email": u["id"], "name": u["name"], "picture": u["picture"], "plan": u["plan"], "created": created, "alerts": bool(u.get("webhook_url"))}
+    return {"email": u["id"], "name": u["name"], "picture": u["picture"], "plan": u["plan"], "created": created, "alerts": bool(u.get("webhook_url")), "email_alerts": u.get("email_alerts") != 0}
 
 
 class GoogleLogin(BaseModel):
@@ -1011,6 +1012,30 @@ def number_publish(body: Publish, request: Request):
     return {"path": pp.number_path(m), "title": m["title"]}
 
 
+@app.get("/unsubscribe")
+@app.post("/unsubscribe")
+def unsubscribe(u: str = "", t: str = ""):
+    """Stop alert emails, from the link in every message. The link carries its own proof, so no sign-in is needed."""
+    import hmac as _hmac
+    ok = bool(u) and _hmac.compare_digest(t, alerts.token(u))
+    if ok:
+        db.run("UPDATE users SET email_alerts=0 WHERE id=?", (u,))
+    body = ('<h1 style="margin-top:22px">Alert emails are off</h1><p class="q">You will not get emails about numbers you follow. They stay on your board, and you can turn emails back on there.</p>'
+            if ok else '<h1 style="margin-top:22px">That link did not work</h1><p class="q">Open the link from the most recent email, or turn alerts off from your board.</p>')
+    return HTMLResponse(pp.shell("Alert emails | Tally", "Turn Tally alert emails off.", "/unsubscribe", body + '<div class="cta"><a class="btn" href="/app">Your board</a></div>'))
+
+
+class EmailAlerts(BaseModel):
+    on: bool
+
+
+@app.post("/api/alerts/email")
+def email_alerts(body: EmailAlerts, request: Request):
+    u = need_user(request)
+    db.run("UPDATE users SET email_alerts=? WHERE id=?", (1 if body.on else 0, u["id"]))
+    return {"on": body.on}
+
+
 @app.get("/wanted")
 def wanted_page():
     return HTMLResponse(pp.wanted_page(lifecycle.wanted()))
@@ -1205,6 +1230,9 @@ def _autosync():
                 if os.environ.get("TALLY_DAILY_READ", "1") != "0":
                     core.refresh_searched()
                 lifecycle.retire_stale()
+                n = alerts.flush()
+                if n:
+                    print("alert emails sent:", n)
                 added = popular.daily()
                 if added:
                     print("popular, added today:", added)
