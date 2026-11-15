@@ -485,9 +485,12 @@ def traces():
 _sync_lock = threading.Lock()
 
 
+SYNC_EVERY = int(os.environ.get("TALLY_SYNC_SECONDS", "300"))  # was 60: 590 feed reads an hour for 10 monitors bought nothing
+
+
 def _autosync():
     while True:
-        time.sleep(60)
+        time.sleep(SYNC_EVERY)
         if _sync_lock.acquire(blocking=False):  # never overlap two runs
             try:
                 core.sync_all()

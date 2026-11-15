@@ -78,6 +78,35 @@ def fmt(v):
 
 # ---------- direct ----------
 
+# ---------- never guess: a number must be readable in the text it was taken from ----------
+def _renderings(v):
+    """The ways a number is usually written: 3370000000 -> 3.37 (billion), 3370 (million), 3,370,000,000 ..."""
+    out = set()
+    for div in (1, 1e3, 1e6, 1e9):
+        x = v / div
+        if abs(x) < 0.001:
+            continue
+        for f in ("%.0f", "%.1f", "%.2f", "%.3f"):
+            t = f % x
+            if "." in t:
+                t = t.rstrip("0").rstrip(".")
+            if abs(float(t) * div - v) <= abs(v) * 0.006:  # a rendering that rounds the value away is not evidence
+                out.add(t)
+    return {t for t in out if t not in ("", "0", "-0")}
+
+
+def supported(value, text):
+    """True if the value can be read in the text. Commas are ignored; 4.77 matches 4.77432; 25 does not match 250 or 1.25."""
+    if not isinstance(value, (int, float)) or not text:
+        return False
+    hay = text.replace(",", "")
+    for t in _renderings(float(value)):
+        tail = r"\d*" if "." in t else ""
+        if re.search(r"(?<![\d.])" + re.escape(t) + tail + r"(?![\d])", hay):
+            return True
+    return False
+
+
 def resolve_direct(m, exclude_domain=None, fresh=False):
     """Search, fetch the top pages, extract. Returns the extraction dict or None."""
     urls, results = [], None
@@ -90,7 +119,7 @@ def resolve_direct(m, exclude_domain=None, fresh=False):
         for r in results:
             if domain(r["url"]) != exclude_domain and r["url"] not in urls:
                 urls.append(r["url"])
-    pages = [p for p in telem.fetch(urls[:5], m["id"], fresh=fresh) if p["ok"]]
+    pages = [p for p in telem.fetch(urls[:5], m["id"], fresh=True) if p["ok"]]  # always the live page: a cached copy gave a stale count once
     ex = llm.extract_direct(m["question"], m.get("unit") or "", pages, skill_text(m)) if pages else None
     if not ex or not isinstance(ex.get("value"), (int, float)):
         # The page text had no value (often a script-rendered page). Try what search providers read from it.
@@ -101,6 +130,10 @@ def resolve_direct(m, exclude_domain=None, fresh=False):
         ex = llm.extract_direct(m["question"], m.get("unit") or "", snips, skill_text(m)) if snips else None
     if not ex or not isinstance(ex.get("value"), (int, float)):
         return None
+    read = " ".join([ex.get("quote") or ""] + [p["content"] for p in pages] + [r["title"] + " " + r["summary"] for r in (results or [])])
+    if not supported(ex["value"], read):
+        print("rejected unsupported value:", m["id"], ex["value"], (ex.get("quote") or "")[:80])
+        return None  # the extraction named a number that is not in the text: no value yet, rather than a guess
     if not ex.get("evidence_url"):
         ex["evidence_url"] = pages[0]["url"]
     return ex
@@ -135,8 +168,16 @@ def find_entries(m):
     pages = [p for p in pages if p["ok"]]
     entries = llm.extract_count(m["question"], results, pages, skill_text(m), m.get("field") if m.get("reducer") in AGG else None)
     page_text = " ".join(p["content"] for p in pages)
+    by_url = {}
+    for r in results:
+        by_url.setdefault(norm_url(r["url"]), []).append(r["title"] + " " + r["summary"])
     for e in entries:
         e["found_via"] = "fetch" if e.get("url") and e["url"] in page_text else "search"
+        if isinstance(e.get("value"), (int, float)):
+            own = " ".join(by_url.get(norm_url(e["url"]), [])) if e.get("url") else ""
+            if not supported(e["value"], e["title"] + " " + own) and not (e["found_via"] == "fetch" and supported(e["value"], page_text)):
+                print("entry amount not in its text, left out of the total:", m["id"], e["title"][:60], e["value"])
+                e["value"] = None
     return entries
 
 
