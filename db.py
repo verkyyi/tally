@@ -71,7 +71,11 @@ MIGRATIONS = [
     "status TEXT DEFAULT 'live', created_at TEXT, trial_json TEXT)",  # the wiki: every revision of every number's recipe, with the trial that decided it
     "ALTER TABLE metrics ADD COLUMN instructions TEXT",     # reading instructions from the live recipe; they replace the stock ones
     "ALTER TABLE metrics ADD COLUMN recipe_version INTEGER DEFAULT 1",
-    "ALTER TABLE observations ADD COLUMN recipe_version INTEGER",  # the recipe version that produced this reading (empty for readings older than this column)
+    "ALTER TABLE observations ADD COLUMN recipe_version INTEGER",
+    "ALTER TABLE metrics ADD COLUMN period TEXT",     # 'month' or 'quarter': a lasting number whose value is counted inside the current period
+    "ALTER TABLE metrics ADD COLUMN period_at TEXT",  # first day of the period its question and search currently name
+    "CREATE TABLE IF NOT EXISTS views(day TEXT, metric_id INTEGER, n INTEGER DEFAULT 0, PRIMARY KEY(day, metric_id))",  # people opening a number's page, per day; no IPs, no cookies
+    "CREATE TABLE IF NOT EXISTS interest(subject TEXT PRIMARY KEY, article TEXT, week REAL, base REAL, at TEXT)",  # how much each subject is being read about this week (Wikipedia page views)  # the recipe version that produced this reading (empty for readings older than this column)
     "CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY, metric_id INTEGER, change_id INTEGER, user TEXT, action TEXT, at TEXT)",
 ]
 

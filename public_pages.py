@@ -83,6 +83,16 @@ ul.rows li span{font:13px var(--mono);color:var(--mute);white-space:nowrap}
 .emb{position:relative}.emb summary{list-style:none;cursor:pointer}.emb summary::-webkit-details-marker{display:none}
 .embbox{margin-top:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;max-width:680px}
 .embbox pre{white-space:pre-wrap;word-break:break-all;font:12px/1.5 var(--mono);background:var(--paper);border-radius:8px;padding:9px 10px;margin:4px 0 12px}
+.sbox{position:relative;flex:1 1 220px;max-width:360px;min-width:0}.sbox input{width:100%;font:15px var(--display);padding:9px 12px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.sbox input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.sug{position:absolute;left:0;right:0;top:calc(100% + 6px);min-width:300px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(14,19,32,.14);z-index:9;overflow:hidden;text-align:left}
+.sug a{display:flex;justify-content:space-between;gap:14px;padding:10px 14px;text-decoration:none;border-bottom:1px solid var(--line);font-size:15px}.sug a:last-child{border-bottom:0}
+.sug a:hover,.sug a.sel{background:#eaf0ff}.sug a span{min-width:0}.sug a em{font-style:normal;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}.sug a.new{color:var(--accent);font-weight:600}.sug a.new em,.sug a.board em{font-weight:400;color:var(--mute);font-size:13px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}.chips a{padding:6px 13px;border:1px solid var(--line);border-radius:999px;background:var(--card);text-decoration:none;font-size:15px}.chips a:hover{border-color:var(--accent);color:var(--accent)}
+.valrow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.follow{font:600 16px var(--display);padding:11px 22px;border-radius:9px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+.follow.on{background:var(--card);color:var(--accent)}.follow:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.signin{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--paper)}.signin p{margin:0 0 10px;font-size:15px}
 footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);color:var(--mute);font-size:14px}"""
 
 
@@ -93,9 +103,11 @@ def shell(title, desc, path, body, ld=None):
 <meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{esc(desc)}"><meta property="og:type" content="website">
 <meta property="og:url" content="{SITE}{esc(path)}"><meta property="og:image" content="{SITE}/static/img/board.png"><meta name="twitter:card" content="summary_large_image">
 {f'<script type="application/ld+json">{ld}</script>' if ld else ''}<style>{CSS}</style></head><body><div class="wrap">
-<header><a class="brand" href="/"><img src="/static/img/logo.svg" alt="" width="30" height="30">Tally</a>
-<nav style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end"><a class="btn ghost" href="/changes">What changed</a><a class="btn ghost" href="/top">Rankings</a><a class="btn ghost" href="/numbers">All numbers</a><a class="btn" href="/app">Open the live board</a></nav></header>
+<header style="gap:14px;flex-wrap:wrap"><a class="brand" href="/"><img src="/static/img/logo.svg" alt="" width="30" height="30">Tally</a>
+<div class="sbox"><input type="search" data-suggest autocomplete="off" placeholder="Search a number" aria-label="Search a number"></div>
+<nav style="display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end;font-size:15px"><a href="/changes" style="text-decoration:none">What changed</a><a href="/numbers" style="text-decoration:none">All numbers</a><a href="/app" style="text-decoration:none;font-weight:600">Your board</a></nav></header>
 {body}
+<script src="/static/pub.js?v=1" defer></script>
 <footer>Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
 <a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
@@ -139,7 +151,7 @@ def _line(ts, vs, X, Y, step):
     return d
 
 
-def chart(pts, unit, w=820, h=280, card=False, versions=(), step=False, other=None):
+def chart(pts, unit, w=820, h=280, card=False, versions=(), step=False, other=None, bars=False):
     """A real chart: area and line over time, three value gridlines, year marks. pts: [{at, value, origin}], oldest first.
     other: (pts, unit, step) draws a second series; it shares the value axis when the units match, else it gets its own on the right."""
     from datetime import datetime as _dt
@@ -161,6 +173,18 @@ def chart(pts, unit, w=820, h=280, card=False, versions=(), step=False, other=No
     L, R, T, B = (8, 8, 10, 22) if card else (58, 58 if own else 14, 14, 30)
     X = lambda t: L + (t - t0) / (t1 - t0) * (w - L - R)
     Y = lambda v: T + (1 - (v - lo) / (hi - lo)) * (h - T - B)
+    if bars and not vs2:  # one bar per period: a month's total is not a level that carries on to the next month
+        lo, bw = min(lo, 0), max(6.0, min(46.0, (w - L - R) / len(ts) * 0.62))
+        L, R = L + bw / 2, R + bw / 2
+        where = {t: L + i / (len(ts) - 1) * (w - L - R) for i, t in enumerate(ts)}  # periods sit evenly, whatever day each was read
+        X = lambda t: where[t]
+        rects = "".join(f'<rect x="{X(t) - bw / 2:.1f}" y="{Y(v):.1f}" width="{bw:.1f}" height="{max(h - B - Y(v), 1):.1f}" rx="3" fill="#2f5bff" fill-opacity="{1 if i == len(ts) - 1 else .45}"/>'
+                        for i, (t, v) in enumerate(zip(ts, vs)))
+        labels = "".join(f'<text x="{X(t):.1f}" y="{h - B + 16}" text-anchor="middle" font-size="11" fill="#667085">{_dt.fromtimestamp(t).strftime("%b")}</text>' for t in ts) if len(ts) <= 14 else ""
+        grid = "" if card else "".join(f'<line x1="{L - bw / 2}" x2="{w - R + bw / 2}" y1="{Y(lo + (hi - lo) * f):.1f}" y2="{Y(lo + (hi - lo) * f):.1f}" stroke="#e1e4ea"/>'
+                                         f'<text x="{L - bw / 2 - 8}" y="{Y(lo + (hi - lo) * f) + 4:.1f}" text-anchor="end" font-size="11" fill="#667085">{esc(fmt(lo + (hi - lo) * f, unit)[0])}</text>' for f in (0, .5, 1))
+        return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" role="img" aria-label="History chart" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" '
+                f'style="width:100%;height:auto;display:block">{grid}{rects}{labels}</svg>')
     line = _line(ts, vs, X, Y, step)
     area = line + f" L{X(ts[-1]):.1f} {h - B} L{X(ts[0]):.1f} {h - B} Z"
     grid = ""
@@ -202,6 +226,31 @@ def chart(pts, unit, w=820, h=280, card=False, versions=(), step=False, other=No
             f'<path d="{line}" fill="none" stroke="#2f5bff" stroke-width="2" stroke-linejoin="round"/><circle cx="{X(ts[-1]):.1f}" cy="{Y(vs[-1]):.1f}" r="4" fill="#2f5bff"/>{second}</svg>')
 
 
+def landing_card(m, t, pts, rising=False):
+    """One number on the landing page: its value, its past, where it comes from. The whole card opens the number's page."""
+    txt, unit = fmt(t["value"], t["unit"])
+    svg = chart(pts, t["unit"], 300, 78, card=True, step=core.stepped(m), bars=core.by_period(m, pts)).replace('role="img" aria-label="History chart"', 'aria-hidden="true"')
+    src = "archived pricing pages" if m["title"].lower().endswith("plan price") else "funding announcements" if core.round_kind(m) else (
+        "its entries, each with a link" if m["kind"] == "count" else re.sub(r"^www\.", "", (m.get("source_url") or "").split("/")[2]) if (m.get("source_url") or "").count("/") >= 2 else "its source")
+    return (f'<a class="num" href="{number_path(m)}"><b>{esc(m["title"])}{"<i>in the news</i>" if rising else ""}</b><div class="v">{esc(txt)}<small>{esc(unit)}</small></div>{svg}'
+            f'<div class="m"><span>since {esc(pts[0]["at"][:4]) if pts else ""}</span><span>{esc(src)}</span></div></a>')
+
+
+def landing_compare(a, ta, b, tb, kind):
+    return (f'<a class="strip" href="{esc(compare_path(a, b))}"><span><b>Compare two numbers on one chart.</b> <span class="dot" style="background:#2f5bff"></span>{esc(subject(a))} {esc(fmt(ta["value"], ta["unit"])[0])}'
+            f' &nbsp;vs&nbsp; <span class="dot" style="background:{C2}"></span>{esc(subject(b))} {esc(fmt(tb["value"], tb["unit"])[0])} · {esc(kind)}</span><span class="go">Open the chart</span></a>')
+
+
+def track_page(q):
+    body = ('<div class="crumb"><a href="/numbers">Numbers</a> / New</div><h1>Ask for a number</h1>'
+            '<p class="q">Tally searches for it, reads the value from a source it can quote, and gives the number its own page with a chart and a recipe. If no source states it, the page says “no value yet”.</p>'
+            f'<div class="card"><label for="trackq" style="font-weight:600;display:block;margin-bottom:8px">Which number?</label>'
+            f'<input id="trackq" value="{esc(q)}" placeholder="Stripe latest valuation" style="width:100%;font:17px var(--display);padding:12px 14px;border-radius:10px;border:1px solid var(--line)">'
+            '<div class="cta" style="margin-top:14px"><button class="follow" type="button" data-track="1">Find this number</button></div>'
+            '<p class="meta" id="tracknote">Say what and whose: “Stripe latest valuation”, “Figma headcount”, “Vercel Pro plan price”.</p><div class="signin" id="signin" hidden></div></div>')
+    return shell("Ask for a number | Tally", "Ask Tally to track a number it does not have yet: it finds the value, quotes its source and keeps its history.", "/track", body)
+
+
 def compare_path(a, b):
     return f"/compare?a={a['id']}&b={b['id']}"
 
@@ -236,7 +285,7 @@ def compare_page(a, b, ta, tb, pa, pb, others=()):
 def card_svg(m, t, pts):
     """A standalone chart image for embedding in a README, a post or a deck."""
     txt, unit = fmt(t["value"], t["unit"])
-    inner = chart(pts, t["unit"], 600, 150, card=True, step=core.stepped(m))
+    inner = chart(pts, t["unit"], 600, 150, card=True, step=core.stepped(m), bars=core.by_period(m, pts))
     inner = inner[inner.index(">") + 1:inner.rindex("</svg>")] if inner else '<text x="24" y="150" font-size="13" fill="#667085">History appears after the next check.</text>'
     since = when(pts[0]["at"]) if pts else None
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="260" viewBox="0 0 600 260" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">'
@@ -316,17 +365,24 @@ def top_index(items):
     return shell("Company rankings: funding, valuation, headcount, open roles | Tally", "Companies ranked by funding, valuation, headcount, open roles and launches, each figure with its source.", "/top", body)
 
 
-def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(), compare=()):
+def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(), compare=(), per=None, rank=None):
     """m: metric row, t: the signed-out tile, ev: the signed-out evidence dict (may be locked), pts: the full series."""
-    txt, unit = fmt(t["value"], t["unit"])
+    txt, unit = fmt(per["value"] if per and not per["current"] else t["value"], t["unit"])
     sub = subject(m)
     asof = when(t.get("as_of") or t.get("last_checked"))
     title = f'{m["title"]}: {txt + (" " + unit if unit else "") if txt else "no value yet"} | Tally'
     desc = (f'{m["question"]} {txt}{" " + unit if unit else ""}{", as of " + asof if asof else ""}. Tracked on Tally with its source and history.' if txt
             else f'{m["question"]} Tally is tracking this and will show the value with its source as soon as one is found.')
     body = f'<div class="crumb"><a href="/numbers">Numbers</a> / <a href="{subject_path(sub)}">{esc(sub)}</a></div><h1>{esc(m["title"])}</h1><p class="q">{esc(m["question"])}</p><div class="card">'
-    body += f'<div class="val">{esc(txt)}<small>{esc(unit)}</small></div>' if txt else '<div class="none">No value yet. Tally does not guess.</div>'
-    body += f'<div class="meta">{"Live" if t["live"] else "Delayed value"}{" · as of " + asof if asof else ""} · tracked by {t["followers"]}</div></div>'
+    body += ('<div class="valrow">' + (f'<div class="val">{esc(txt)}<small>{esc(unit)}</small></div>' if txt else '<div class="none">No value yet. Tally does not guess.</div>')
+             + f'<button class="follow" type="button" data-follow="{m["id"]}" aria-pressed="false">Follow</button></div>')
+    if per:
+        tabs = "".join(f'<a href="{number_path(m)}{"" if i == 0 else "?period=" + k[:7]}" class="rg{" on" if on else ""}">{esc(lab)}</a>' for i, (k, lab, on) in enumerate(per["tabs"]))
+        body += f'<div class="meta" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><b style="color:var(--ink)">{esc(per["label"])}{" so far" if per["current"] else ""}</b><span class="rgs" style="flex-wrap:wrap">{tabs}</span></div>'
+    if rank:
+        body += f'<div class="meta"><a href="/top/{rank[3]}"><b style="color:var(--ink)">#{rank[0]} of {rank[1]}</b> by {esc(rank[2])}</a></div>'
+    body += (f'<div class="meta">{"As of " + asof if asof else "Not read yet"} · followed by {t["followers"]} <span id="follownote" style="margin-left:6px"></span></div>'
+             '<div class="signin" id="signin" hidden></div></div>')
     pts = list(pts)
     if len(pts) >= 2:
         from datetime import datetime as _dt, timedelta as _td
@@ -341,7 +397,7 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
                 + (" Computed from the entries\' own dates where marked in the download." if any(p["origin"] == "backfill" for p in pts) else ""))
         url = SITE + number_path(m)
         body += (f'<h2 style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><span>History</span><span class="rgs">{tabs}</span></h2>'
-                 f'<div class="card" style="padding:16px 16px 8px">{chart(shown, t["unit"], versions=versions, step=core.stepped(m))}</div><p class="meta">{esc(note)}{" Red marks show where the recipe changed." if versions else ""}</p>'
+                 f'<div class="card" style="padding:16px 16px 8px">{chart(shown, t["unit"], versions=() if core.by_period(m, shown) else versions, step=core.stepped(m), bars=core.by_period(m, shown))}</div><p class="meta">{esc(note)}{" Red marks show where the recipe changed." if versions else ""}</p>'
                  f'<div class="cta" style="margin-top:14px"><a class="btn ghost" href="/n/{m["id"]}/history.csv">Download CSV</a>'
                  f'<details class="emb"><summary class="btn ghost">Embed this chart</summary><div class="embbox"><p class="meta" style="margin:0 0 6px">A live image. Paste into a README, a post or a doc.</p>'
                  f'<b>Markdown</b><pre>[![{esc(m["title"])}]({SITE}/n/{m["id"]}/chart.svg)]({url})</pre><b>HTML</b><pre>&lt;a href="{url}"&gt;&lt;img src="{SITE}/n/{m["id"]}/chart.svg" alt="{esc(m["title"])}" width="600"&gt;&lt;/a&gt;</pre>'
@@ -349,7 +405,7 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     else:
         body += '<p class="meta" style="margin-top:14px">History starts with the next check; the chart appears once there are two readings.</p>'
     if compare:
-        body += ('<p class="meta" style="margin-top:16px;line-height:2">Compare with: ' + " · ".join(f'<a href="{esc(compare_path(m, o))}">{esc(label)}</a>' for o, label in compare) + "</p>")
+        body += ('<h2>Compare on one chart</h2><div class="chips">' + "".join(f'<a href="{esc(compare_path(m, o))}">vs {esc(label)}</a>' for o, label in compare) + "</div>")
     if not ev.get("locked"):
         if m["kind"] == "direct":
             o = ev.get("observation") or {}
@@ -361,14 +417,14 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
             if es:
                 rows = "".join(f'<li>{(f"""<a href="{esc(e["url"])}" rel="nofollow noopener">{esc(e["title"])}</a>""" if e.get("url") else esc(e["title"]))}'
                                f'<span>{esc(fmt(e["value"], m["unit"])[0]) if e.get("value") is not None else esc(e.get("date") or "")}</span></li>' for e in es[:40])
-                body += f'<h2>The {len(es)} entries behind this number</h2><ul class="rows">{rows}</ul>' + (f'<p class="meta">{len(es) - 40} more in the app.</p>' if len(es) > 40 else "")
+                body += f'<h2>The {len(es)} entries behind this number{", " + esc(per["label"]) if per else ""}</h2><ul class="rows">{rows}</ul>' + (f'<p class="meta">{len(es) - 40} more in the app.</p>' if len(es) > 40 else "")
     else:
         body += '<p class="meta" style="margin-top:14px">The live value, its source and the full list of entries are in the app.</p>'
     if recipe:
         body += (f'<h2>Recipe <span style="font:13px var(--mono);color:#667085;font-weight:400">version {recipe["version"]}</span></h2>'
                  f'<p class="q" style="margin:0 0 10px">How this number is obtained, in plain words. Anyone can improve it; a change is tried by an agent before it counts.</p>'
                  f'<div class="cta" style="margin-top:0"><a class="btn ghost" href="/n/{m["id"]}/recipe">Read or improve the recipe</a></div>')
-    body += f'<div class="cta"><a class="btn" href="/app?open={m["id"]}">Follow this number</a><a class="btn ghost" href="{subject_path(sub)}">More about {esc(sub)}</a></div>'
+    body += f'<div class="cta"><a class="btn ghost" href="{subject_path(sub)}">More about {esc(sub)}</a><a class="btn ghost" href="/track">Ask for a number that is not here</a></div>'
     if related:
         body += f'<h2>More about {esc(sub)}</h2><div class="grid">{"".join(tile_link(r) for r in related[:8])}</div>'
     ld = None

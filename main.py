@@ -1,10 +1,9 @@
 """Tally API. Run: ./run.sh  (uvicorn main:app --host 127.0.0.1 --port 8000)
 
 Access tiers
-  anonymous  search and read the whole catalog; featured metrics are live, the rest are delayed
-  free       Google sign-in; live on featured metrics, metrics they created, and their first FREE_LIVE follows;
-             may create FREE_CREATE metrics
-  pro        paid through Stripe; everything live, unlimited creation
+  anonymous  search and read every number, live, with its history, source and recipe
+  free       Google sign-in; follow numbers, edit recipes, ask for FREE_CREATE new numbers
+  pro        paid through Stripe; unlimited new numbers, Check now on any number, more recipe trials
 """
 import env  # noqa: F401  loads .env first
 import json
@@ -27,6 +26,7 @@ import public_pages as pp
 import free_sources
 import logos
 import recipes
+import interest
 
 HERE = os.path.dirname(__file__)
 app = FastAPI(title="Tally")
@@ -115,12 +115,12 @@ def need_user(request: Request):
     return u
 
 
-def start_session(request: Request, response: Response, uid, name=None, picture=None, plan=None):
+def start_session(request: Request, response: Response, uid, name=None, picture=None, plan=None, bare=False):
     new = not db.one("SELECT 1 x FROM users WHERE id=?", (uid,))
     if new:
         db.run("INSERT INTO users(id,name,picture,plan,created_at) VALUES(?,?,?,?,?)", (uid, name, picture, plan or "free", db.now()))
-        for r in db.q("SELECT metric_id FROM board_items WHERE user=? ORDER BY rowid", (FEATURED,)):
-            core.follow(uid, r["metric_id"])  # a new board starts with the featured tiles
+        for r in ([] if bare else db.q("SELECT metric_id FROM board_items WHERE user=? ORDER BY rowid", (FEATURED,))):
+            core.follow(uid, r["metric_id"])  # a board opened from the app starts with the featured tiles; one opened by following a number starts with that number
     else:
         db.run("UPDATE users SET name=COALESCE(?,name), picture=COALESCE(?,picture) WHERE id=?", (name, picture, uid))
     tok = secrets.token_urlsafe(32)
@@ -139,10 +139,12 @@ def public_user(u):
 
 class GoogleLogin(BaseModel):
     credential: str
+    bare: bool = False  # signed in from a number's page: do not pre-fill the board
 
 
 class DemoLogin(BaseModel):
     passcode: str
+    bare: bool = False
 
 
 @app.post("/api/auth/google")
@@ -153,7 +155,7 @@ def auth_google(body: GoogleLogin, request: Request, response: Response):
     info = r.json() if r.status_code == 200 else {}
     if info.get("aud") != GOOGLE_CLIENT_ID or info.get("email_verified") not in ("true", True) or not info.get("email"):
         raise HTTPException(401, "Google sign-in could not be verified")
-    return {"user": start_session(request, response, info["email"].lower(), info.get("name"), info.get("picture"))}
+    return {"user": start_session(request, response, info["email"].lower(), info.get("name"), info.get("picture"), bare=body.bare)}
 
 
 # One-click guest access for judges and first-time visitors: each guest gets their own Pro account with a copy of
@@ -181,7 +183,7 @@ def auth_guest(request: Request, response: Response):
 def auth_demo(body: DemoLogin, request: Request, response: Response):
     if not PASSCODE or not secrets.compare_digest(body.passcode, PASSCODE):
         raise HTTPException(401, "Wrong passcode")
-    return {"user": start_session(request, response, "demo@tally", "Demo founder", None, plan="pro")}
+    return {"user": start_session(request, response, "demo@tally", "Demo founder", None, plan="pro", bare=body.bare)}
 
 
 @app.post("/api/auth/logout")
@@ -200,8 +202,9 @@ def me(request: Request):
 # ---------- who sees what live ----------
 
 def live_ids(u):
-    """Metric ids this viewer sees live. None means all of them."""
-    if u and u["plan"] == "pro":
+    """Metric ids this viewer sees live. None means all of them: since 2026-11-15 every number is live for everyone
+    (one number's public page is the product; a delayed value on it would be a worse page). The rest is kept for a way back."""
+    if os.environ.get("TALLY_DELAYED", "0") != "1" or (u and u["plan"] == "pro"):
         return None
     ids = {r["metric_id"] for r in db.q("SELECT metric_id FROM board_items WHERE user=?", (FEATURED,))}
     ids |= {r["id"] for r in db.q("SELECT id FROM metrics WHERE skill LIKE 'free|%'")}  # numbers from free public sources cost nothing: live for everyone
@@ -267,9 +270,91 @@ def page(name):
     return FileResponse(os.path.join(HERE, "static", name))
 
 
+def _human(request):
+    return not _BOT.search(request.headers.get("user-agent", ""))
+
+
+PINS = ("Anthropic · latest valuation", "OpenAI · latest valuation", "Cursor · total funding raised", "Lovable · latest valuation", "Notion · Plus plan price")
+_featured = {"at": 0.0, "cards": [], "compare": None}
+
+
+def featured(n=6):
+    """The numbers on the landing page, chosen again every few minutes by what people are interested in now:
+    how much the subject is being read about this week (interest.py), how many people opened or follow the number here,
+    and whether it moved lately. Only numbers found by search and with a past to show; free-API numbers stay off the front."""
+    if time.time() - _featured["at"] < 300 and _featured["cards"]:
+        return _featured
+    import math
+    week = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+    views = {r["metric_id"]: r["n"] for r in db.q("SELECT metric_id, SUM(n) n FROM views WHERE day>=? GROUP BY metric_id", (week,))}
+    moved = {r["metric_id"]: r["n"] for r in db.q("SELECT metric_id, COUNT(*) n FROM changes WHERE at>=? AND COALESCE(status,'accepted')='accepted' GROUP BY metric_id", (week,))}
+    rows = db.q("SELECT m.*, COUNT(o.id) pts, MIN(o.as_of) first FROM metrics m JOIN observations o ON o.metric_id=m.id AND o.seeded=0 AND o.value IS NOT NULL "
+                "WHERE COALESCE(m.skill,'') NOT LIKE 'free|%' GROUP BY m.id HAVING pts>=3")
+    scored = []
+    for m in rows:
+        heat, rising = interest.heat(pp.subject(m))
+        past = (datetime.now(timezone.utc) - datetime.strptime(m["first"][:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)).days
+        s = (heat + 2 * math.log10(1 + views.get(m["id"], 0)) + min(moved.get(m["id"], 0), 4) * 0.4 + min(past / 365, 3) * 0.8
+             + (1.5 if core.stepped(m) else 0) + (2.5 if m["title"] in PINS else 0))
+        scored.append((s, rising, m))
+    scored.sort(key=lambda x: -x[0])
+    cards, per_subject, per_kind = [], {}, {}
+    for s, rising, m in scored:
+        sub, kind = pp.subject(m), m["title"].split(" · ")[-1]
+        if per_subject.get(sub, 0) >= 1 or per_kind.get(kind, 0) >= 2:
+            continue
+        t = tile(m, None)
+        if t["value"] is None:
+            continue
+        per_subject[sub], per_kind[kind] = per_subject.get(sub, 0) + 1, per_kind.get(kind, 0) + 1
+        cards.append({"m": m, "t": t, "pts": core.series(m["id"]), "rising": rising})
+        if len(cards) == n:
+            break
+    compare = None  # the two largest numbers of one kind that both have a past, as a ready comparison
+    for kind in ("total funding raised", "latest valuation"):
+        two = sorted([x[2] for x in scored if x[2]["title"].endswith(kind) and x[2]["pts"] >= 4], key=lambda m: -(core.latest_obs(m["id"]) or {}).get("value", 0))[1:3]
+        if len(two) == 2:
+            compare = (two[0], tile(two[0], None), two[1], tile(two[1], None), kind)
+            break
+    _featured.update(at=time.time(), cards=cards, compare=compare)
+    return _featured
+
+
 @app.get("/")
 def landing():
-    return page("landing.html")
+    f = featured()
+    html = open(os.path.join(HERE, "static", "landing.html")).read()
+    return HTMLResponse(html.replace("<!--CARDS-->", "".join(pp.landing_card(c["m"], c["t"], c["pts"], c["rising"]) for c in f["cards"]))
+                        .replace("<!--COMPARE-->", pp.landing_compare(*f["compare"]) if f["compare"] else "")
+                        .replace("<!--RANKS-->", "".join(f'<a href="/top/{sl}">{pp.esc(n)} <span>{pp.esc(pp.subject(ts[0]))} leads</span></a>' for n, sl, ts in _rankings()[:6])))
+
+
+@app.get("/api/suggest")
+def suggest(q: str = ""):
+    """Numbers matching what was typed, for the search box on every public page: each with its current value and its page."""
+    words = [w for w in " ".join(q.split())[:80].lower().split() if w]
+    if not words:
+        return {"numbers": [], "boards": []}
+    # a company, sector or investor whose name matches: its page lists every number tracked about it
+    boards = sorted(((n, len(ids)) for n, ids in pp.groups().items() if len(ids) >= 2 and all(w in n.lower() for w in words)), key=lambda x: (not x[0].lower().startswith(words[0]), -x[1]))[:3]
+    hits = []
+    for m in db.q("SELECT * FROM metrics ORDER BY id"):
+        hay = " ".join([m["title"] or "", m["question"] or "", m.get("company") or ""]).lower()
+        if all(w in hay for w in words):
+            hits.append(m)
+    hits.sort(key=lambda m: (0 if all(w in (m["title"] or "").lower() for w in words) else 1, len(m["title"] or "")))
+    out = []
+    for m in hits[:7]:
+        t = tile(m, None)
+        txt, unit = pp.fmt(t["value"], t["unit"])
+        out.append({"title": m["title"], "value": (txt + (" " + unit if unit else "")) if txt else "no value yet", "path": pp.number_path(m)})
+    return {"numbers": out, "total": len(hits), "boards": [{"name": n, "count": c, "path": pp.subject_path(n)} for n, c in boards]}
+
+
+@app.get("/track")
+def track(q: str = ""):
+    """Ask for a number the record does not have yet. The page signs the visitor in, has Tally find the number, and opens its new page."""
+    return HTMLResponse(pp.track_page(" ".join(q.split())[:120]))
 
 
 @app.get("/app")
@@ -368,24 +453,33 @@ def public_csv(mid: int):
 
 @app.get("/n/{mid}")
 @app.get("/n/{mid}/{slug}")
-def public_number(mid: int, slug: str = "", range: str = "all"):
+def public_number(mid: int, request: Request, slug: str = "", range: str = "all", period: str = ""):
     m = core.metric(mid)
     if not m:
         raise HTTPException(404, "no such number")
     if slug != pp.slug(m["title"]):
-        return RedirectResponse(pp.number_path(m), status_code=301)
+        return RedirectResponse(pp.number_path(m) + ("?" + request.url.query if request.url.query else ""), status_code=301)
+    if _human(request):
+        db.run("INSERT INTO views(day,metric_id,n) VALUES(?,?,1) ON CONFLICT(day,metric_id) DO UPDATE SET n=n+1", (db.now()[:10], mid))
     t = tile(m, None)
+    pick, per = None, None
+    if m.get("period"):  # a number counted per month or quarter: the page can show any period it has
+        keys = core.periods(m)
+        pick = next((k for k in keys if k[:7] == period[:7]), keys[0])
+        per = {"tabs": [(k, core.period_label(m["period"], k, short=True), k == pick) for k in keys[:12]], "label": core.period_label(m["period"], pick),
+               "current": pick == keys[0], "value": core.count_value(mid, pick) if pick != keys[0] else None}
     if not t["live"]:
         ev = {"locked": True}
     elif m["kind"] == "count":
-        ev = {"entries": db.q("SELECT title,url,date,value FROM entries WHERE metric_id=? AND held_out=0 ORDER BY first_seen_at DESC, id DESC", (mid,))}
+        cond, vals = core.period_sql(m, pick)
+        ev = {"entries": db.q("SELECT title,url,date,value FROM entries WHERE metric_id=? AND held_out=0" + cond + " ORDER BY COALESCE(date, first_seen_at) DESC, id DESC", (mid,) + vals)}
     else:
         ev = {"observation": core.latest_obs(mid)}
     sub = pp.subject(m)
     related = [tile(core.metric(i), None) for i in pp.groups().get(sub, []) if i != mid]
     live = recipes.live(m)
     versions = [(r["created_at"], f"v{r['version']}") for r in db.q("SELECT version, created_at FROM recipes WHERE metric_id=? AND version>1 AND status IN ('live','superseded') ORDER BY version", (mid,))]
-    return HTMLResponse(pp.number_page(m, t, ev, related, _public_series(m, t), range if range in ("90d", "1y", "5y", "all") else "all", live, versions, _comparable(m)))
+    return HTMLResponse(pp.number_page(m, t, ev, related, _public_series(m, t), range if range in ("90d", "1y", "5y", "all") else "all", live, versions, _comparable(m), per, _rank_of(mid)))
 
 
 def _comparable(m, limit=8):
@@ -442,8 +536,27 @@ def public_feed():
     return RawResponse(pp.atom(_major_changes(_public_ids(), 50), "Tally: what changed", "/feed.xml"), media_type="application/atom+xml")
 
 
+_ranks = {"at": 0.0, "rows": []}
+
+
 def _rankings():
-    """Curated recipes with at least three companies that have a value: name, slug, ranked tiles."""
+    """Curated recipes with at least three companies that have a value: name, slug, ranked tiles. Kept for five minutes."""
+    if time.time() - _ranks["at"] < 300 and _ranks["rows"]:
+        return _ranks["rows"]
+    _ranks.update(at=time.time(), rows=_rankings0())
+    return _ranks["rows"]
+
+
+def _rank_of(mid):
+    """(place, how many, ranking name, ranking slug) for a number that sits in a ranking, else None."""
+    for name, sl, ts in _rankings():
+        for i, t in enumerate(ts):
+            if t["id"] == mid:
+                return i + 1, len(ts), name, sl
+    return None
+
+
+def _rankings0():
     names = {t["title"].replace("{company} · ", "").lower(): t["title"].replace("{company} · ", "") for t in TEMPLATES if t.get("pack", "company") == "company"}
     names |= {"npm downloads, weekly": "npm downloads, weekly", "pypi downloads, weekly": "PyPI downloads, weekly"}
     by = {}
@@ -458,7 +571,8 @@ def _rankings():
         if len(ts) >= 3:
             ts.sort(key=lambda t: -t["value"])
             out.append((names[tid], pp.slug(names[tid]), ts))
-    return sorted(out, key=lambda x: -len(x[2]))
+    free = ("github stars", "npm downloads, weekly", "pypi downloads, weekly")  # numbers anyone can get elsewhere go last
+    return sorted(out, key=lambda x: (x[0].lower() in free, -len(x[2])))
 
 
 @app.get("/top")
@@ -695,13 +809,13 @@ def add_metric(body: AddMetric, request: Request):
     mid = core.match_metric(q)
     if mid:
         core.follow(u["id"], mid)
-        return {"metric": tile(core.metric(mid), u), "matched": True}
+        return {"metric": tile(core.metric(mid), u), "matched": True, "path": pp.number_path(core.metric(mid))}
     if is_guest(u) and guest_cap_reached():
         raise HTTPException(402, "Guest accounts have used up their shared allowance of new metrics. Everything already in the catalog is still yours to follow; sign in with Google to create more.")
     if u["plan"] != "pro" and db.one("SELECT COUNT(*) n FROM metrics WHERE created_by=?", (u["id"],))["n"] >= FREE_CREATE:
         raise HTTPException(402, f"The free plan creates {FREE_CREATE} new metrics. Upgrade to Pro for unlimited.")
     m, _ = core.create_metric(u["id"], q, skip_match=True)
-    return {"metric": tile(m, u), "matched": False}
+    return {"metric": tile(m, u), "matched": False, "path": pp.number_path(m)}
 
 
 class Pack(BaseModel):
@@ -797,7 +911,8 @@ def evidence(mid: int, request: Request):
            "changes": db.q("SELECT * FROM changes WHERE metric_id=? AND COALESCE(status,'accepted')='accepted' ORDER BY at DESC, id DESC LIMIT 30", (mid,))}
     if m["kind"] == "count":
         new_ids = {c["entry_id"] for c in out["changes"] if c["entry_id"]}
-        es = db.q("SELECT id,title,url,first_seen_at,seeded,found_via,date,value FROM entries WHERE metric_id=? AND held_out=0 ORDER BY first_seen_at DESC, id DESC", (mid,))
+        cond, vals = core.period_sql(m)
+        es = db.q("SELECT id,title,url,first_seen_at,seeded,found_via,date,value FROM entries WHERE metric_id=? AND held_out=0" + cond + " ORDER BY first_seen_at DESC, id DESC", (mid,) + vals)
         for e in es:
             e["is_new"] = e["id"] in new_ids
         out["entries"] = es
@@ -811,8 +926,9 @@ def run(mid: int, request: Request):
     u = need_user(request)
     if not core.metric(mid):
         raise HTTPException(404, "no such metric")
-    if not is_live(u, mid):
-        raise HTTPException(402, "This metric is delayed on the free plan. Upgrade to Pro to refresh it.")
+    m = core.metric(mid)
+    if u["plan"] != "pro" and m.get("created_by") != u["id"] and not free_sources.is_free(m):
+        raise HTTPException(402, "Checking a number on demand runs a search, so it is part of Pro. Every number is still checked automatically.")
     return core.run_now(mid)
 
 
@@ -887,6 +1003,8 @@ def _autosync():
             try:
                 core.sync_all()
                 core.refresh_free()
+                core.roll_periods()
+                interest.refresh(sorted({pp.subject(m) for m in db.q("SELECT title, company FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%'")}), limit=12)
                 if os.environ.get("TALLY_PACER", "1") != "0":
                     r = core.pace()
                     if r["created"] or r["ticked"]:

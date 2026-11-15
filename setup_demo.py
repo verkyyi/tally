@@ -285,6 +285,59 @@ def price_history():
     print("history points kept:", total)
 
 
+def periods():
+    """Turn the numbers that were made for one month ("AI agents · Nov 2026 funding") into lasting numbers counted per period. Safe to run again."""
+    import re
+    mon = r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*(?: 20\d\d)?"
+    rules = [(rf"^(.+) · {mon} funding$", r"\1 · funding this month"), (rf"^(.+) · largest (?:seed )?round, {mon}$", r"\1 · largest round this month"),
+             (rf"^(.+) · funding rounds, {mon}$", r"\1 · funding rounds this month"), (rf"^(.+) · new investments, {mon}$", r"\1 · new investments this month")]
+    n = 0
+    for m in db.q("SELECT * FROM metrics WHERE period IS NULL AND kind='count'"):
+        title, per = m["title"], None
+        for pat, rep in rules:
+            if re.match(pat, title):
+                title, per = re.sub(pat, rep, title), "month"
+        if title.endswith("launches this quarter"):
+            per = "quarter"
+        if not per:
+            continue
+        if db.one("SELECT 1 x FROM metrics WHERE lower(title)=? AND id!=?", (title.lower(), m["id"])):
+            print("skipped, a number with this name exists:", m["id"], m["title"]); continue
+        db.run("UPDATE metrics SET title=?, period=?, period_at=?, template_id=? WHERE id=?", (title, per, core.period_span(per)[0], (m["template_id"] or "").split("@")[0] or None, m["id"]))
+        n += 1
+        print(m["id"], m["title"], "->", title, per, "| value now", core.count_value(m["id"]))
+    print("numbers made lasting:", n)
+
+
+def period_history():
+    """Earlier months for the per-month numbers: the same search run for each past month, keeping only entries dated inside it.
+    Usage: period_history [months back, default 5] [metric ids...]"""
+    from datetime import datetime as dt, timedelta as td
+    back = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+    ids = [int(x) for x in sys.argv[3:]]
+    for m in db.q("SELECT * FROM metrics WHERE period='month' ORDER BY id"):
+        if ids and m["id"] not in ids:
+            continue
+        cur = core.period_span("month")[0]
+        start = cur
+        for _ in range(back):
+            start = core.period_span("month", (dt.strptime(start, "%Y-%m-%d") - td(days=1)).strftime("%Y-%m-%d"))[0]
+            a, b = core.period_span("month", start)
+            end = (dt.strptime(b, "%Y-%m-%d") - td(days=1)).strftime("%Y-%m-%dT23:59:00Z")
+            if db.one("SELECT 1 x FROM observations WHERE metric_id=? AND as_of=?", (m["id"], end)):
+                continue
+            try:
+                found = core.find_entries(dict(m) | core.retext(m, m.get("period_at") or cur, start))
+            except Exception as e:
+                print("FAILED", m["id"], start, type(e).__name__, str(e)[:120], flush=True); continue
+            kept = [e for e in found if core._date(e.get("date")) and a <= e["date"] < b]
+            core.upsert_entries(m, kept, "source_history", record_changes=False)
+            if kept:
+                db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote) VALUES(?,?,?,?,?,0,?)",
+                       (m["id"], core.count_value(m["id"], start), end, None, "source_history", f"entries dated in {core.period_label('month', start)}"))
+            print(m["id"], m["title"], core.period_label("month", start), "| found", len(found), "| dated in the month", len(kept), "| value", core.count_value(m["id"], start) if kept else None, flush=True)
+
+
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "periods": periods, "period_history": period_history}[sys.argv[1]]()

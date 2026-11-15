@@ -55,10 +55,87 @@ def reduce_rows(reducer, rows):
     return sum(vals) if reducer == "sum" else max(vals) if reducer == "max" else round(sum(vals) / len(vals), 2)
 
 
-def count_value(mid):
-    """The value of a ledger metric: its reducer (count by default) applied to the entries."""
-    m = db.one("SELECT reducer FROM metrics WHERE id=?", (mid,)) or {}
-    return reduce_rows(m.get("reducer"), db.q("SELECT value FROM entries WHERE metric_id=? AND held_out=0", (mid,)))
+# ---------- numbers counted per period ----------
+# "Funding this month" is one lasting number, not a new number every month: its entries carry their own dates, its value is
+# counted inside the current month, each finished month is kept as one point of its history, and the page can show any month.
+
+def period_span(period, start=None):
+    """(first day, first day of the next period) as 'YYYY-MM-DD', for the period holding `start` (default: today)."""
+    d = datetime.strptime(start[:10], "%Y-%m-%d") if start else datetime.now(timezone.utc)
+    n = 3 if period == "quarter" else 1
+    m0 = (d.month - 1) // n * n + 1
+    a = d.replace(month=m0, day=1)
+    b = (a.replace(year=a.year + 1, month=m0 + n - 12) if m0 + n > 12 else a.replace(month=m0 + n))
+    return a.strftime("%Y-%m-%d"), b.strftime("%Y-%m-%d")
+
+
+def period_label(period, start, short=False):
+    d = datetime.strptime(start[:10], "%Y-%m-%d")
+    return f"Q{(d.month - 1) // 3 + 1} {d.year}" if period == "quarter" else d.strftime("%b %Y" if short else "%B %Y")
+
+
+def period_sql(m, start=None):
+    """An SQL condition (and its values) keeping only the entries dated inside the period; empty for ordinary numbers.
+    An entry with no date of its own counts in the period it was first seen."""
+    if not (m or {}).get("period"):
+        return "", ()
+    a, b = period_span(m["period"], start)
+    return " AND COALESCE(date, substr(first_seen_at,1,10))>=? AND COALESCE(date, substr(first_seen_at,1,10))<?", (a, b)
+
+
+def count_value(mid, start=None):
+    """The value of a ledger metric: its reducer (count by default) applied to the entries (of the period, when it has one)."""
+    m = db.one("SELECT reducer, period FROM metrics WHERE id=?", (mid,)) or {}
+    cond, vals = period_sql(m, start)
+    return reduce_rows(m.get("reducer"), db.q("SELECT value FROM entries WHERE metric_id=? AND held_out=0" + cond, (mid,) + vals))
+
+
+def retext(m, old_start, new_start):
+    """The number's question and searches, with the period they name moved from one period to another."""
+    out = {}
+    for k in ("question", "search_query", "monitor_query"):
+        t = m.get(k) or ""
+        if m["period"] == "month":
+            for short in (False, True):
+                t = t.replace(period_label("month", old_start, short), period_label("month", new_start, short))
+        else:
+            o, n = datetime.strptime(old_start, "%Y-%m-%d"), datetime.strptime(new_start, "%Y-%m-%d")
+            t = t.replace(o.strftime("since %B %-d, %Y"), n.strftime("since %B %-d, %Y"))
+        out[k] = t
+    return out
+
+
+def by_period(m, pts):
+    """True when this number's history is one point per period (so it is drawn as bars)."""
+    return bool((m or {}).get("period")) and len({period_span(m["period"], p["at"])[0] for p in pts}) == len(pts) >= 2
+
+
+def periods(m):
+    """Period starts this number has a value for, newest first: the current one, then every finished one kept in its history."""
+    cur = period_span(m["period"])[0]
+    past = {period_span(m["period"], r["as_of"])[0] for r in db.q("SELECT as_of FROM observations WHERE metric_id=? AND origin IN ('period','source_history') AND value IS NOT NULL", (m["id"],))}
+    return [cur] + sorted(past - {cur}, reverse=True)
+
+
+def roll_periods():
+    """When a new month or quarter starts: keep the finished period's total as one point, and point the number at the new period."""
+    n = 0
+    for m in db.q("SELECT * FROM metrics WHERE period IS NOT NULL"):
+        cur = period_span(m["period"])[0]
+        old = m.get("period_at") or cur
+        if old == cur:
+            if not m.get("period_at"):
+                db.run("UPDATE metrics SET period_at=? WHERE id=?", (cur, m["id"]))
+            continue
+        end = (datetime.strptime(period_span(m["period"], old)[1], "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%dT23:59:00Z")
+        db.run("DELETE FROM observations WHERE metric_id=? AND as_of=? AND origin='period'", (m["id"], end))
+        db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote) VALUES(?,?,?,?,?,0,?)",
+               (m["id"], count_value(m["id"], old), end, None, "period", f"total for {period_label(m['period'], old)}"))
+        t = retext(m, old, cur)
+        db.run("UPDATE metrics SET question=?, search_query=?, monitor_query=?, period_at=? WHERE id=?", (t["question"], t["search_query"], t["monitor_query"], cur, m["id"]))
+        record_count_obs(m["id"], "period")
+        n += 1
+    return n
 
 
 ROUND_KINDS = {"total funding raised": "funding", "latest round size": "latest_round", "latest valuation": "valuation"}
@@ -628,10 +705,11 @@ def add_pack(user, company, can_create=True, pack="company", view=None, only=Non
             follow(user, m["id"])
         return ms, 0, 0
     today = datetime.now(timezone.utc)
-    fill = {"company": company, "phrase": phrase or company, "month": today.strftime("%B %Y"), "mon": today.strftime("%b %Y")}
+    fill = {"company": company, "phrase": phrase or company, "month": today.strftime("%B %Y"), "mon": today.strftime("%b %Y"),
+            "qstart": datetime.strptime(period_span("quarter")[0], "%Y-%m-%d").strftime("%B %-d, %Y")}
 
     def one(t):
-        tid = t["id"] + ("@" + today.strftime("%Y-%m") if t.get("monthly") else "")  # a monthly recipe is a new number each month
+        tid = t["id"]  # a per-month recipe is one lasting number: its month moves on by itself (roll_periods)
         q = t["question"].format(**fill)
         row = db.one("SELECT id FROM metrics WHERE template_id=? AND lower(company)=?", (tid, company.lower()))
         mid = row["id"] if row else (match_metric(q) if can_create else None)  # a free account takes what the pack already has: instant, no model call
@@ -644,7 +722,9 @@ def add_pack(user, company, can_create=True, pack="company", view=None, only=Non
             m, _ = create_metric(user, q, {"title": t["title"].format(**fill), "kind": t["kind"], "unit": t["unit"], "reducer": t.get("reducer"), "field": t.get("field"),
                                            "skill": t["skill"], "template_id": tid, "company": company, "curated": 1,
                                            "no_monitor": True}, skip_match=True)
-            return m, True
+            if t.get("period"):
+                db.run("UPDATE metrics SET period=?, period_at=? WHERE id=?", (t["period"], period_span(t["period"])[0], m["id"]))
+            return metric(m["id"]), True
         except Exception as e:  # one failed tile must not lose the pack
             print("pack tile failed:", t["id"], e)
             return None, False
@@ -696,6 +776,13 @@ def backfill_free(m):
 def series(mid, upto=None):
     """Every real reading of a number, oldest first: [{at, value, origin, url}]. Simulated points are never included."""
     rows = db.q("SELECT as_of, value, origin, evidence_url, recipe_version FROM observations WHERE metric_id=? AND value IS NOT NULL AND seeded=0 ORDER BY as_of, id", (mid,))
+    per = (db.one("SELECT period FROM metrics WHERE id=?", (mid,)) or {}).get("period")
+    if per:  # one point per period: the last reading inside it. Within a single period, the daily readings are shown instead.
+        last = {}
+        for r in rows:
+            last[period_span(per, r["as_of"])[0]] = r
+        if len(last) >= 2:
+            rows = [last[k] for k in sorted(last)]
     return [{"at": r["as_of"], "value": r["value"], "origin": r["origin"], "url": r["evidence_url"], "version": r["recipe_version"]} for r in rows if not upto or r["as_of"] <= upto]
 
 

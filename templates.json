@@ -1,7 +1,7 @@
 [
  {
   "id": "funding",
-  "title": "{company} \u00b7 total funding raised",
+  "title": "{company} · total funding raised",
   "kind": "direct",
   "unit": "USD",
   "skill": null,
@@ -11,7 +11,7 @@
  },
  {
   "id": "eng_roles",
-  "title": "{company} \u00b7 open engineering roles",
+  "title": "{company} · open engineering roles",
   "kind": "count",
   "unit": "roles",
   "skill": "job_board",
@@ -21,17 +21,18 @@
  },
  {
   "id": "launches",
-  "title": "{company} \u00b7 launches this quarter",
+  "title": "{company} · launches this quarter",
   "kind": "count",
   "unit": "launches",
   "skill": null,
-  "question": "How many product launches or major feature releases has {company} announced this quarter (since October 1, 2026)?",
+  "question": "How many product launches or major feature releases has {company} announced this quarter (since {qstart})?",
   "pack": "company",
-  "view": "investor"
+  "view": "investor",
+  "period": "quarter"
  },
  {
   "id": "lowest_plan_price",
-  "title": "{company} \u00b7 entry plan price",
+  "title": "{company} · entry plan price",
   "kind": "direct",
   "unit": "USD/mo",
   "skill": "pricing_page",
@@ -41,7 +42,7 @@
  },
  {
   "id": "github_stars",
-  "title": "{company} \u00b7 GitHub stars",
+  "title": "{company} · GitHub stars",
   "kind": "direct",
   "unit": "stars",
   "skill": "github_stars",
@@ -51,7 +52,7 @@
  },
  {
   "id": "app_rating",
-  "title": "{company} \u00b7 App Store rating",
+  "title": "{company} · App Store rating",
   "kind": "direct",
   "unit": "rating /5",
   "skill": "rating",
@@ -63,7 +64,7 @@
   "id": "latest_round",
   "pack": "company",
   "view": "investor",
-  "title": "{company} \u00b7 latest round size",
+  "title": "{company} · latest round size",
   "kind": "direct",
   "unit": "USD",
   "skill": "funding_round",
@@ -73,7 +74,7 @@
   "id": "valuation",
   "pack": "company",
   "view": "investor",
-  "title": "{company} \u00b7 latest valuation",
+  "title": "{company} · latest valuation",
   "kind": "direct",
   "unit": "USD",
   "skill": "valuation",
@@ -83,7 +84,7 @@
   "id": "headcount",
   "pack": "company",
   "view": "investor",
-  "title": "{company} \u00b7 headcount",
+  "title": "{company} · headcount",
   "kind": "direct",
   "unit": "employees",
   "skill": "headcount",
@@ -93,7 +94,7 @@
   "id": "all_roles",
   "pack": "company",
   "view": "investor",
-  "title": "{company} \u00b7 open roles, all teams",
+  "title": "{company} · open roles, all teams",
   "kind": "count",
   "unit": "roles",
   "skill": "job_board",
@@ -103,7 +104,7 @@
   "id": "sales_roles",
   "pack": "company",
   "view": "investor",
-  "title": "{company} \u00b7 open sales roles",
+  "title": "{company} · open sales roles",
   "kind": "count",
   "unit": "roles",
   "skill": "job_board",
@@ -112,7 +113,7 @@
  {
   "id": "acc_batch",
   "pack": "accelerator",
-  "title": "{company} \u00b7 companies in the current batch",
+  "title": "{company} · companies in the current batch",
   "kind": "direct",
   "unit": "companies",
   "skill": "accelerator_batch",
@@ -121,7 +122,7 @@
  {
   "id": "acc_batch_ai",
   "pack": "accelerator",
-  "title": "{company} \u00b7 AI companies in the current batch",
+  "title": "{company} · AI companies in the current batch",
   "kind": "direct",
   "unit": "companies",
   "skill": "accelerator_batch",
@@ -130,7 +131,7 @@
  {
   "id": "acc_funded",
   "pack": "accelerator",
-  "title": "{company} \u00b7 companies funded, all time",
+  "title": "{company} · companies funded, all time",
   "kind": "direct",
   "unit": "companies",
   "skill": "accelerator_batch",
@@ -139,51 +140,51 @@
  {
   "id": "sector_funding",
   "pack": "sector",
-  "monthly": true,
-  "title": "{company} \u00b7 {mon} funding",
+  "title": "{company} · funding this month",
   "kind": "count",
   "reducer": "sum",
   "field": "round amount in USD",
   "unit": "USD",
   "skill": "funding_rounds",
-  "question": "What is the total funding announced by {phrase} startups in {month}?"
+  "question": "What is the total funding announced by {phrase} startups in {month}?",
+  "period": "month"
  },
  {
   "id": "sector_largest",
   "pack": "sector",
-  "monthly": true,
-  "title": "{company} \u00b7 largest round, {mon}",
+  "title": "{company} · largest round this month",
   "kind": "count",
   "reducer": "max",
   "field": "round amount in USD",
   "unit": "USD",
   "skill": "funding_rounds",
-  "question": "What is the largest funding round announced by any {phrase} startup in {month}?"
+  "question": "What is the largest funding round announced by any {phrase} startup in {month}?",
+  "period": "month"
  },
  {
   "id": "sector_rounds",
   "pack": "sector",
-  "monthly": true,
-  "title": "{company} \u00b7 funding rounds, {mon}",
+  "title": "{company} · funding rounds this month",
   "kind": "count",
   "unit": "rounds",
   "skill": "funding_rounds",
-  "question": "How many funding rounds have {phrase} startups announced in {month}?"
+  "question": "How many funding rounds have {phrase} startups announced in {month}?",
+  "period": "month"
  },
  {
   "id": "inv_deals",
   "pack": "investor",
-  "monthly": true,
-  "title": "{company} \u00b7 new investments, {mon}",
+  "title": "{company} · new investments this month",
   "kind": "count",
   "unit": "deals",
   "skill": "investor_deals",
-  "question": "How many new investments has {company} announced in {month}?"
+  "question": "How many new investments has {company} announced in {month}?",
+  "period": "month"
  },
  {
   "id": "inv_fund",
   "pack": "investor",
-  "title": "{company} \u00b7 latest fund size",
+  "title": "{company} · latest fund size",
   "kind": "direct",
   "unit": "USD",
   "skill": "fund_size",
