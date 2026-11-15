@@ -14,7 +14,7 @@ body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.45 -apple-sys
 header{display:flex;gap:14px;align-items:center;padding:12px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit}
 .brand img{width:30px;height:30px}
-.brand b{font:700 25px var(--display);letter-spacing:-.5px}
+.brand b{font:800 24px var(--display);letter-spacing:-.03em}
 .brand span{color:var(--mute);font:13px var(--display)}
 form{flex:1;display:flex;gap:8px;min-width:280px;position:relative}
 #ghost{position:absolute;left:0;top:0;width:100%;color:var(--seed);pointer-events:none;z-index:0;flex:none}
@@ -236,7 +236,7 @@ async function loadMe(){
 function modal(html){$("#modal").innerHTML=`<button class="ghost x">×</button>`+html; $("#veil").hidden=false}
 function closeModal(){$("#veil").hidden=true}
 $("#veil").onclick=ev=>{if(ev.target.id=="veil"||ev.target.closest(".x")) closeModal()};
-async function afterSignIn(u){closeModal(); toast("Signed in as "+(u.name||u.email)); await loadMe(); await refresh(); if(u.new) starterModal()}
+async function afterSignIn(u){closeModal(); toast("Signed in as "+(u.name||u.email)); await loadMe(); await refresh(); if(u.new||S.wantSetup){S.wantSetup=false; starterModal()}}
 // First-run setup: pick a role and a few names; the board is built from curated recipes. Nothing to compose.
 async function starterModal(){
   await loadDir(); if(!CAT.length) await loadCat();
@@ -286,10 +286,9 @@ function plansModal(why){
   const u=S.me.user, p=u&&u.plan;
   modal(`<h2>Plans</h2>${why?`<p style="color:var(--accent);margin:6px 0 0">${esc(why)}</p>`:""}
   <div class="plans">
-    <div class="pcard"><b>Visitor</b><div class="price">$0</div><ul><li>Read and search the whole catalog</li><li>Featured metrics live</li><li>Everything else delayed</li></ul>${u?"":'<span class="when">You are here</span>'}</div>
-    <div class="pcard"><b>Free account</b><div class="price">$0 <small>with Google</small></div><ul><li>Your own board</li><li>Live on featured metrics, what you create, and ${S.me.free_live} catalog picks</li><li>Create ${S.me.free_create} new metrics</li><li>Run now and change log</li></ul>
+    <div class="pcard"><b>Free</b><div class="price">$0</div><ul><li>Read and search every number, no account needed</li><li>Your own board when you sign in</li><li>Live values on featured numbers and your first ${S.me.free_live} picks; the rest a day behind</li><li>Add ${S.me.free_create} numbers of your own</li></ul>
       ${u?(p=="free"?'<span class="when">You are here</span>':""):'<button id="pin">Sign in with Google</button>'}</div>
-    <div class="pcard hot"><b>Pro</b><div class="price">$${S.me.price_usd} <small>/ month</small></div><ul><li>Every metric live, with evidence</li><li>Unlimited new metrics</li><li>Check now on anything</li><li>Automatic checks on the numbers you follow</li></ul>
+    <div class="pcard hot"><b>Pro</b><div class="price">$${S.me.price_usd} <small>/ month</small></div><ul><li>Every number live, with its evidence</li><li>Add any company, accelerator, sector or investor</li><li>Check now on anything</li><li>Automatic checks on the numbers you follow</li></ul>
       ${p=="pro"?'<span class="when">You are here. Thank you.</span>':`<button class="pro" id="buy">${S.me.billing?"Upgrade with Stripe":"Billing opens soon"}</button>`}</div>
   </div>`);
   if($("#pin")) $("#pin").onclick=()=>signInModal();
@@ -409,7 +408,7 @@ async function openPanel(id){
     <div class="hero"><div class="val${v?"":" none"}">${v?v.text+`<small>${esc(v.unit)}</small>`:"no value yet"}</div><div class="hd">${d}</div><div class="hs">${m.live?spark(m.spark):""}</div></div>
     <div class="pmeta">${m.live?`<span>${ico("clock")}checked ${ago(m.last_checked)}</span>`:`<span>delayed value, as of ${ago(m.as_of)}</span>`}${
       m.live&&m.next_check?`<span>${ico("radar")}${/^in /.test(until(m.next_check))?"next check "+until(m.next_check):"check due"}</span>`:m.monitor?`<span>${ico("radar")}auto-check on</span>`:""}<span>${ico("people")}tracked by ${m.followers}</span></div>
-    ${m.live?`<button class="runp">Check now</button>`:""}</div>`;
+    ${m.live?`<button class="runp">Check now</button>`:""} <a class="when" href="/n/${m.id}" target="_blank" style="margin-left:10px">Public page ↗</a></div>`;
   if(e.locked){
     h+=`<div class="pbody"><p style="color:#475467;margin-top:0">This metric is delayed for you. The live number, its source and quote, the full list of entries and the change history are part of ${S.me.user?"Pro, or pick it as one of your live catalog metrics":"a signed-in account"}.</p>
       ${S.me.user?`<button class="pro" id="pup">See plans</button>`:`<button id="pin2">Sign in with Google</button>`}
@@ -617,6 +616,8 @@ document.onkeydown=ev=>{if(ev.key=="Escape"){closeModal();closePanel()}};
   const p=new URLSearchParams(location.search);
   if(p.get("tab")) setTab(p.get("tab")); else refresh();
   if(p.get("q")){ setTab("catalog"); $("#cq").value=p.get("q"); loadCatalog() }
+  if(p.get("open")){ openPanel(+p.get("open")); history.replaceState({},"","/app") }
+  if(p.get("setup")){ history.replaceState({},"","/app"); if(S.me.user) starterModal(); else {S.wantSetup=true; signInModal("Sign in to build your board. It takes about a minute.")} }
   if(p.get("checkout")=="success"&&p.get("session_id")){
     try{const r=await api("/api/billing/confirm?session_id="+encodeURIComponent(p.get("session_id"))); toast(r.pro?"Welcome to Pro. Every metric is live now.":"Payment not confirmed yet.",6000)}catch(e){toast(e.message,6000)}
     history.replaceState({},"","/app"); await loadMe(); refresh()}

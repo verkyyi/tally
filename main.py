@@ -16,13 +16,14 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response as RawResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import core
 import db
 import telem
+import public_pages as pp
 
 HERE = os.path.dirname(__file__)
 app = FastAPI(title="Tally")
@@ -221,6 +222,50 @@ def index():
 @app.get("/deck")
 def deck():
     return page("deck.html")
+
+
+# ---------- public, crawlable pages ----------
+@app.get("/n/{mid}")
+@app.get("/n/{mid}/{slug}")
+def public_number(mid: int, slug: str = ""):
+    m = core.metric(mid)
+    if not m:
+        raise HTTPException(404, "no such number")
+    if slug != pp.slug(m["title"]):
+        return RedirectResponse(pp.number_path(m), status_code=301)
+    t = tile(m, None)
+    if not t["live"]:
+        ev = {"locked": True}
+    elif m["kind"] == "count":
+        ev = {"entries": db.q("SELECT title,url,date,value FROM entries WHERE metric_id=? AND held_out=0 ORDER BY first_seen_at DESC, id DESC", (mid,))}
+    else:
+        ev = {"observation": core.latest_obs(mid)}
+    return HTMLResponse(pp.number_page(m, t, ev))
+
+
+@app.get("/c/{slug}")
+def public_subject(slug: str):
+    for name, ids in pp.groups().items():
+        if pp.slug(name) == slug:
+            return HTMLResponse(pp.subject_page(name, [tile(core.metric(i), None) for i in ids]))
+    raise HTTPException(404, "nothing tracked under that name yet")
+
+
+@app.get("/numbers")
+def public_index():
+    return HTMLResponse(pp.index_page(sorted(((n, len(ids)) for n, ids in pp.groups().items()), key=lambda x: (-x[1], x[0].lower()))))
+
+
+@app.get("/sitemap.xml")
+def sitemap():
+    urls = ["/", "/app", "/numbers"] + [pp.subject_path(n) for n in pp.groups()] + [pp.number_path(m) for m in db.q("SELECT id, title FROM metrics ORDER BY id")]
+    body = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(f"<url><loc>{pp.SITE}{pp.esc(u)}</loc></url>" for u in urls) + "</urlset>"
+    return RawResponse(body, media_type="application/xml")
+
+
+@app.get("/robots.txt")
+def robots():
+    return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: {pp.SITE}/sitemap.xml\n")
 
 
 @app.get("/privacy")

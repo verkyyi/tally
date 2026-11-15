@@ -1,7 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Tally">
-  <rect width="64" height="64" rx="16" fill="#2f5bff"/>
-  <g stroke="#fff" stroke-width="5.2" stroke-linecap="round">
-    <path d="M18 46V34M27.3 46V29M36.7 46V24M46 46V19"/>
+  <rect width="64" height="64" rx="18" fill="#2f5bff"/>
+  <g stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none">
+    <path d="M19.500 18v28M27.800 18v28M36.200 18v28M44.500 18v28"/>
   </g>
-  <path d="M11.5 41.5 52.5 22.500" stroke="#ffd84a" stroke-width="5.200" stroke-linecap="round"/>
+  <path d="M12 40.500 52 23.500" stroke="#2f5bff" stroke-width="11.500" stroke-linecap="round"/>
+  <path d="M12 40.500 52 23.500" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
 </svg>
