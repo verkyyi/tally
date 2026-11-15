@@ -37,6 +37,10 @@ from urllib.parse import urlsplit as _urlsplit
 _BOT = _re.compile(r"(googlebot|bingbot|duckduckbot|yandex|baiduspider|slurp|applebot|facebookexternalhit|twitterbot|linkedinbot|slackbot|discordbot|"
                    r"gptbot|claudebot|perplexitybot|ccbot|ahrefs|semrush|bot\b|crawl|spider|curl|python|httpx|playwright|headless|uptime|monitor)", _re.I)
 _GROUPS = ("/n/", "/c/", "/b/", "/top/")
+# Distinct visitors per day: a salted fingerprint kept only in memory, so one person reloading is not ten people.
+# The salt is random per process and the fingerprints are never written anywhere; only the day's count is stored.
+import hashlib as _hashlib
+_SALT, _seen = secrets.token_bytes(16), {"day": "", "ids": set()}
 
 
 @app.middleware("http")
@@ -50,7 +54,16 @@ async def count_visit(request: Request, call_next):
             bot = _BOT.search(ua)
             host = (_urlsplit(request.headers.get("referer", "")).hostname or "").lower()
             ref = ("bot:" + bot.group(1).lower()) if bot else ("" if host in ("", "tallycatalog.com", "www.tallycatalog.com", "127.0.0.1", "localhost") else host[:60])
-            db.run("INSERT INTO visits(day,path,ref,n) VALUES(?,?,?,1) ON CONFLICT(day,path,ref) DO UPDATE SET n=n+1", (db.now()[:10], group[:60], ref))
+            day = db.now()[:10]
+            db.run("INSERT INTO visits(day,path,ref,n) VALUES(?,?,?,1) ON CONFLICT(day,path,ref) DO UPDATE SET n=n+1", (day, group[:60], ref))
+            if not bot:
+                ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "").split(",")[0].strip()
+                fp = _hashlib.blake2b((ip + "|" + ua).encode(), key=_SALT, digest_size=8).digest()
+                if _seen["day"] != day:
+                    _seen["day"], _seen["ids"] = day, set()
+                if fp not in _seen["ids"]:
+                    _seen["ids"].add(fp)
+                    db.run("INSERT INTO visits(day,path,ref,n) VALUES(?,?,?,1) ON CONFLICT(day,path,ref) DO UPDATE SET n=n+1", (day, "*visitors", ref))
     except Exception as e:  # counting must never break a page
         print("visit count failed:", str(e)[:100])
     return response
