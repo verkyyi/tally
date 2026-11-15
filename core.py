@@ -389,7 +389,8 @@ def sync_metric(m):
     mid, cursor, added = m["id"], m["monitor_cursor"] or 0, 0
     # A curated or skill-backed number, and any sum/avg/max, is never taken from the monitor's own reading:
     # the monitor only says "something moved", and the stored recipe is run again to get the value.
-    verify = bool(m.get("curated") or m.get("skill")) or (m["kind"] != "direct" and (m.get("reducer") or "count") != "count")
+    # Only for monitors this server paces; the original hourly monitors keep their old behaviour.
+    verify = bool(m.get("paced")) and (bool(m.get("curated") or m.get("skill")) or (m["kind"] != "direct" and (m.get("reducer") or "count") != "count"))
     rerun = False
     # A paced monitor's first run lists everything it can see. That is its baseline, not news: skip it.
     baseline, saw_run = bool(m.get("paced")) and not m.get("baselined"), False

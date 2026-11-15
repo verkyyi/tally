@@ -75,7 +75,9 @@ svg.i{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .pending{border-style:dashed;color:var(--mute);display:flex;align-items:center;justify-content:center;min-height:190px;font:italic 15px var(--serif);text-align:center;cursor:default}
 .empty{color:var(--mute);font:italic 16px var(--serif);padding:40px 0}
 #panel{position:fixed;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--card);border-left:1px solid var(--ink);padding:20px 22px;overflow:auto;transform:translateX(105%);transition:transform .2s;z-index:5}
-#panel.open{transform:none}
+#panel{pointer-events:none}
+#panel.open{transform:none;pointer-events:auto}
+.tile{user-select:none;-webkit-user-select:none}
 #panel h2,#modal h2{font:700 20px/1.25 var(--serif);margin:0 30px 4px 0}
 .x{position:absolute;top:14px;right:14px;padding:2px 9px}
 #panel h4{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute);margin:20px 0 6px;border-bottom:1px solid var(--line);padding-bottom:4px}
@@ -246,11 +248,15 @@ function renderBoard(){
 }
 async function loadBoard(){const b=await api("/api/board"); S.tiles=b.tiles; S.featured=b.featured; renderBoard()}
 // Numbers keep themselves current: re-read the board every 10 seconds and flash what moved.
+let pressing=false;
+addEventListener("pointerdown",()=>{pressing=true},true);
+["pointerup","pointercancel"].forEach(n=>addEventListener(n,()=>setTimeout(()=>{pressing=false},50),true));
 async function pollBoard(){
-  if(S.busy||S.tab!="board"||!$("#veil").hidden) return;
+  if(S.busy||pressing||S.tab!="board"||!$("#veil").hidden) return;
   try{const b=await (await fetch("/api/board")).json(); const old=Object.fromEntries(S.tiles.map(t=>[t.id,t.value]));
     const moved=b.tiles.filter(t=>t.id in old&&old[t.id]!==t.value).map(t=>t.id);
     if(JSON.stringify(b.tiles.map(t=>[t.id,t.value,t.new_entries,t.live]))!=JSON.stringify(S.tiles.map(t=>[t.id,t.value,t.new_entries,t.live]))||moved.length){
+      if(pressing) return;  // a click is in progress; the next poll will catch up
       S.tiles=b.tiles; renderBoard(); moved.forEach(id=>{const e=document.querySelector(`.tile[data-id="${id}"]`); if(e) e.classList.add("flash")});
       if(moved.length){toast(moved.length+" number"+(moved.length>1?"s":"")+" just changed"); if(S.tab=="log") loadLog()}}
   }catch(e){}}
@@ -297,7 +303,12 @@ async function loadCatalog(){
 }
 
 async function openPanel(id){
-  S.open=id; const e=await api("/api/metrics/"+id), m=e.metric, v=val(m.value,m.unit); let h=`<button class="ghost x">×</button>
+  const was=S.open; S.open=id;
+  if(was!==id||!$("#panel").classList.contains("open")){const t0=S.tiles.find(t=>t.id==id);
+    $("#panel").innerHTML=`<button class="ghost x">×</button><h2>${esc(t0?t0.title:"Loading…")}</h2><div class="when">Loading the evidence…</div>`; $("#panel").classList.add("open")}
+  let e; try{e=await api("/api/metrics/"+id)}catch(err){if(S.open===id){closePanel(); toast("Could not open that number: "+err.message,6000)} return}
+  if(S.open!==id) return;  // another card was opened while this one was loading
+  const m=e.metric, v=val(m.value,m.unit); let h=`<button class="ghost x">×</button>
     <h2>${esc(m.title)}</h2><div class="when">${esc(m.question)}</div>
     <div class="val">${v?v.text+`<small>${esc(v.unit)}</small>`:'<span class="val none">no value yet</span>'}</div>
     <div class="when">tracked by ${m.followers} · ${m.live?"checked "+ago(m.last_checked):"delayed value, as of "+ago(m.as_of)}</div>
