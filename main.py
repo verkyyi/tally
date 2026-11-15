@@ -180,6 +180,7 @@ def live_ids(u):
     if u and u["plan"] == "pro":
         return None
     ids = {r["metric_id"] for r in db.q("SELECT metric_id FROM board_items WHERE user=?", (FEATURED,))}
+    ids |= {r["id"] for r in db.q("SELECT id FROM metrics WHERE skill LIKE 'free|%'")}  # numbers from free public sources cost nothing: live for everyone
     if u:
         ids |= {r["id"] for r in db.q("SELECT id FROM metrics WHERE created_by=?", (u["id"],))}
         extra = [r["metric_id"] for r in db.q("SELECT metric_id FROM board_items WHERE user=? ORDER BY rowid", (u["id"],)) if r["metric_id"] not in ids]
@@ -301,7 +302,7 @@ def _major_changes(ids, limit=80):
 
 
 def _public_ids():
-    return sorted(live_ids(None))  # what a signed-out visitor sees live: the featured numbers
+    return sorted(r["metric_id"] for r in db.q("SELECT metric_id FROM board_items WHERE user=?", (FEATURED,)))  # the featured numbers
 
 
 @app.get("/changes")
@@ -317,6 +318,7 @@ def public_feed():
 def _rankings():
     """Curated recipes with at least three companies that have a value: name, slug, ranked tiles."""
     names = {t["title"].replace("{company} · ", "").lower(): t["title"].replace("{company} · ", "") for t in TEMPLATES if t.get("pack", "company") == "company"}
+    names |= {"npm downloads, weekly": "npm downloads, weekly", "pypi downloads, weekly": "PyPI downloads, weekly"}
     by = {}
     for m in db.q("SELECT * FROM metrics WHERE title LIKE '% · %'"):
         tid = m["title"].split(" · ", 1)[1].strip().lower()  # by what the number is, whether it came from a pack or was asked for
@@ -721,6 +723,7 @@ def _autosync():
         if _sync_lock.acquire(blocking=False):  # never overlap two runs
             try:
                 core.sync_all()
+                core.refresh_free()
                 if os.environ.get("TALLY_PACER", "1") != "0":
                     r = core.pace()
                     if r["created"] or r["ticked"]:

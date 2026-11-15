@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 import db
 import llm
 import telem
+import free_sources
 
 
 def norm_url(u):
@@ -149,6 +150,8 @@ def supported(value, text):
 
 def resolve_direct(m, exclude_domain=None, fresh=False):
     """Search, fetch the top pages, extract. Returns the extraction dict or None."""
+    if free_sources.is_free(m):  # read straight from a free public API: no search, no model
+        return free_sources.read(m["skill"])
     urls, results = [], None
     if m.get("source_url") and domain(m["source_url"]) != exclude_domain:
         urls.append(m["source_url"])
@@ -608,6 +611,35 @@ def add_pack(user, company, can_create=True, pack="company", view=None, only=Non
     with ThreadPoolExecutor(6) as ex:
         res = list(ex.map(one, pack_templates(pack, view, only)))
     return [m for m, _ in res if m], sum(1 for _, c in res if c), sum(1 for m, _ in res if not m)
+
+
+def create_free(title, question, unit, spec, company, template_id):
+    """A number read from a free public API. Reuses a metric with the same source or the same title. Returns (id, created)."""
+    row = db.one("SELECT id FROM metrics WHERE skill=?", (spec,)) or db.one("SELECT id FROM metrics WHERE lower(title)=?", (title.lower(),))
+    if row:
+        db.run("UPDATE metrics SET skill=?, curated=1, kind='direct', company=COALESCE(company,?), template_id=COALESCE(template_id,?) WHERE id=?", (spec, company, template_id, row["id"]))
+        return row["id"], False
+    ex = free_sources.read(spec)
+    if not ex:
+        return None, False
+    mid, _ = db.run("INSERT INTO metrics(question,title,kind,unit,source_url,search_query,monitor_query,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+                    (question, title, "direct", unit, ex["evidence_url"], question, question, "system", db.now()))
+    db.run("UPDATE metrics SET curated=1, skill=?, company=?, template_id=?, last_checked_at=? WHERE id=?", (spec, company, template_id, db.now(), mid))
+    record_direct(metric(mid), ex, "run_now")
+    return mid, True
+
+
+def refresh_free(limit=3, older_than_hours=20):
+    """Re-read the free numbers that have not been read today, a few at a time (GitHub allows 60 unauthenticated calls an hour)."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=older_than_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    n = 0
+    for m in db.q("SELECT * FROM metrics WHERE skill LIKE 'free|%' AND (last_checked_at IS NULL OR last_checked_at<?) ORDER BY last_checked_at LIMIT ?", (cutoff, limit)):
+        ex = free_sources.read(m["skill"])
+        if ex:
+            record_direct(m, ex, "monitor")
+            n += 1
+        db.run("UPDATE metrics SET last_checked_at=? WHERE id=?", (db.now(), m["id"]))
+    return n
 
 
 def sync_all():

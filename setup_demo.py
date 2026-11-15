@@ -204,6 +204,34 @@ def tick():
             print(m["title"], e)
 
 
+def free():
+    """Numbers from free public sources: open-source traction (GitHub, npm, PyPI) and the Y Combinator directory. No search or model cost."""
+    import free_sources as fs
+    made = reused = failed = 0
+
+    def add(*a):
+        nonlocal made, reused, failed
+        mid, new = core.create_free(*a)
+        made += 1 if new else 0
+        reused += 1 if (mid and not new) else 0
+        failed += 0 if mid else 1
+
+    for name, repo, npm, pypi in fs.OSS:
+        add(f"{name} · GitHub stars", f"How many GitHub stars does {name} ({repo}) have?", "stars", f"free|gh|{repo}|stargazers_count", name, "github_stars")
+        if npm:
+            add(f"{name} · npm downloads, weekly", f"How many times was the {name} npm package ({npm}) downloaded last week?", "downloads", f"free|npm|{npm}", name, "npm_weekly")
+        if pypi:
+            add(f"{name} · PyPI downloads, weekly", f"How many times was the {name} Python package ({pypi}) downloaded last week?", "downloads", f"free|pypi|{pypi}", name, "pypi_weekly")
+    meta = fs._get("https://yc-oss.github.io/api/meta.json")
+    for slug, b in [(k, v) for k, v in meta["batches"].items() if v["count"] >= 20][:14]:
+        add(f"YC · {b['name']} batch size", f"How many companies are in the Y Combinator {b['name']} batch?", "companies", f"free|yc|batches|{slug}", "YC", f"yc_batch:{slug}")
+    for slug, t in sorted(meta["tags"].items(), key=lambda kv: -kv[1]["count"])[:18]:
+        add(f"YC · {t['name']} companies", f"How many Y Combinator companies are tagged {t['name']}?", "companies", f"free|yc|tags|{slug}", "YC", f"yc_tag:{slug}")
+    for slug, t in sorted(meta["industries"].items(), key=lambda kv: -kv[1]["count"])[:10]:
+        add(f"YC · {t['name']} industry companies", f"How many Y Combinator companies are in the {t['name']} industry?", "companies", f"free|yc|industries|{slug}", "YC", f"yc_ind:{slug}")
+    print("free numbers: created", made, "| switched existing to the free source", reused, "| source unavailable", failed, "| total", db.one("SELECT COUNT(*) n FROM metrics WHERE skill LIKE 'free|%'")["n"])
+
+
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free}[sys.argv[1]]()
