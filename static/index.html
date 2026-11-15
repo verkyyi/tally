@@ -212,7 +212,7 @@ async function loadMe(){
   if($("#upg")) $("#upg").onclick=()=>plansModal();
   if($("#out")) $("#out").onclick=async()=>{await api("/api/auth/logout",{}); closePanel(); await loadMe(); refresh()};
   const b=$("#banner");
-  if(!u){b.hidden=false;b.innerHTML=`<span>You're browsing the <b>featured board</b>. Everything in the catalog is open to read and search; featured numbers are live, the rest are delayed. Sign in for your own board and to track new companies and numbers.</span><button id="in2">Sign in with Google</button>`;$("#in2").onclick=()=>signInModal()}
+  if(!u){b.hidden=false;b.innerHTML=`<span>You're browsing the <b>featured board</b>. Everything in the catalog is open to read and search; featured numbers are live, the rest are delayed. Sign in for your own board and to track new companies and numbers.</span><span style="display:flex;gap:8px;flex-wrap:wrap">${S.me.guest_login?'<button id="guest2">Try everything, no sign-up</button>':""}<button id="in2"${S.me.guest_login?' class="ghost"':""}>Sign in with Google</button></span>`;$("#in2").onclick=()=>signInModal(); if($("#guest2")) $("#guest2").onclick=guestIn}
   else if(u.plan!="pro"){b.hidden=false;b.innerHTML=`<span><b>Free plan:</b> featured metrics, the ones you create (${u.created}/${S.me.free_create}), and your first ${S.me.free_live} catalog picks are live. Everything else shows a delayed value.</span><button class="pro" id="upg2">Go Pro · $${S.me.price_usd}/mo</button>`;$("#upg2").onclick=()=>plansModal()}
   else b.hidden=true;
 }
@@ -220,10 +220,16 @@ function modal(html){$("#modal").innerHTML=`<button class="ghost x">×</button>`
 function closeModal(){$("#veil").hidden=true}
 $("#veil").onclick=ev=>{if(ev.target.id=="veil"||ev.target.closest(".x")) closeModal()};
 async function afterSignIn(u){closeModal(); toast("Signed in as "+(u.name||u.email)); await loadMe(); refresh()}
+async function guestIn(){
+  try{const r=await fetch("/api/auth/guest",{method:"POST"}), j=await r.json(); if(!r.ok) return toast(j.detail||"Guest access is off");
+    closeModal(); await loadMe(); refresh(); toast("You have a guest account with everything unlocked: your own board, Check now, new numbers.",6000)}
+  catch(e){toast("Could not start a guest session",6000)}}
 function signInModal(why){
   modal(`<h2>Sign in to Tally</h2><p style="color:#4a463c;margin:6px 0 18px">${esc(why&&why!="Sign in to do that"?why:"Reading and searching the catalog is open to everyone. Sign in to keep your own board, see more live numbers and ask for new ones.")}</p>
     <div id="gbtn"></div>${S.me.google_client_id?"":'<div class="when">Google sign-in is not configured on this server yet.</div>'}
+    ${S.me.guest_login?'<p style="margin:16px 0 0"><button class="ghost" id="guest">Continue as a guest, everything unlocked</button></p>':""}
     ${S.me.demo_login?'<p class="when" style="margin-top:18px">Presenting? <a href="#" id="demo">Use the demo passcode</a></p>':""}`);
+  if($("#guest")) $("#guest").onclick=guestIn;
   if(S.me.google_client_id&&window.google){
     google.accounts.id.initialize({client_id:S.me.google_client_id,callback:async r=>{
       try{const j=await api("/api/auth/google",{credential:r.credential}); afterSignIn(j.user)}catch(e){toast(e.message,6000)}}});

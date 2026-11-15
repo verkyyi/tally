@@ -98,6 +98,27 @@ def auth_google(body: GoogleLogin, request: Request, response: Response):
     return {"user": start_session(request, response, info["email"].lower(), info.get("name"), info.get("picture"))}
 
 
+# One-click guest access for judges and first-time visitors: each guest gets their own Pro account with a copy of
+# the featured board. New metrics cost Telem calls, so all guests together share a cap. TALLY_GUEST=0 turns it off.
+GUEST_LOGIN = os.environ.get("TALLY_GUEST", "1") != "0"
+GUEST_CREATE_CAP = int(os.environ.get("TALLY_GUEST_CREATE_CAP", "40"))
+
+
+def is_guest(u):
+    return bool(u) and u["id"].startswith("guest-")
+
+
+def guest_cap_reached():
+    return db.one("SELECT COUNT(*) n FROM metrics WHERE created_by LIKE 'guest-%'")["n"] >= GUEST_CREATE_CAP
+
+
+@app.post("/api/auth/guest")
+def auth_guest(request: Request, response: Response):
+    if not GUEST_LOGIN:
+        raise HTTPException(404, "Guest access is off")
+    return {"user": start_session(request, response, f"guest-{secrets.token_hex(4)}@tally", "Guest", None, plan="pro")}
+
+
 @app.post("/api/auth/demo")
 def auth_demo(body: DemoLogin, request: Request, response: Response):
     if not PASSCODE or not secrets.compare_digest(body.passcode, PASSCODE):
@@ -114,7 +135,7 @@ def logout(request: Request, response: Response):
 
 @app.get("/api/me")
 def me(request: Request):
-    return {"user": public_user(viewer(request)), "google_client_id": GOOGLE_CLIENT_ID, "demo_login": bool(PASSCODE),
+    return {"user": public_user(viewer(request)), "google_client_id": GOOGLE_CLIENT_ID, "demo_login": bool(PASSCODE), "guest_login": GUEST_LOGIN,
             "billing": bool(STRIPE_KEY), "price_usd": PRICE_USD, "free_live": FREE_LIVE, "free_create": FREE_CREATE}
 
 
@@ -299,6 +320,8 @@ def add_metric(body: AddMetric, request: Request):
     if mid:
         core.follow(u["id"], mid)
         return {"metric": tile(core.metric(mid), u), "matched": True}
+    if is_guest(u) and guest_cap_reached():
+        raise HTTPException(402, "Guest accounts have used up their shared allowance of new metrics. Everything already in the catalog is still yours to follow; sign in with Google to create more.")
     if u["plan"] != "pro" and db.one("SELECT COUNT(*) n FROM metrics WHERE created_by=?", (u["id"],))["n"] >= FREE_CREATE:
         raise HTTPException(402, f"The free plan creates {FREE_CREATE} new metrics. Upgrade to Pro for unlimited.")
     m, _ = core.create_metric(u["id"], q, skip_match=True)
@@ -316,7 +339,7 @@ def add_pack(body: Pack, request: Request):
     company = body.company.strip()
     if not company:
         raise HTTPException(400, "company is empty")
-    ms, created, skipped = core.add_pack(u["id"], company, can_create=u["plan"] == "pro")
+    ms, created, skipped = core.add_pack(u["id"], company, can_create=u["plan"] == "pro" and not (is_guest(u) and guest_cap_reached()))
     if not ms and u["plan"] != "pro":
         raise HTTPException(402, "The catalog doesn't track this company yet. Creating a competitor pack is part of Pro.")
     ids = live_ids(u)
