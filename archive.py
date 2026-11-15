@@ -28,8 +28,8 @@ def _get(url, params=None):
     return None
 
 
-def snapshots(url, since=2018, limit=18):
-    """One archived copy per half-year, oldest first: [(date 'YYYY-MM-DD', archived url)]."""
+def snapshots(url, since=2018, limit=18, per_year=2):
+    """One archived copy per half-year (or per quarter with per_year=4), oldest first: [(date 'YYYY-MM-DD', archived url)]."""
     r = _get(CDX, {"url": url, "output": "json", "fl": "timestamp", "filter": ["statuscode:200", "mimetype:text/html"], "collapse": "timestamp:6", "from": str(since)})
     if r is None:
         return []
@@ -39,7 +39,7 @@ def snapshots(url, since=2018, limit=18):
         return []
     halves = {}
     for ts in rows:
-        halves.setdefault((ts[:4], "1" if ts[4:6] <= "06" else "2"), ts)  # the first copy of each half-year
+        halves.setdefault((ts[:4], (int(ts[4:6]) - 1) * per_year // 12), ts)  # the first copy of each half-year or quarter
     picked = sorted(halves.values())[-limit:]
     return [(f"{ts[:4]}-{ts[4:6]}-{ts[6:8]}", f"https://web.archive.org/web/{ts}/{url}") for ts in picked]
 
@@ -54,11 +54,40 @@ def page_text(archived_url):
     return re.sub(r"\s+", " ", html.unescape(t)).strip()
 
 
+STARS = (re.compile(r'id="repo-stars-counter-star"[^>]*title="([\d,]+)"'), re.compile(r'aria-label="([\d,]+) users? starred this repository"'),
+         re.compile(r'class="social-count js-social-count"[^>]*>\s*([\d,]+)\s*<'))
+STARS_TEXT = ("From archived copies of the repository's page kept by the Internet Archive (web.archive.org), four a year: the exact star count each copy showed. "
+              "From the day Tally started reading it, the count comes from GitHub's API once a day.")
+
+
+def stars_history(repo, now):
+    """[(date, stars, archived url)]: the exact count each archived copy of the repository page carried in its markup. No model is involved."""
+    out = []
+    for day, url in snapshots(f"https://github.com/{repo}", since=2012, limit=48, per_year=4):
+        r = _get(re.sub(r"/web/(\d+)/", r"/web/\1id_/", url, count=1))
+        hit = next((mt for mt in (p.search(r.text) for p in STARS) if mt), None) if r is not None else None
+        if not hit:
+            continue
+        v = float(hit.group(1).replace(",", ""))
+        if v > 0 and (not now or v <= now * 1.02) and (not out or v >= out[-1][1] * 0.9):  # a copy of some other page, or of a renamed repository, is left out
+            out.append((day, v, url))
+    return out
+
+
 def history(m):
     """[(date, value, archived url)] for a number read from one page, oldest first. Empty when the page has no archived copies."""
     now = (core.latest_obs(m["id"]) or {}).get("value")
+    gh = re.match(r"free\|gh\|([^|]+)\|stargazers_count$", m.get("skill") or "")
+    if gh:
+        return stars_history(gh.group(1), now)
+    if not m.get("source_url"):
+        return []
+    src = m["source_url"]
+    app = re.search(r"itunes\.apple\.com/lookup\?id=(\d+)", src)
+    if app:  # the rating is read from Apple's lookup API today; its past is on the archived App Store page of the same app
+        src = f"https://apps.apple.com/us/app/id{app.group(1)}"
     out = []
-    for day, url in snapshots(m["source_url"]):
+    for day, url in snapshots(src):
         text = page_text(url)
         if len(text) < 200:
             continue

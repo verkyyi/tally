@@ -295,6 +295,8 @@ def featured(n=6):
     for m in rows:
         heat, rising = interest.heat(pp.subject(m))
         past = (datetime.now(timezone.utc) - datetime.strptime(m["first"][:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)).days
+        if past < core.MIN_DAYS:
+            continue  # no chart worth opening yet
         s = (heat + 2 * math.log10(1 + views.get(m["id"], 0)) + min(moved.get(m["id"], 0), 4) * 0.4 + min(past / 365, 3) * 0.8
              + (1.5 if core.stepped(m) else 0) + (2.5 if m["title"] in PINS else 0))
         scored.append((s, rising, m))
@@ -461,6 +463,9 @@ def public_csv(mid: int):
 def public_number(mid: int, request: Request, slug: str = "", range: str = "all", period: str = ""):
     m = core.metric(mid)
     if not m:
+        gone = db.one("SELECT to_path FROM gone WHERE id=?", (mid,))
+        if gone:  # a number that was taken out of the record: its address leads to the nearest thing that is still kept
+            return RedirectResponse(gone["to_path"], status_code=301)
         raise HTTPException(404, "no such number")
     into = core.folded_into(m)
     if into:  # one batch of a series: the series' page has it, with every other batch
@@ -518,7 +523,8 @@ def public_subject(slug: str):
 
 @app.get("/numbers")
 def public_index():
-    return HTMLResponse(pp.index_page(sorted(((n, len(ids)) for n, ids in pp.groups().items()), key=lambda x: (-x[1], x[0].lower()))))
+    charted = core.charted_ids()
+    return HTMLResponse(pp.index_page(sorted(((n, len(ids), sum(1 for i in ids if i in charted)) for n, ids in pp.groups().items()), key=lambda x: (-x[2], -x[1], x[0].lower()))))
 
 
 def _major_changes(ids, limit=80):

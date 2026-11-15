@@ -568,6 +568,27 @@ def refresh_searched(limit=2, older_than_hours=22):
 FOLDED = "COALESCE(skill,'') LIKE 'free|yc|batches|%'"
 
 
+MIN_DAYS = 14  # a number is shown up front once its readings span two weeks: before that there is no chart worth opening
+
+
+def charted_ids():
+    """Ids of the numbers whose history spans at least MIN_DAYS (from their sources' records or from Tally's own readings)."""
+    return {r["metric_id"] for r in db.q("SELECT metric_id FROM observations WHERE seeded=0 AND value IS NOT NULL GROUP BY metric_id "
+                                         "HAVING julianday(MAX(as_of)) - julianday(MIN(as_of)) >= ?", (MIN_DAYS,))}
+
+
+def retire(mid, to_path):
+    """Take a number out of the record for good, leaving its address pointing at `to_path`."""
+    m = metric(mid)
+    if not m:
+        return False
+    db.run("INSERT OR REPLACE INTO gone(id,title,to_path,at) VALUES(?,?,?,?)", (mid, m["title"], to_path, db.now()))
+    for t in ("observations", "entries", "changes", "board_items", "recipes", "views", "feedback", "telem_calls"):
+        db.run(f"DELETE FROM {t} WHERE metric_id=?", (mid,))
+    db.run("DELETE FROM metrics WHERE id=?", (mid,))
+    return True
+
+
 def folded_into(m):
     """The number whose history already contains this one (a single YC batch -> 'YC · batch size'), or None."""
     if (m.get("skill") or "").startswith("free|yc|batches|"):

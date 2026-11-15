@@ -41,7 +41,7 @@ def baseline(m):
         hist = {"npm": "Weekly totals from the registry's daily download counts, back to 2015: https://api.npmjs.org/downloads/range/{start}:{end}/{package}",
                 "pypi": "Weekly totals from the last 180 days of daily counts: https://pypistats.org/api/packages/{package}/overall?mirrors=false",
                 "yc": "One point per batch, dated at the start of the batch season, from the same directory file." if "series" in m["skill"] else "Not available: this is a single count. Observed daily from now on.",
-                "gh": "Not available from the API without an access token. Observed daily from now on."}.get(p[1], "Observed from now on.")
+                "gh": "From archived copies of the repository's page (web.archive.org), four a year. Observed daily from now on."}.get(p[1], "Observed from now on.")
         upd = "Once a day, straight from the API. No search and no model are involved."
     else:
         src = (m.get("source_url") or "Found by search on each run.") + (f"\nSearch: {m['search_query']}" if m.get("search_query") else "")

@@ -223,8 +223,7 @@ def free():
         if pypi:
             add(f"{name} · PyPI downloads, weekly", f"How many times was the {name} Python package ({pypi}) downloaded last week?", "downloads", f"free|pypi|{pypi}", name, "pypi_weekly")
     meta = fs._get("https://yc-oss.github.io/api/meta.json")
-    for slug, b in [(k, v) for k, v in meta["batches"].items() if v["count"] >= 20][:14]:
-        add(f"YC · {b['name']} batch size", f"How many companies are in the Y Combinator {b['name']} batch?", "companies", f"free|yc|batches|{slug}", "YC", f"yc_batch:{slug}")
+    # One batch is a fixed fact, not a number with a future: every batch lives in the series "YC · batch size" below.
     for slug, t in sorted(meta["tags"].items(), key=lambda kv: -kv[1]["count"])[:18]:
         add(f"YC · {t['name']} companies", f"How many Y Combinator companies are tagged {t['name']}?", "companies", f"free|yc|tags|{slug}", "YC", f"yc_tag:{slug}")
     for slug, t in sorted(meta["industries"].items(), key=lambda kv: -kv[1]["count"])[:10]:
@@ -263,12 +262,15 @@ def round_history():
 
 
 def price_history():
-    """History for plan-price numbers from archived copies of their pricing page (web.archive.org). Pass metric ids to limit the run."""
+    """History from archived copies of a number's source page (web.archive.org): plan prices, App Store ratings, GitHub stars.
+    Pass metric ids to limit the run; numbers that already have a past are skipped."""
     import archive
     import recipes
     ids = [int(x) for x in sys.argv[2:]]
     total = 0
-    for m in db.q("SELECT * FROM metrics WHERE kind='direct' AND source_url LIKE 'https://%' AND (skill='pricing_page' OR title LIKE '% plan price') ORDER BY id"):
+    # App Store ratings are left out on purpose: the archived store pages gave values far from today's (Notion 3.9 against 4.77), too doubtful to publish.
+    for m in db.q("SELECT * FROM metrics WHERE kind='direct' AND ((source_url LIKE 'https://%' AND (skill='pricing_page' OR title LIKE '% plan price')) "
+                  "OR skill LIKE 'free|gh|%|stargazers_count') ORDER BY (skill LIKE 'free|gh|%'), id"):
         if (ids and m["id"] not in ids) or not core.latest_obs(m["id"]):
             continue
         if not ids and db.one("SELECT 1 x FROM observations WHERE metric_id=? AND origin='source_history'", (m["id"],)):
@@ -279,10 +281,31 @@ def price_history():
             print("FAILED", m["id"], m["title"], type(e).__name__, str(e)[:160], flush=True)
             continue
         if n:
-            recipes.set_history(m, archive.HISTORY_TEXT, "History from archived copies of the source page.")
+            recipes.set_history(m, archive.STARS_TEXT if (m.get("skill") or "").startswith("free|gh|") else archive.HISTORY_TEXT, "History from archived copies of the source page.")
         total += n
         print(m["id"], m["title"], "| points", n, flush=True)
     print("history points kept:", total)
+
+
+def retire():
+    """Take out the numbers that can never change again, leaving their addresses pointing at what replaces them. Safe to run again."""
+    import public_pages as pp
+    series = db.one("SELECT * FROM metrics WHERE skill='free|yc|series|batches'")
+    n = 0
+    for m in db.q("SELECT * FROM metrics WHERE skill LIKE 'free|yc|batches|%'"):
+        if series and core.retire(m["id"], pp.number_path(series)):
+            n += 1
+            print("retired", m["id"], m["title"], "->", pp.number_path(series))
+    for title in sys.argv[2:] or ["AI startups · largest seed round"]:
+        m = db.one("SELECT * FROM metrics WHERE title=?", (title,))
+        if not m:
+            continue
+        others = [i for i in pp.groups().get(pp.subject(m), []) if i != m["id"]]
+        to = pp.subject_path(pp.subject(m)) if others else "/numbers"
+        if core.retire(m["id"], to):
+            n += 1
+            print("retired", m["id"], m["title"], "->", to)
+    print("numbers retired:", n)
 
 
 def periods():
@@ -340,4 +363,4 @@ def period_history():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "periods": periods, "period_history": period_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "retire": retire, "period_history": period_history}[sys.argv[1]]()

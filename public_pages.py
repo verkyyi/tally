@@ -452,10 +452,14 @@ def subject_page(name, tiles):
 
 
 def index_page(groups):
-    body = ('<h1 style="margin-top:22px">Every number Tally tracks</h1><p class="q">Funding, valuations, hiring, launches and batch sizes for companies, accelerators, sectors and investors. '
-            'Each number shows its evidence.</p><div class="cols">' + "".join(f'<a href="{subject_path(n)}">{esc(n)} <span style="color:#667085;font:12px var(--mono)">{c}</span></a>' for n, c in groups) + "</div>")
-    return shell("Every number Tally tracks: funding, hiring, launches, batches | Tally",
-                 "Live numbers about companies, accelerators, sectors and investors, each with its source: funding, valuation, headcount, open roles, launches, batch sizes.", "/numbers", body)
+    """groups: (subject, numbers, numbers with a history of two weeks or more), the ones with history first."""
+    link = lambda n, c, h: f'<a href="{subject_path(n)}">{esc(n)} <span style="color:#667085;font:12px var(--mono)">{h if h else c}</span></a>'
+    have, new = [g for g in groups if g[2]], [g for g in groups if not g[2]]
+    body = ('<h1 style="margin-top:22px">The catalog</h1><p class="q">Valuations, funding, prices, stars, downloads, hiring, launches and batch sizes for companies, open-source projects, '
+            'accelerators, sectors and investors. The count beside each name is how many of its numbers have a history to chart.</p><div class="cols">' + "".join(link(*g) for g in have) + "</div>"
+            + (f'<h2>Building history</h2><p class="q" style="margin:0 0 10px">Read every day since they were added; no source keeps their past, so their charts start here.</p><div class="cols">{"".join(link(*g) for g in new)}</div>' if new else ""))
+    return shell("The catalog: numbers with their history and source | Tally",
+                 "Numbers about companies, open-source projects, accelerators, sectors and investors, each with its history and its source: funding, valuations, prices, stars, downloads, hiring, launches.", "/numbers", body)
 
 
 def board_page(token, tiles):
