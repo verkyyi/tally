@@ -181,13 +181,30 @@ def find_entries(m):
     return entries
 
 
+_ROUND = re.compile(r"\s*(.+?)\s+(raises|raised|secures|secured|closes|closed|lands|landed|bags|nabs|gets|announces|pulls in)\b", re.I)
+
+
+def round_key(title):
+    """'Nebuly raises $21M Series A' -> 'nebuly'. The same round reported by two sites must be one entry."""
+    mt = _ROUND.match(title or "")
+    return re.sub(r"[^a-z0-9]+", "", mt.group(1).lower()) if mt else None
+
+
 def upsert_entries(m, entries, origin, record_changes=True):
     """Insert new entries by key. Returns the new entry ids. The count is always COUNT(entries)."""
     new_ids = []
+    rounds = (m.get("reducer") in AGG) or m.get("skill") == "funding_rounds"  # entries are funding rounds: one per company, whatever the URL
+    seen = {round_key(r["title"]): r for r in db.q("SELECT id, title, value FROM entries WHERE metric_id=? AND held_out=0", (m["id"],))} if rounds else {}
     for e in entries:
         key = norm_url(e["url"]) if e.get("url") else e["title"].strip().lower()
         row = db.one("SELECT id, held_out FROM entries WHERE metric_id=? AND key=?", (m["id"], key))
         if row and not row["held_out"]:
+            continue
+        rk = round_key(e["title"]) if rounds else None
+        if rk and rk in seen:
+            if seen[rk]["value"] is None and isinstance(e.get("value"), (int, float)):  # the first report had no amount; this one does
+                db.run("UPDATE entries SET value=? WHERE id=?", (e["value"], seen[rk]["id"]))
+                seen[rk]["value"] = e["value"]
             continue
         before = count_value(m["id"])
         if row:  # held out of the seeded ledger; this run found it for real
@@ -198,6 +215,8 @@ def upsert_entries(m, entries, origin, record_changes=True):
                             (m["id"], key, e["title"].strip(), e.get("url"), db.now(), e.get("found_via"), _date(e.get("date"))))
             if isinstance(e.get("value"), (int, float)):
                 db.run("UPDATE entries SET value=? WHERE id=?", (e["value"], eid))
+            if rk:
+                seen[rk] = {"id": eid, "title": e["title"], "value": e.get("value")}
         new_ids.append(eid)
         if record_changes:
             add_change(m["id"], fmt(before), fmt(count_value(m["id"])), origin, "entity_added", note=e["title"].strip(), entry_id=eid, url=e.get("url"))
