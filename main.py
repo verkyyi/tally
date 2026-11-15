@@ -99,8 +99,8 @@ def auth_google(body: GoogleLogin, request: Request, response: Response):
 
 
 # One-click guest access for judges and first-time visitors: each guest gets their own Pro account with a copy of
-# the featured board. New metrics cost Telem calls, so all guests together share a cap. TALLY_GUEST=0 turns it off.
-GUEST_LOGIN = os.environ.get("TALLY_GUEST", "1") != "0"
+# the featured board. New metrics cost Telem calls, so all guests together share a cap. Off by default; TALLY_GUEST=1 turns it on.
+GUEST_LOGIN = os.environ.get("TALLY_GUEST", "0") == "1"  # off unless a server sets TALLY_GUEST=1
 GUEST_CREATE_CAP = int(os.environ.get("TALLY_GUEST_CREATE_CAP", "40"))
 
 
