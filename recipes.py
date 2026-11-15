@@ -137,9 +137,10 @@ def _verify(m, res, pages):
     if all(c["ok"] for c in checks):
         value = res["value"]
     today = db.now()[:10]
+    quotes = [res.get("quote")] + [h.get("quote") for h in res.get("history") or []]  # one table row is often quoted once for all its periods
     for h in sorted(res.get("history") or [], key=lambda x: x["date"]):
         page_h = _page_for(h.get("url"), pages)
-        if re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], page_h) and (len(page_h) < LONG or _quoted(h["value"], h.get("quote"), page_h)):
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], page_h) and (len(page_h) < LONG or any(_quoted(h["value"], q, page_h) for q in quotes if q)):
             hist.append(h)
     if res.get("history"):
         checks.append({"name": "Past points can be read in the pages they cite", "ok": len(hist) > 0, "detail": f"{len(hist)} of {len(res['history'])} kept."})

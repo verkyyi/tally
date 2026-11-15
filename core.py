@@ -234,7 +234,7 @@ def supported(value, text):
     if not isinstance(value, (int, float)) or not text:
         return False
     hay = text.replace(",", "")
-    for t in _renderings(float(value)):
+    for t in _renderings(abs(float(value))):  # a loss is written "(567)" or "a loss of $567 million": the sign is in the words, not the digits
         tail = r"\d*" if "." in t else ""
         if re.search(r"(?<![\d.])" + re.escape(t) + tail + r"(?![\d])", hay):
             return True
