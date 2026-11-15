@@ -96,6 +96,7 @@ ul.rows li span{font:13px var(--mono);color:var(--mute);white-space:nowrap}
 .num .v{font-size:30px;font-weight:700;letter-spacing:-.035em;line-height:1.1;font-variant-numeric:tabular-nums}.num .v small{font:12px var(--mono);font-weight:400;color:var(--mute);letter-spacing:0;margin-left:6px}
 .num .m{font:12px var(--mono);color:var(--mute);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:auto}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.usebox pre{white-space:pre-wrap;word-break:break-word;font:13px/1.5 var(--mono);background:var(--paper);border-radius:8px;padding:10px 12px;margin:0 0 10px}
 table.pts{border-collapse:collapse;width:100%;font-size:15px}table.pts td,table.pts th{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
 table.pts th{font:12px var(--mono);color:var(--mute);font-weight:400;text-transform:uppercase;letter-spacing:.06em}table.pts td:nth-child(2){font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 table.pts td:first-child{white-space:nowrap;color:var(--mute);font:13px var(--mono)}
@@ -105,6 +106,64 @@ table.pts td:first-child{white-space:nowrap;color:var(--mute);font:13px var(--mo
 .follow.on{background:var(--card);color:var(--accent)}.follow:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .signin{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--paper)}.signin p{margin:0 0 10px;font-size:15px}
 footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);color:var(--mute);font-size:14px}"""
+
+
+LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/"
+KINDS = {"source_history": "from the source's records", "backfill": "computed from entry dates", "period": "total for the period"}
+
+
+def number_data(m, t, pts):
+    """A number as data, for other sites, scripts and agents: its value, where it came from, and its whole history with a source per point."""
+    url = SITE + number_path(m)
+    last = pts[-1] if pts else {}
+    return {"id": m["id"], "title": m["title"], "question": m["question"], "unit": m.get("unit") or "", "value": t["value"],
+            "as_of": (t.get("as_of") or last.get("at") or "")[:10] or None, "source": last.get("url") or m.get("source_url"),
+            "page": url, "recipe": f"{SITE}/n/{m['id']}/recipe", "csv": f"{SITE}/n/{m['id']}/history.csv", "chart_image": f"{SITE}/n/{m['id']}/chart.svg",
+            "license": "CC BY 4.0", "license_url": LICENSE_URL, "attribution": f"Tally, {url}",
+            "history": [{"date": p["at"][:10], "value": p["value"], "kind": KINDS.get(p["origin"], "read by Tally"), "source": p.get("url") or (m.get("source_url") if p["origin"] != "source_history" else None)} for p in pts]}
+
+
+def citation(m, t, pts):
+    """One sentence a person can paste into a report: the value, its date, the original source, and where the record is kept."""
+    txt, unit = fmt(t["value"], t["unit"])
+    src = (pts[-1].get("url") if pts else None) or m.get("source_url") or ""
+    host = re.sub(r"^www\.", "", src.split("/")[2]) if src.count("/") >= 2 else ""
+    asof = when(t.get("as_of") or t.get("last_checked")) or ""
+    return (f'{m["title"]}: {txt}{" " + unit if unit else ""}{", as of " + asof if asof else ""}.'
+            f'{" Source: " + host + "," if host else ""} via Tally, {SITE}{number_path(m)}')
+
+
+def number_text(m, t, pts):
+    """The number as plain text (Markdown), for an agent that reads pages rather than JSON."""
+    txt, unit = fmt(t["value"], t["unit"])
+    rows = "\n".join(f'| {p["at"][:10]} | {p["value"]:.12g} | {KINDS.get(p["origin"], "read by Tally")} | {p.get("url") or ""} |' for p in pts[-200:])
+    return (f'# {m["title"]}\n\n{m["question"]}\n\n**{txt or "no value yet"}{" " + unit if unit and txt else ""}**'
+            f'{", as of " + (when(t.get("as_of") or t.get("last_checked")) or "") if txt else ""}\n\n'
+            f'Cite as: {citation(m, t, pts) if txt else "no value yet"}\n\nLicense: CC BY 4.0 ({LICENSE_URL}). Page: {SITE}{number_path(m)}\n'
+            f'JSON: {SITE}/n/{m["id"]}.json · CSV: {SITE}/n/{m["id"]}/history.csv · How it is obtained: {SITE}/n/{m["id"]}/recipe\n\n'
+            f'## History ({len(pts)} points{", last 200 shown" if len(pts) > 200 else ""})\n\n| date | value | kind | source |\n|---|---|---|---|\n{rows}\n')
+
+
+def use_box(m, t, pts):
+    """How to quote, download, link or embed this number."""
+    if t["value"] is None:
+        return ""
+    url, mid = SITE + number_path(m), m["id"]
+    cite = citation(m, t, pts)
+    return (f'<h2>Cite or use this number</h2><div class="card usebox"><p class="meta" style="margin:0 0 6px">Paste into a report or a post</p>'
+            f'<pre id="cite">{esc(cite)}</pre><div class="share" style="margin-top:0"><button type="button" data-copy="{esc(cite)}">Copy citation</button>'
+            f'<a href="/n/{mid}.json">JSON</a><a href="/n/{mid}/history.csv">CSV</a><a href="/n/{mid}.md">Plain text</a><a href="/n/{mid}/chart.svg">Chart image</a></div>'
+            f'<p class="meta" style="margin:14px 0 6px">A live card for a website (it updates by itself)</p>'
+            f'<pre>&lt;iframe src="{SITE}/embed/n/{mid}" width="600" height="270" style="border:0" loading="lazy" title="{esc(m["title"])}"&gt;&lt;/iframe&gt;</pre>'
+            f'<p class="meta" style="margin:10px 0 0">Free to use with a link back to this page (<a href="{LICENSE_URL}" rel="license noopener">CC BY 4.0</a>). '
+            f'Each past value links to the page it was read from.</p></div>')
+
+
+def embed_page(m, t, pts):
+    """The live card on its own page, to sit inside an iframe on someone else's site."""
+    return (f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{esc(m["title"])} | Tally</title>'
+            f'<meta name="robots" content="noindex"><link rel="canonical" href="{SITE}{number_path(m)}"><style>html,body{{margin:0;background:transparent}}a{{display:block}}svg{{width:100%;height:auto;display:block}}</style></head>'
+            f'<body><a href="{SITE}{number_path(m)}" target="_blank" rel="noopener" aria-label="{esc(m["title"])} on Tally">{card_svg(m, t, pts)}</a></body></html>')
 
 
 def share_bar(path, text):
@@ -127,8 +186,8 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 <div class="sbox"><input type="search" data-suggest autocomplete="off" placeholder="Search a number" aria-label="Search a number"></div>
 <nav style="display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end;font-size:15px"><a href="/changes" style="text-decoration:none">What changed</a><a href="/numbers" style="text-decoration:none">All numbers</a><a href="/app" style="text-decoration:none;font-weight:600">Your board</a></nav></header>
 {body}
-<script src="/static/pub.js?v=2" defer></script>
-<footer>Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
+<script src="/static/pub.js?v=3" defer></script>
+<footer>Data on Tally is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
 <a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
 
@@ -442,7 +501,7 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
                 body += f'<h2>The {len(es)} entries behind this number{", " + esc(per["label"]) if per else ""}</h2><ul class="rows">{rows}</ul>' + (f'<p class="meta">{len(es) - 40} more in the app.</p>' if len(es) > 40 else "")
     else:
         body += '<p class="meta" style="margin-top:14px">The live value, its source and the full list of entries are in the app.</p>'
-    body += points_table(m, pts)
+    body += points_table(m, pts) + use_box(m, t, pts)
     if recipe:
         body += (f'<h2>Recipe <span style="font:13px var(--mono);color:#667085;font-weight:400">version {recipe["version"]}</span></h2>'
                  f'<p class="q" style="margin:0 0 10px">How this number is obtained, in plain words, with every earlier version. Open to read; Pro members can improve it.</p>'
@@ -454,8 +513,15 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     if txt:
         import json
         answer = f'{txt}{" " + unit if unit else ""}{", as of " + asof if asof else ""}, according to the source Tally tracks.'
-        ld = json.dumps({"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": m["question"],
-                         "acceptedAnswer": {"@type": "Answer", "text": answer}}]}).replace("</", "<\\/")
+        page = SITE + number_path(m)
+        data = {"@context": "https://schema.org", "@type": "Dataset", "name": m["title"], "description": desc[:500], "url": page, "license": LICENSE_URL, "isAccessibleForFree": True,
+                "creator": {"@type": "Organization", "name": "Tally", "url": SITE}, "variableMeasured": m["title"].split(" · ")[-1], "keywords": [sub, m["title"].split(" · ")[-1], "history"],
+                "distribution": [{"@type": "DataDownload", "encodingFormat": "text/csv", "contentUrl": f"{SITE}/n/{m['id']}/history.csv"},
+                                 {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": f"{SITE}/n/{m['id']}.json"}]}
+        if len(pts) >= 2:
+            data["temporalCoverage"] = f'{pts[0]["at"][:10]}/{pts[-1]["at"][:10]}'
+        ld = json.dumps([{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": m["question"],
+                          "acceptedAnswer": {"@type": "Answer", "text": answer}}]}, data]).replace("</", "<\\/")
     return shell(title, desc, number_path(m), body, ld, image=f"/n/{m['id']}/card.png")
 
 
@@ -463,7 +529,7 @@ def points_table(m, pts, limit=40):
     """Every point of the history with the page it was read from: the past is as checkable as today's value."""
     if len(pts) < 2:
         return ""
-    kinds = {"source_history": "from the source's records", "backfill": "computed from entry dates", "period": "total for the period"}
+    kinds = KINDS
     runs = []  # readings that repeat the same value from the same page are one row: first day to last day
     for p in pts:
         key = (p["value"], p.get("url") or "", p["origin"] == "source_history")

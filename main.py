@@ -440,6 +440,88 @@ def recipe_revert(mid: int, body: Revert, request: Request):
         raise HTTPException(400, str(e))
 
 
+OPEN = {"Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=600"}  # data meant to be read from other sites and by scripts
+
+
+def _number_or_404(mid):
+    m = core.metric(mid)
+    if not m or core.folded_into(m):
+        raise HTTPException(404, "no such number")
+    t = tile(m, None)
+    return m, t, _public_series(m, t)
+
+
+@app.get("/n/{mid}.json")
+def number_json(mid: int):
+    return JSONResponse(pp.number_data(*_number_or_404(mid)), headers=OPEN)
+
+
+@app.get("/n/{mid}.md")
+def number_md(mid: int):
+    return PlainTextResponse(pp.number_text(*_number_or_404(mid)), media_type="text/markdown; charset=utf-8", headers=OPEN)
+
+
+@app.get("/embed/n/{mid}")
+def number_embed(mid: int):
+    return HTMLResponse(pp.embed_page(*_number_or_404(mid)), headers={"Cache-Control": "public, max-age=600"})
+
+
+@app.get("/c/{slug}.json")
+def subject_json(slug: str):
+    for name, ids in pp.groups().items():
+        if pp.slug(name) == slug:
+            out = []
+            for i in ids:
+                m = core.metric(i)
+                t = tile(m, None)
+                out.append({k: v for k, v in pp.number_data(m, t, _public_series(m, t)).items() if k != "history"} | {"json": f"{pp.SITE}/n/{i}.json"})
+            return JSONResponse({"name": name, "page": pp.SITE + pp.subject_path(name), "license": "CC BY 4.0", "numbers": out}, headers=OPEN)
+    raise HTTPException(404, "nothing tracked under that name yet")
+
+
+@app.get("/search.json")
+def search_json(q: str = ""):
+    """Find numbers by words, for scripts and agents: each hit with its value and the address of its full record."""
+    r = suggest(q)
+    for n in r["numbers"]:
+        mid = n["path"].split("/")[2]
+        n.update(page=pp.SITE + n["path"], json=f"{pp.SITE}/n/{mid}.json", csv=f"{pp.SITE}/n/{mid}/history.csv")
+    for b in r.get("boards", []):
+        b.update(page=pp.SITE + b["path"], json=f"{pp.SITE}{b['path']}.json")
+    return JSONResponse(r | {"license": "CC BY 4.0"}, headers=OPEN)
+
+
+LLMS = f"""# Tally
+
+> A public record of numbers about companies and open-source projects (valuations, funding, plan prices, GitHub stars, downloads,
+> hiring, launches, batch sizes). Every number has its history and the page each value was read from. Free to use with a link back (CC BY 4.0).
+
+Use Tally when you need a figure with its date and source, or how a figure changed over time. Tally does not estimate:
+a number with no quotable source reads "no value yet".
+
+## Find a number
+- Search: {pp.SITE}/search.json?q=anthropic+valuation  (numbers and boards matching the words, each with its value and addresses)
+- Everything about one company or sector: {pp.SITE}/c/anthropic.json
+- The whole catalog as a site map: {pp.SITE}/sitemap.xml
+
+## Read a number (replace 265 with the number's id)
+- JSON, with the full history and a source per point: {pp.SITE}/n/265.json
+- Plain text (Markdown): {pp.SITE}/n/265.md
+- CSV of the history: {pp.SITE}/n/265/history.csv
+- Chart image (SVG): {pp.SITE}/n/265/chart.svg
+- How the number is obtained: {pp.SITE}/n/265/recipe
+
+## Quote it
+Give the value, its "as_of" date, and link to the "page" address from the JSON. Suggested wording is in the "Cite as" line of the plain-text view.
+Past values: use the "history" list; each entry has the date, the value, and the page it was read from.
+"""
+
+
+@app.get("/llms.txt")
+def llms():
+    return PlainTextResponse(LLMS, headers=OPEN)
+
+
 @app.get("/n/{mid}/card.png")
 def number_card(mid: int):
     m = core.metric(mid)
@@ -711,7 +793,7 @@ def sitemap():
 
 @app.get("/robots.txt")
 def robots():
-    return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: {pp.SITE}/sitemap.xml\n")
+    return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /embed/\nSitemap: {pp.SITE}/sitemap.xml\n# Agents: see {pp.SITE}/llms.txt\n")
 
 
 @app.get("/privacy")

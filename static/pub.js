@@ -42,9 +42,10 @@
 
   // ---- copy a page's link
   document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Link copied"; }
-    catch (e) { window.prompt("Copy this link", b.dataset.copy); }
-    setTimeout(() => { b.textContent = "Copy link"; }, 2000);
+    const label = b.dataset.label || (b.dataset.label = b.textContent);
+    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copied"; }
+    catch (e) { window.prompt("Copy this", b.dataset.copy); }
+    setTimeout(() => { b.textContent = label; }, 2000);
   }));
 
   // ---- sign in, in place: the visitor stays on the page they were reading
