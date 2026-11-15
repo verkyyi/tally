@@ -17,6 +17,12 @@ _ROUNDS = ("Search for every {what} the company has announced, and read the page
            "news reports of each round. Open as many pages as it takes to cover them all, from the first to the latest. "
            "One point for each, never the same one twice: the value is {value}, dated at the first day of the month it was announced, "
            "with the page that states {amount}. Leave out any that no page states with a figure.")
+YC_COUNT_HISTORY = ("One point per batch: the companies in the directory that carry this tag or industry, counted up to and including each batch. "
+                    "It uses today's tags, so a tag added later counts from the company's batch.")
+STAFF_HISTORY = ("Search for dated statements of how many people the company employed: its own press and about pages, news reports, funding announcements, its Wikipedia article. "
+                 "Open as many pages as it takes to cover the years since it was founded. One point for each statement that gives a figure and says when it was true, or sits on a page with a date: "
+                 "the value is the number of employees, dated at the first day of that month, with the page that states it. "
+                 "Leave out ranges, LinkedIn member counts and anything described as a plan or a target. Never fill in a value between two statements.")
 ROUND_HISTORY = {
     "funding": _ROUNDS.format(what="funding round", amount="its amount", value="that round's size") + " Report each round's own size, not a sum: Tally adds the rounds up, and the history shown is their running total.",
     "latest_round": _ROUNDS.format(what="earlier funding round", amount="its amount", value="that round's size"),
@@ -40,7 +46,7 @@ def baseline(m):
                 "pypi": "Read `data.last_week`: downloads over the last 7 days.", "yc": "Read the company count for the batch, tag or industry named in the title."}.get(p[1], read)
         hist = {"npm": "Weekly totals from the registry's daily download counts, back to 2015: https://api.npmjs.org/downloads/range/{start}:{end}/{package}",
                 "pypi": "Weekly totals from the last 180 days of daily counts: https://pypistats.org/api/packages/{package}/overall?mirrors=false",
-                "yc": "One point per batch, dated at the start of the batch season, from the same directory file." if "series" in m["skill"] else "Not available: this is a single count. Observed daily from now on.",
+                "yc": "One point per batch, dated at the start of the batch season, from the same directory file." if "series" in m["skill"] else YC_COUNT_HISTORY,
                 "gh": "From archived copies of the repository's page (web.archive.org), four a year. Observed daily from now on."}.get(p[1], "Observed from now on.")
         upd = "Once a day, straight from the API. No search and no model are involved."
     else:
@@ -125,12 +131,20 @@ def running_total(hist, total_now):
     return out, bool(total_now) and abs(total - total_now) <= RECONCILE * total_now, total
 
 
-def with_round_history(m):
-    """The live recipe with its History section replaced by the dated-rounds instruction for this kind of number, or None."""
+def history_instruction(m):
+    """How an agent can rebuild this kind of number's past from dated statements, or None when there is no such way."""
     k = core.round_kind(m)
-    if not k or m["kind"] != "direct":
+    if k:
+        return ROUND_HISTORY[k]
+    return STAFF_HISTORY if (m.get("title") or "").lower().endswith(("headcount", "employee count")) else None
+
+
+def with_round_history(m):
+    """The live recipe with its History section replaced by the dated-statements instruction for this kind of number, or None."""
+    text = history_instruction(m)
+    if not text or m["kind"] != "direct":
         return None
-    secs = parse(live(m)["body"]) | {"History": ROUND_HISTORY[k]}
+    secs = parse(live(m)["body"]) | {"History": text}
     return "\n\n".join(f"## {s}\n{secs[s]}" for s in SECTIONS if secs.get(s)) + "\n"
 
 

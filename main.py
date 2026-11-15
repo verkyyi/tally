@@ -28,6 +28,7 @@ import free_sources
 import logos
 import recipes
 import interest
+import cards
 
 HERE = os.path.dirname(__file__)
 app = FastAPI(title="Tally")
@@ -439,6 +440,18 @@ def recipe_revert(mid: int, body: Revert, request: Request):
         raise HTTPException(400, str(e))
 
 
+@app.get("/n/{mid}/card.png")
+def number_card(mid: int):
+    m = core.metric(mid)
+    if not m:
+        raise HTTPException(404, "no such number")
+    t = tile(m, None)
+    pts = pp._thin(_public_series(m, t), 200)
+    txt, unit = pp.fmt(t["value"], t["unit"])
+    sub = f'since {pp.when(pts[0]["at"])}' if len(pts) >= 2 else ""
+    return RawResponse(cards.number(m["title"], txt, unit, pts, step=core.stepped(m), bars=core.by_period(m, pts), sub=sub), media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
+
+
 @app.get("/n/{mid}/chart.svg")
 def public_chart(mid: int):
     m = core.metric(mid)
@@ -517,7 +530,18 @@ def public_compare(a: int, b: int):
 def public_subject(slug: str):
     for name, ids in pp.groups().items():
         if pp.slug(name) == slug:
-            return HTMLResponse(pp.subject_page(name, [tile(core.metric(i), None) for i in ids]))
+            ms = {i: core.metric(i) for i in ids}
+            return HTMLResponse(pp.subject_page(name, [tile(ms[i], None) for i in ids], ms, {i: core.series(i) for i in ids}))
+    raise HTTPException(404, "nothing tracked under that name yet")
+
+
+@app.get("/c/{slug}/card.png")
+def subject_card(slug: str):
+    for name, ids in pp.groups().items():
+        if pp.slug(name) == slug:
+            ts = [t for t in (tile(core.metric(i), None) for i in ids) if t["value"] is not None][:4]
+            rows = [(t["title"].split(" · ")[-1], " ".join(x for x in pp.fmt(t["value"], t["unit"]) if x)) for t in ts]
+            return RawResponse(cards.board(name, rows), media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
     raise HTTPException(404, "nothing tracked under that name yet")
 
 

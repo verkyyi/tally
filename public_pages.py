@@ -88,6 +88,17 @@ ul.rows li span{font:13px var(--mono);color:var(--mute);white-space:nowrap}
 .sug{position:absolute;left:0;right:0;top:calc(100% + 6px);min-width:300px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(14,19,32,.14);z-index:9;overflow:hidden;text-align:left}
 .sug a{display:flex;justify-content:space-between;gap:14px;padding:10px 14px;text-decoration:none;border-bottom:1px solid var(--line);font-size:15px}.sug a:last-child{border-bottom:0}
 .sug a:hover,.sug a.sel{background:#eaf0ff}.sug a span{min-width:0}.sug a em{font-style:normal;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}.sug a.new{color:var(--accent);font-weight:600}.sug a.new em,.sug a.board em{font-weight:400;color:var(--mute);font-size:13px}
+.share{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.share a,.share button{font:14px var(--display);padding:6px 13px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);text-decoration:none;cursor:pointer}
+.share a:hover,.share button:hover{border-color:var(--accent);color:var(--accent)}
+.num{display:flex;flex-direction:column;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 17px 11px;text-decoration:none;min-width:0}
+.num:hover{border-color:var(--accent)}.num b{font-size:15px;font-weight:600;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.num b i{font:11px var(--mono);font-style:normal;color:var(--accent);background:#eaf0ff;border-radius:999px;padding:2px 8px;white-space:nowrap}
+.num .v{font-size:30px;font-weight:700;letter-spacing:-.035em;line-height:1.1;font-variant-numeric:tabular-nums}.num .v small{font:12px var(--mono);font-weight:400;color:var(--mute);letter-spacing:0;margin-left:6px}
+.num .m{font:12px var(--mono);color:var(--mute);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:auto}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+table.pts{border-collapse:collapse;width:100%;font-size:15px}table.pts td,table.pts th{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+table.pts th{font:12px var(--mono);color:var(--mute);font-weight:400;text-transform:uppercase;letter-spacing:.06em}table.pts td:nth-child(2){font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.pts td:first-child{white-space:nowrap;color:var(--mute);font:13px var(--mono)}
 .chips{display:flex;gap:8px;flex-wrap:wrap}.chips a{padding:6px 13px;border:1px solid var(--line);border-radius:999px;background:var(--card);text-decoration:none;font-size:15px}.chips a:hover{border-color:var(--accent);color:var(--accent)}
 .valrow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
 .follow{font:600 16px var(--display);padding:11px 22px;border-radius:9px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
@@ -96,18 +107,27 @@ ul.rows li span{font:13px var(--mono);color:var(--mute);white-space:nowrap}
 footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);color:var(--mute);font-size:14px}"""
 
 
-def shell(title, desc, path, body, ld=None):
+def share_bar(path, text):
+    """Ways to pass a page on: copy its link, or open a post about it on X or LinkedIn with the link filled in."""
+    from urllib.parse import quote
+    url = SITE + path
+    return (f'<div class="share"><button type="button" data-copy="{esc(url)}">Copy link</button>'
+            f'<a href="https://twitter.com/intent/tweet?text={quote(text)}&url={quote(url, safe="")}" target="_blank" rel="noopener">Post on X</a>'
+            f'<a href="https://www.linkedin.com/sharing/share-offsite/?url={quote(url, safe="")}" target="_blank" rel="noopener">Share on LinkedIn</a></div>')
+
+
+def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)}</title><meta name="description" content="{esc(desc)}"><link rel="canonical" href="{SITE}{esc(path)}">
 <link rel="icon" href="/static/img/logo.svg?v=3" type="image/svg+xml"><link rel="icon" type="image/png" sizes="32x32" href="/static/img/favicon-32.png?v=3"><link rel="apple-touch-icon" href="/static/img/favicon-180.png?v=3">
 <meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{esc(desc)}"><meta property="og:type" content="website">
-<meta property="og:url" content="{SITE}{esc(path)}"><meta property="og:image" content="{SITE}/static/img/board.png"><meta name="twitter:card" content="summary_large_image">
+<meta property="og:url" content="{SITE}{esc(path)}"><meta property="og:image" content="{SITE}{esc(image)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">
 {f'<script type="application/ld+json">{ld}</script>' if ld else ''}<style>{CSS}</style></head><body><div class="wrap">
 <header style="gap:14px;flex-wrap:wrap"><a class="brand" href="/"><img src="/static/img/logo.svg" alt="" width="30" height="30">Tally</a>
 <div class="sbox"><input type="search" data-suggest autocomplete="off" placeholder="Search a number" aria-label="Search a number"></div>
 <nav style="display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end;font-size:15px"><a href="/changes" style="text-decoration:none">What changed</a><a href="/numbers" style="text-decoration:none">All numbers</a><a href="/app" style="text-decoration:none;font-weight:600">Your board</a></nav></header>
 {body}
-<script src="/static/pub.js?v=1" defer></script>
+<script src="/static/pub.js?v=2" defer></script>
 <footer>Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
 <a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
@@ -382,7 +402,8 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     if rank:
         body += f'<div class="meta"><a href="/top/{rank[3]}"><b style="color:var(--ink)">#{rank[0]} of {rank[1]}</b> by {esc(rank[2])}</a></div>'
     body += (f'<div class="meta">{"As of " + asof if asof else "Not read yet"} · followed by {t["followers"]} <span id="follownote" style="margin-left:6px"></span></div>'
-             '<div class="signin" id="signin" hidden></div></div>')
+             '<div class="signin" id="signin" hidden></div>'
+             + share_bar(number_path(m), f'{m["title"]}: {txt + (" " + unit if unit else "") if txt else "no value yet"}, with its history and source') + '</div>')
     pts = list(pts)
     if len(pts) >= 2:
         from datetime import datetime as _dt, timedelta as _td
@@ -421,6 +442,7 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
                 body += f'<h2>The {len(es)} entries behind this number{", " + esc(per["label"]) if per else ""}</h2><ul class="rows">{rows}</ul>' + (f'<p class="meta">{len(es) - 40} more in the app.</p>' if len(es) > 40 else "")
     else:
         body += '<p class="meta" style="margin-top:14px">The live value, its source and the full list of entries are in the app.</p>'
+    body += points_table(m, pts)
     if recipe:
         body += (f'<h2>Recipe <span style="font:13px var(--mono);color:#667085;font-weight:400">version {recipe["version"]}</span></h2>'
                  f'<p class="q" style="margin:0 0 10px">How this number is obtained, in plain words, with every earlier version. Open to read; Pro members can improve it.</p>'
@@ -434,10 +456,37 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
         answer = f'{txt}{" " + unit if unit else ""}{", as of " + asof if asof else ""}, according to the source Tally tracks.'
         ld = json.dumps({"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": m["question"],
                          "acceptedAnswer": {"@type": "Answer", "text": answer}}]}).replace("</", "<\\/")
-    return shell(title, desc, number_path(m), body, ld)
+    return shell(title, desc, number_path(m), body, ld, image=f"/n/{m['id']}/card.png")
 
 
-def subject_page(name, tiles):
+def points_table(m, pts, limit=40):
+    """Every point of the history with the page it was read from: the past is as checkable as today's value."""
+    if len(pts) < 2:
+        return ""
+    kinds = {"source_history": "from the source's records", "backfill": "computed from entry dates", "period": "total for the period"}
+    runs = []  # readings that repeat the same value from the same page are one row: first day to last day
+    for p in pts:
+        key = (p["value"], p.get("url") or "", p["origin"] == "source_history")
+        if runs and runs[-1]["key"] == key:
+            runs[-1]["to"] = p["at"]
+        else:
+            runs.append({"key": key, "from": p["at"], "to": p["at"], "p": p})
+    rows = ""
+    for r in reversed(runs[-limit:]):
+        p = r["p"]
+        day = lambda iso: datetime.strptime(iso[:10], "%Y-%m-%d").strftime("%b %-d, %Y")
+        span = day(r["from"]) if r["from"][:10] == r["to"][:10] else f'{day(r["from"])} to {day(r["to"])}'
+        url = p.get("url") or (m.get("source_url") if p["origin"] != "source_history" else "")
+        host = re.sub(r"^www\.", "", url.split("/")[2]) if url and url.count("/") >= 2 else ""
+        src = f'<a href="{esc(url)}" rel="nofollow noopener">{esc("web.archive.org copy" if host == "web.archive.org" else host)}</a>' if host else ("the entries below" if m["kind"] == "count" else "")
+        note = p.get("note") if p["origin"] == "source_history" and p.get("note") and not str(p.get("note")).startswith("recipe v") else ""
+        rows += (f'<tr><td>{esc(span)}</td><td>{esc(" ".join(x for x in fmt(p["value"], m.get("unit")) if x))}</td>'
+                 f'<td>{src}<span style="color:#667085"> · {esc(note or kinds.get(p["origin"], "read by Tally"))}</span></td></tr>')
+    more = f'<p class="meta">{len(runs) - limit} earlier rows are in the <a href="/n/{m["id"]}/history.csv">CSV</a>, each with its source.</p>' if len(runs) > limit else ""
+    return f'<h2>Where each point comes from</h2><div style="overflow-x:auto"><table class="pts"><tr><th>When</th><th>Value</th><th>Source</th></tr>{rows}</table></div>{more}'
+
+
+def subject_page(name, tiles, metrics=None, series=None):
     have = [t for t in tiles if t["value"] is not None]
     bits = []
     for t in have[:4]:
@@ -445,10 +494,16 @@ def subject_page(name, tiles):
         bits.append(f'{t["title"].split(" · ")[-1]} {txt}{" " + unit if unit else ""}')
     title = f"{name}: {', '.join(x.split(' · ')[-1] for x in [t['title'] for t in tiles][:4])} | Tally"
     desc = f"{name} in numbers: {'; '.join(bits)}. Each with its source and history, kept current on Tally." if bits else f"Numbers Tally tracks about {name}, each with its source."
+    series = series or {}
+    order = sorted(tiles, key=lambda t: (-min(len(series.get(t["id"], [])), 3), t["value"] is None))
+    cards = "".join(landing_card(metrics[t["id"]], t, series.get(t["id"], [])) if t["value"] is not None and metrics and t["id"] in metrics else tile_link(t) for t in order)
+    charted = sum(1 for t in tiles if len(series.get(t["id"], [])) >= 2)
     body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / {esc(name)}</div><h1 style="display:flex;align-items:center;gap:14px"><img src="/logo/{slug(name)}.png" alt="" width="44" height="44" style="border-radius:11px;background:#fff;border:1px solid #e1e4ea" onerror="this.remove()">{esc(name)} in numbers</h1>'
-            f'<p class="q">{len(tiles)} numbers tracked about {esc(name)}. Each opens to its evidence and history.</p><div class="grid">{"".join(tile_link(t) for t in tiles)}</div>'
-            f'<div class="cta"><a class="btn" href="/app?q={esc(name)}">Track {esc(name)} on your board</a></div>')
-    return shell(title[:110], desc[:300], subject_path(name), body)
+            f'<p class="q">{len(tiles)} numbers about {esc(name)}{f", {charted} with a history to chart" if charted else ""}. Each opens to its evidence, its past and its source.</p>'
+            f'{share_bar(subject_path(name), f"{name} in numbers: " + "; ".join(bits[:3]))}'
+            f'<div class="cards" style="margin-top:18px">{cards}</div>'
+            f'<div class="cta"><a class="btn" href="/app?q={esc(name)}">Follow these on your board</a><a class="btn ghost" href="/numbers">The whole catalog</a></div>')
+    return shell(title[:110], desc[:300], subject_path(name), body, image=f"/c/{slug(name)}/card.png")
 
 
 def index_page(groups):

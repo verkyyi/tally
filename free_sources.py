@@ -88,6 +88,21 @@ def history(spec):
         if p[1] == "pypi":  # the public statistics keep 180 days
             d = _get(f"https://pypistats.org/api/packages/{p[2]}/overall?mirrors=false", ttl=3600)["data"]
             return [(d, n, f"https://pypistats.org/packages/{p[2]}", "weekly downloads, PyPI statistics") for d, n in _weekly([(x["date"], x["downloads"]) for x in d])]
+        if p[1] == "yc" and p[2] in ("tags", "industries"):
+            # The directory lists every company with the batch it was in (acquired and closed ones too), so the count after
+            # each batch can be rebuilt exactly. It uses today's tags: a tag added later counts from the company's batch.
+            season = {"winter": "01-01", "spring": "04-01", "summer": "07-01", "fall": "10-01"}
+            per = {}
+            for c in _get(f"https://yc-oss.github.io/api/{p[2]}/{p[3]}.json", ttl=3600):
+                s, _, y = (c.get("batch") or "").lower().partition(" ")
+                if s in season and y.isdigit():
+                    per[f"{y}-{season[s]}"] = per.get(f"{y}-{season[s]}", 0) + 1
+            out, total = [], 0
+            for d in sorted(per):
+                total += per[d]
+                if d <= date.today().isoformat():
+                    out.append((d, total, "https://www.ycombinator.com/companies", "counted by batch, using today's tags"))
+            return out
         if p[1] == "yc" and p[2] == "series":
             season = {"winter": "01-01", "spring": "04-01", "summer": "07-01", "fall": "10-01"}
             out = []

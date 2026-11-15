@@ -230,7 +230,7 @@ def free():
         add(f"YC · {t['name']} industry companies", f"How many Y Combinator companies are in the {t['name']} industry?", "companies", f"free|yc|industries|{slug}", "YC", f"yc_ind:{slug}")
     add("YC · batch size", "How many companies are in each Y Combinator batch?", "companies", "free|yc|series|batches", "YC", "yc_batch_series")
     pts = 0
-    for m in db.q("SELECT * FROM metrics WHERE skill LIKE 'free|npm|%' OR skill LIKE 'free|pypi|%' OR skill='free|yc|series|batches'"):
+    for m in db.q("SELECT * FROM metrics WHERE skill LIKE 'free|npm|%' OR skill LIKE 'free|pypi|%' OR skill LIKE 'free|yc|%'"):
         pts += core.backfill_free(m)
     print("history points written from the sources' own records:", pts)
     print("free numbers: created", made, "| switched existing to the free source", reused, "| source unavailable", failed, "| total", db.one("SELECT COUNT(*) n FROM metrics WHERE skill LIKE 'free|%'")["n"])
@@ -245,7 +245,7 @@ def round_history():
     ids = [int(x) for x in sys.argv[2:]]
     done = kept = 0
     for m in db.q("SELECT * FROM metrics WHERE kind='direct' ORDER BY id"):
-        if not core.round_kind(m) or (ids and m["id"] not in ids) or not core.latest_obs(m["id"]):
+        if not recipes.history_instruction(m) or (ids and m["id"] not in ids) or not core.latest_obs(m["id"]):
             continue
         if not ids and db.one("SELECT 1 x FROM observations WHERE metric_id=? AND origin='source_history'", (m["id"],)):
             continue
@@ -269,8 +269,8 @@ def price_history():
     ids = [int(x) for x in sys.argv[2:]]
     total = 0
     # App Store ratings are left out on purpose: the archived store pages gave values far from today's (Notion 3.9 against 4.77), too doubtful to publish.
-    for m in db.q("SELECT * FROM metrics WHERE kind='direct' AND ((source_url LIKE 'https://%' AND (skill='pricing_page' OR title LIKE '% plan price')) "
-                  "OR skill LIKE 'free|gh|%|stargazers_count') ORDER BY (skill LIKE 'free|gh|%'), id"):
+    for m in db.q("SELECT * FROM metrics WHERE (kind='direct' AND ((source_url LIKE 'https://%' AND (skill='pricing_page' OR title LIKE '% plan price')) "
+                  "OR skill LIKE 'free|gh|%|stargazers_count')) OR title LIKE '% open %roles%' ORDER BY (skill LIKE 'free|gh|%'), id"):
         if (ids and m["id"] not in ids) or not core.latest_obs(m["id"]):
             continue
         if not ids and db.one("SELECT 1 x FROM observations WHERE metric_id=? AND origin='source_history'", (m["id"],)):
@@ -281,10 +281,24 @@ def price_history():
             print("FAILED", m["id"], m["title"], type(e).__name__, str(e)[:160], flush=True)
             continue
         if n:
-            recipes.set_history(m, archive.STARS_TEXT if (m.get("skill") or "").startswith("free|gh|") else archive.HISTORY_TEXT, "History from archived copies of the source page.")
+            recipes.set_history(m, archive.STARS_TEXT if (m.get("skill") or "").startswith("free|gh|") else archive.ROLES_TEXT if " open " in m["title"] else archive.HISTORY_TEXT,
+                                "History from archived copies of the source page.")
         total += n
         print(m["id"], m["title"], "| points", n, flush=True)
     print("history points kept:", total)
+
+
+def yc_history():
+    """The past of every YC tag and industry count, rebuilt exactly from the directory's own list of companies and their batches."""
+    import recipes
+    pts = 0
+    for m in db.q("SELECT * FROM metrics WHERE skill LIKE 'free|yc|tags|%' OR skill LIKE 'free|yc|industries|%' ORDER BY id"):
+        n = core.backfill_free(m)
+        if n:
+            recipes.set_history(m, recipes.YC_COUNT_HISTORY, "History rebuilt from each company's batch.")
+        pts += n
+        print(m["id"], m["title"], "| points", n, flush=True)
+    print("history points written:", pts)
 
 
 def retire():
@@ -363,4 +377,4 @@ def period_history():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "retire": retire, "period_history": period_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()

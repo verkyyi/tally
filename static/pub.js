@@ -40,6 +40,13 @@
     document.querySelectorAll("[data-try]").forEach(b => b.addEventListener("click", () => { input.value = b.dataset.try; input.focus(); show(); }));
   });
 
+  // ---- copy a page's link
+  document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Link copied"; }
+    catch (e) { window.prompt("Copy this link", b.dataset.copy); }
+    setTimeout(() => { b.textContent = "Copy link"; }, 2000);
+  }));
+
   // ---- sign in, in place: the visitor stays on the page they were reading
   function signIn(holder, why) {
     return new Promise(async resolve => {

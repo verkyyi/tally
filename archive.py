@@ -74,9 +74,46 @@ def stars_history(repo, now):
     return out
 
 
+ROLES_TEXT = ("From archived copies of the company's public job board (Greenhouse) kept by the Internet Archive, four a year: the postings each copy listed, "
+              "counted by their own links. For one team, the postings under that team's heading on the board.")
+TEAM = {"engineering": re.compile(r"engineer|infrastructure|platform|security|data|machine learning|research", re.I), "sales": re.compile(r"sales|account|revenue|go.to.market|gtm|partnerships|business development", re.I)}
+_BOARD = re.compile(r"<h([1-6])[^>]*>(.*?)</h\1>|/jobs/(\d{6,})", re.S)
+
+
+def board_count(html_text, team=None):
+    """How many postings a Greenhouse board page lists: distinct posting links, all of them or those under a heading that names the team."""
+    heads, ids = {}, set()
+    for mt in _BOARD.finditer(html_text):
+        if mt.group(1):
+            lvl = int(mt.group(1))
+            heads = {k: v for k, v in heads.items() if k < lvl} | {lvl: re.sub(r"<[^>]+>", " ", mt.group(2))}
+        elif not team or any(TEAM[team].search(h) for h in heads.values()):
+            ids.add(mt.group(3))
+    return len(ids)
+
+
+def roles_history(slug, team=None):
+    """[(date, open roles, archived url)] from both addresses Greenhouse has used for a company's board."""
+    out = {}
+    for base in ("https://boards.greenhouse.io/", "https://job-boards.greenhouse.io/"):
+        for day, url in snapshots(base + slug, since=2015, limit=48, per_year=4):
+            r = _get(re.sub(r"/web/(\d+)/", r"/web/\1id_/", url, count=1))
+            total = board_count(r.text) if r is not None else 0
+            if total:  # an archived error page or an empty shell lists nothing: that is a missing copy, not zero roles
+                out[day[:7]] = (day, float(board_count(r.text, team)), url)
+    return [out[k] for k in sorted(out)]
+
+
 def history(m):
     """[(date, value, archived url)] for a number read from one page, oldest first. Empty when the page has no archived copies."""
     now = (core.latest_obs(m["id"]) or {}).get("value")
+    if re.search(r" open .*roles", m.get("title") or ""):
+        import db
+        slugs = [mt.group(1) for e in db.q("SELECT url FROM entries WHERE metric_id=? AND held_out=0", (m["id"],)) for mt in [re.search(r"greenhouse\.io/(?!embed)([\w-]+)", e["url"] or "")] if mt]
+        if not slugs:
+            return []
+        team = "engineering" if "engineering" in m["title"] else "sales" if "sales" in m["title"] else None
+        return roles_history(max(set(slugs), key=slugs.count), team)
     gh = re.match(r"free\|gh\|([^|]+)\|stargazers_count$", m.get("skill") or "")
     if gh:
         return stars_history(gh.group(1), now)

@@ -823,7 +823,7 @@ def backfill_free(m):
 
 def series(mid, upto=None):
     """Every real reading of a number, oldest first: [{at, value, origin, url}]. Simulated points are never included."""
-    rows = db.q("SELECT as_of, value, origin, evidence_url, recipe_version FROM observations WHERE metric_id=? AND value IS NOT NULL AND seeded=0 ORDER BY as_of, id", (mid,))
+    rows = db.q("SELECT as_of, value, origin, evidence_url, recipe_version, quote FROM observations WHERE metric_id=? AND value IS NOT NULL AND seeded=0 ORDER BY as_of, id", (mid,))
     per = (db.one("SELECT period FROM metrics WHERE id=?", (mid,)) or {}).get("period")
     if per:  # one point per period: the last reading inside it. Within a single period, the daily readings are shown instead.
         last = {}
@@ -831,7 +831,7 @@ def series(mid, upto=None):
             last[period_span(per, r["as_of"])[0]] = r
         if len(last) >= 2:
             rows = [last[k] for k in sorted(last)]
-    return [{"at": r["as_of"], "value": r["value"], "origin": r["origin"], "url": r["evidence_url"], "version": r["recipe_version"]} for r in rows if not upto or r["as_of"] <= upto]
+    return [{"at": r["as_of"], "value": r["value"], "origin": r["origin"], "url": r["evidence_url"], "version": r["recipe_version"], "note": r["quote"]} for r in rows if not upto or r["as_of"] <= upto]
 
 
 def refresh_free(limit=3, older_than_hours=20):
