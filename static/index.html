@@ -222,7 +222,7 @@ function ago(iso){ if(!iso) return "never"; const s=(Date.now()-new Date(iso))/1
   return s<60?"just now":s<3600?Math.floor(s/60)+"m ago":s<86400?Math.floor(s/3600)+"h ago":Math.floor(s/86400)+"d ago"}
 function until(iso){const s=(new Date(iso)-Date.now())/1e3; return s<=60?"check due":s<3600?"in "+Math.ceil(s/60)+"m":"in "+Math.round(s/3600)+"h"}
 function num(v){const a=Math.abs(v); const t=x=>String(+x.toFixed(2));
-  return a>=1e9?t(v/1e9)+"B":a>=1e6?t(v/1e6)+"M":v.toLocaleString("en-US",{maximumFractionDigits:2})}
+  return a>=1e12?t(v/1e12)+"T":a>=1e9?t(v/1e9)+"B":a>=1e6?t(v/1e6)+"M":v.toLocaleString("en-US",{maximumFractionDigits:2})}
 const CUR={usd:"$",eur:"€",gbp:"£"};
 function val(v,unit){ if(v==null) return null; const m=/^(usd|eur|gbp)\b\s*/i.exec(unit||"");
   return {text:(m?CUR[m[1].toLowerCase()]:"")+num(v), unit:m?unit.slice(m[0].length):(unit||"")}}

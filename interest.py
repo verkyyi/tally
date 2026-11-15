@@ -20,12 +20,12 @@ API = "https://en.wikipedia.org/w/api.php"
 
 def _article(subject):
     """The Wikipedia article about this subject, or None. Only a title that is the name itself, or the name with a qualifier
-    ("Slack (software)"), and only when its short description says it is a company or a piece of software: "Cursor" must
+    ("Slack (software)", "Stripe, Inc.", "Perplexity AI"), and only when its short description says it is a company or a piece of software: "Cursor" must
     not resolve to the mouse pointer, nor "Gamma" to the letter."""
     try:
         r = httpx.get(API, params={"action": "opensearch", "search": subject, "limit": 10, "namespace": 0, "format": "json"}, headers=UA, timeout=20)
         name = subject.lower()
-        titles = [t for t in (r.json()[1] if r.status_code == 200 else []) if t.lower() == name or t.lower().startswith(name + " (")]
+        titles = [t for t in (r.json()[1] if r.status_code == 200 else []) if t.lower() == name or re.match(re.escape(name) + r"(,| \(| ai\b| inc\b| labs\b| technologies\b)", t.lower())]
         if not titles:
             return None
         r = httpx.get(API, params={"action": "query", "titles": "|".join(titles), "prop": "description", "format": "json"}, headers=UA, timeout=20)

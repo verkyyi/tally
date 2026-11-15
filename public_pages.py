@@ -29,7 +29,9 @@ def fmt(v, unit):
         return None, ""
     mt = re.match(r"^(usd|eur|gbp)\b\s*", unit or "", re.I)
     a = abs(v)
-    if a >= 1e9:
+    if a >= 1e12:
+        t = f"{v / 1e12:.2f}".rstrip("0").rstrip(".") + "T"
+    elif a >= 1e9:
         t = f"{v / 1e9:.2f}".rstrip("0").rstrip(".") + "B"
     elif a >= 1e6:
         t = f"{v / 1e6:.2f}".rstrip("0").rstrip(".") + "M"
