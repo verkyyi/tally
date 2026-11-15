@@ -209,7 +209,7 @@ def compare_path(a, b):
 def compare_page(a, b, ta, tb, pa, pb, others=()):
     """Two numbers on one chart. a, b: metric rows; ta, tb: signed-out tiles; pa, pb: their public series; others: [(metric, label)] to swap in for b."""
     same = (ta["unit"] or "") == (tb["unit"] or "")
-    svg = chart(pa, ta["unit"], step=bool(core.round_kind(a)), other=(pb, tb["unit"], bool(core.round_kind(b))))
+    svg = chart(pa, ta["unit"], step=core.stepped(a), other=(pb, tb["unit"], core.stepped(b)))
     def key(m, t, pts, colour):
         txt, unit = fmt(t["value"], t["unit"])
         return (f'<a class="t" href="{number_path(m)}"><b><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:{colour};margin-right:7px"></span>{esc(m["title"])}</b>'
@@ -236,7 +236,7 @@ def compare_page(a, b, ta, tb, pa, pb, others=()):
 def card_svg(m, t, pts):
     """A standalone chart image for embedding in a README, a post or a deck."""
     txt, unit = fmt(t["value"], t["unit"])
-    inner = chart(pts, t["unit"], 600, 150, card=True, step=bool(core.round_kind(m)))
+    inner = chart(pts, t["unit"], 600, 150, card=True, step=core.stepped(m))
     inner = inner[inner.index(">") + 1:inner.rindex("</svg>")] if inner else '<text x="24" y="150" font-size="13" fill="#667085">History appears after the next check.</text>'
     since = when(pts[0]["at"]) if pts else None
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="260" viewBox="0 0 600 260" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">'
@@ -341,7 +341,7 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
                 + (" Computed from the entries\' own dates where marked in the download." if any(p["origin"] == "backfill" for p in pts) else ""))
         url = SITE + number_path(m)
         body += (f'<h2 style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><span>History</span><span class="rgs">{tabs}</span></h2>'
-                 f'<div class="card" style="padding:16px 16px 8px">{chart(shown, t["unit"], versions=versions, step=bool(core.round_kind(m)))}</div><p class="meta">{esc(note)}{" Red marks show where the recipe changed." if versions else ""}</p>'
+                 f'<div class="card" style="padding:16px 16px 8px">{chart(shown, t["unit"], versions=versions, step=core.stepped(m))}</div><p class="meta">{esc(note)}{" Red marks show where the recipe changed." if versions else ""}</p>'
                  f'<div class="cta" style="margin-top:14px"><a class="btn ghost" href="/n/{m["id"]}/history.csv">Download CSV</a>'
                  f'<details class="emb"><summary class="btn ghost">Embed this chart</summary><div class="embbox"><p class="meta" style="margin:0 0 6px">A live image. Paste into a README, a post or a doc.</p>'
                  f'<b>Markdown</b><pre>[![{esc(m["title"])}]({SITE}/n/{m["id"]}/chart.svg)]({url})</pre><b>HTML</b><pre>&lt;a href="{url}"&gt;&lt;img src="{SITE}/n/{m["id"]}/chart.svg" alt="{esc(m["title"])}" width="600"&gt;&lt;/a&gt;</pre>'

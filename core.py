@@ -70,6 +70,11 @@ def round_kind(m):
     return next((k for suffix, k in ROUND_KINDS.items() if t.endswith(suffix)), None)
 
 
+def stepped(m):
+    """True for a number that holds its value until an event changes it (a round, a price change): drawn as steps, not slopes."""
+    return bool(round_kind(m)) or (m.get("title") or "").lower().endswith("plan price")
+
+
 def latest_obs(mid):
     return db.one("SELECT * FROM observations WHERE metric_id=? AND value IS NOT NULL ORDER BY as_of DESC, id DESC LIMIT 1", (mid,))
 
