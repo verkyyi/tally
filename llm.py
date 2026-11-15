@@ -57,6 +57,8 @@ Fields:
 - search_query: a web search query. For direct, it finds the page that states the value. For count, it finds the individual items.
 - monitor_query: one plain sentence naming the change to watch for, e.g. "Acme changes the listed price of its Enterprise plan" or "Acme posts a new engineering job opening".
 - source_hint: the domain most likely to hold the answer, or null.
+- acceptable: false when the question is about a private individual, is abusive, or asks for something no public page could state as a number; otherwise true.
+- why_not: one short plain sentence saying why, when acceptable is false; otherwise null.
 - source_url: an exact URL only when you are certain of it, else null. For GitHub stars use https://api.github.com/repos/{owner}/{repo}. For a plan price use the company's own pricing page when you know its address."""
 
 EXTRACT_DIRECT = """You read fetched web pages and extract the single value that answers the question.

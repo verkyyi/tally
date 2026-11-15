@@ -188,7 +188,7 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 <div class="sbox"><input type="search" data-suggest autocomplete="off" placeholder="Search a number" aria-label="Search a number"></div>
 <nav style="display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end;font-size:15px"><a href="/changes" style="text-decoration:none">What changed</a><a href="/numbers" style="text-decoration:none">All numbers</a><a href="/app" style="text-decoration:none;font-weight:600">Your board</a></nav></header>
 {body}
-<script src="/static/pub.js?v=4" defer></script>
+<script src="/static/pub.js?v=5" defer></script>
 <footer>Data on Tally is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
 <a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
@@ -323,13 +323,28 @@ def landing_compare(a, ta, b, tb, kind):
 
 
 def track_page(q):
-    body = ('<div class="crumb"><a href="/numbers">Numbers</a> / New</div><h1>Ask for a number <span style="font:14px var(--mono);color:var(--accent);font-weight:400;letter-spacing:0">Pro</span></h1>'
-            '<p class="q">The catalog is curated and free to use. With Pro you can add to it: Tally searches for your number, reads the value from a source it can quote, and gives the number its own page with a chart and a recipe. If no source states it, the page says “no value yet”.</p>'
+    body = ('<div class="crumb"><a href="/numbers">Numbers</a> / New</div><h1>Create a number</h1>'
+            '<p class="q">Say which number you want. An agent searches for it, reads the value from a page it can quote, and rebuilds its past from dated sources. '
+            'You see what it found before anything is published. Then the number has its own page, is read again every day, and you are told when it moves.</p>'
             f'<div class="card"><label for="trackq" style="font-weight:600;display:block;margin-bottom:8px">Which number?</label>'
             f'<input id="trackq" value="{esc(q)}" placeholder="Stripe latest valuation" style="width:100%;font:17px var(--display);padding:12px 14px;border-radius:10px;border:1px solid var(--line)">'
             '<div class="cta" style="margin-top:14px"><button class="follow" type="button" data-track="1">Find this number</button></div>'
-            '<p class="meta" id="tracknote">Say what and whose: “Stripe latest valuation”, “Figma headcount”, “Vercel Pro plan price”.</p><div class="signin" id="signin" hidden></div></div>')
-    return shell("Ask for a number | Tally", "Ask Tally to track a number it does not have yet: it finds the value, quotes its source and keeps its history.", "/track", body)
+            '<p class="meta" id="tracknote">Say what and whose: “Stripe latest valuation”, “Figma headcount”, “Vercel Pro plan price”. A free account can create one a day.</p>'
+            '<div class="signin" id="signin" hidden></div><div id="preview"></div></div>'
+            '<p class="meta" style="margin-top:14px">Numbers people asked for that no source could prove yet are on the <a href="/wanted">wanted list</a>.</p>')
+    return shell("Create a number | Tally", "Ask Tally for a number it does not have yet: an agent finds the value, quotes its source, rebuilds its history and keeps it current.", "/track", body)
+
+
+def wanted_page(rows):
+    """Numbers asked for and not in the record. Each can be tried again by anyone, with a different wording or once a source exists."""
+    from urllib.parse import quote
+    lis = "".join(f'<li><span style="font:inherit;color:inherit;white-space:normal"><b>{esc(r["title"])}</b> <span style="color:#667085">· {esc(r["why"])}{" · asked " + str(r["n"]) + " times" if r["n"] > 1 else ""}</span></span>'
+                  f'<span><a href="/track?q={quote(r["q"])}">Try to create it</a></span></li>' for r in rows)
+    body = ('<div class="crumb"><a href="/numbers">Numbers</a> / Wanted</div><h1>Wanted numbers</h1>'
+            '<p class="q">Numbers people asked for that the record does not have. Some were tried and no page could be quoted for them; others were only searched for. '
+            'Anyone signed in can try one again.</p>' + (f'<ul class="rows">{lis}</ul>' if rows else '<p class="meta">Nothing is waiting. Every number asked for so far is in the record.</p>')
+            + '<div class="cta"><a class="btn" href="/track">Create a number</a><a class="btn ghost" href="/numbers">The catalog</a></div>')
+    return shell("Wanted numbers | Tally", "Numbers people asked Tally for that are not in the record yet. Anyone can try to create one.", "/wanted", body)
 
 
 def compare_path(a, b):
@@ -460,6 +475,12 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     if per:
         tabs = "".join(f'<a href="{number_path(m)}{"" if i == 0 else "?period=" + k[:7]}" class="rg{" on" if on else ""}">{esc(lab)}</a>' for i, (k, lab, on) in enumerate(per["tabs"]))
         body += f'<div class="meta" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><b style="color:var(--ink)">{esc(per["label"])}{" so far" if per["current"] else ""}</b><span class="rgs" style="flex-wrap:wrap">{tabs}</span></div>'
+    made = (m.get("created_at") or "")[:10]
+    if not m.get("curated") and m.get("created_by") not in (None, "system", "tally") and made:
+        from datetime import timedelta as _td2
+        fresh = made >= (datetime.now(timezone.utc) - _td2(days=core.MIN_DAYS)).strftime("%Y-%m-%d")
+        body += (f'<div class="meta">{"<b style=color:var(--accent)>New</b> · " if fresh else ""}created by {esc(who(m["created_by"]))} on {esc(when(made + "T00:00:00Z") or made)}'
+                 f'{". It joins rankings and the front page once it has two weeks of readings." if fresh else ""}</div>')
     if rank:
         body += f'<div class="meta"><a href="/top/{rank[3]}"><b style="color:var(--ink)">#{rank[0]} of {rank[1]}</b> by {esc(rank[2])}</a></div>'
     body += (f'<div class="meta">{"As of " + asof if asof else "Not read yet"} · followed by {t["followers"]} <span id="follownote" style="margin-left:6px"></span></div>'
@@ -506,9 +527,9 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     body += points_table(m, pts) + use_box(m, t, pts)
     if recipe:
         body += (f'<h2>Recipe <span style="font:13px var(--mono);color:#667085;font-weight:400">version {recipe["version"]}</span></h2>'
-                 f'<p class="q" style="margin:0 0 10px">How this number is obtained, in plain words, with every earlier version. Open to read; Pro members can improve it.</p>'
-                 f'<div class="cta" style="margin-top:0"><a class="btn ghost" href="/n/{m["id"]}/recipe">Read the recipe</a></div>')
-    body += f'<div class="cta"><a class="btn ghost" href="{subject_path(sub)}">More about {esc(sub)}</a><a class="btn ghost" href="/numbers">Browse the catalog</a></div>'
+                 f'<p class="q" style="margin:0 0 10px">How this number is obtained, in plain words, with every earlier version. Anyone signed in can improve it; a change counts only if an agent can verify it.</p>'
+                 f'<div class="cta" style="margin-top:0"><a class="btn ghost" href="/n/{m["id"]}/recipe">Read or improve the recipe</a></div>')
+    body += f'<div class="cta"><a class="btn ghost" href="{subject_path(sub)}">More about {esc(sub)}</a><a class="btn ghost" href="/track">Create a number that is not here</a></div>'
     if related:
         body += f'<h2>More about {esc(sub)}</h2><div class="grid">{"".join(tile_link(r) for r in related[:8])}</div>'
     ld = None
@@ -644,9 +665,9 @@ def recipe_page(m, t, live, hist, editable):
             except ValueError:
                 pass
         rows += f'<li><span style="font:inherit;color:inherit;white-space:normal"><b>v{r["version"]}</b> · {st}{why} · {esc(r["note"] or "no note")}</span><span>{esc(who(r["author"]))} · {esc(when(r["created_at"]) or "")}{restore}</span></li>'
-    form = (f'<h2>Improve this recipe <span style="font:12px var(--mono);color:var(--accent);font-weight:400">Pro</span></h2><p class="q" style="margin:0 0 10px">Edit the text and press the button. An agent follows your version once; if the value it gets can be read in the source and '
+    form = (f'<h2>Improve this recipe</h2><p class="q" style="margin:0 0 10px">Edit the text and press the button. An agent follows your version once; if the value it gets can be read in the source and '
             f'is not an unexplained jump, your version goes live straight away. Otherwise it is kept in the history as not adopted, with the reason.</p>'
-            f'<div id="signin" class="card" hidden><p style="margin:0 0 10px">Improving a recipe is part of Pro. Reading it, and every version of it, is open to everyone.</p><a class="btn" href="/app?plans=1">See Pro</a></div>'
+            f'<div id="signin" class="card" hidden><p style="margin:0 0 10px">Sign in to improve this recipe. A free account can try three changes a day.</p><a class="btn" href="/app">Sign in</a></div>'
             f'<form id="edit" hidden><textarea id="body" rows="18" spellcheck="false">{esc(live["body"])}</textarea>'
             f'<input id="note" placeholder="What did you change, and why? (one line)" maxlength="200">'
             f'<div class="cta" style="margin-top:10px"><button class="btn" id="go">Try it and publish</button><span class="meta" id="left"></span></div></form><div id="result"></div>'
@@ -656,7 +677,7 @@ def recipe_page(m, t, live, hist, editable):
 const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])), MID=%d;
 const num=v=>v==null?"no value":Number(v).toLocaleString("en-US",{maximumFractionDigits:2});
 (async()=>{ if(!$("#edit")) return; const me=await (await fetch("/api/me")).json();
-  if(!me.user||me.user.plan!="pro"){$("#signin").hidden=false; return} $("#edit").hidden=false;
+  if(!me.user){$("#signin").hidden=false; return} $("#edit").hidden=false;
   const st=await (await fetch("/api/recipes/"+MID)).json(); $("#left").textContent=st.left+" trial"+(st.left==1?"":"s")+" left today";
   $("#edit").onsubmit=async ev=>{ev.preventDefault(); $("#go").disabled=true; $("#go").textContent="The agent is following your recipe…";
     $("#result").innerHTML='<p class="meta">This takes up to a minute. Keep the page open.</p>';
@@ -683,7 +704,7 @@ document.addEventListener("click",async ev=>{const a=ev.target.closest(".rv"); i
            ".recipe p,.recipe li{margin:4px 0;color:#344054}.recipe ul{margin:4px 0;padding-left:20px}"
            "#body{width:100%;font:13px/1.55 var(--mono);padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:inherit;resize:vertical}"
            "#note{width:100%;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;background:#fff}button.btn{border:0;cursor:pointer;font:600 16px var(--display)}button.btn:disabled{opacity:.6;cursor:wait}</style>")
-    return shell(f"Recipe for {m['title']}: how the number is obtained | Tally", f"How Tally obtains {m['title']}: the source, how it is read, how its history is rebuilt and what makes a reading invalid. Open for anyone to read.",
+    return shell(f"Recipe for {m['title']}: how the number is obtained | Tally", f"How Tally obtains {m['title']}: the source, how it is read, how its history is rebuilt and what makes a reading invalid. Open to read, and to improve by anyone signed in.",
                  f"/n/{m['id']}/recipe", css + body)
 
 

@@ -3,8 +3,8 @@
 Access tiers
   anonymous  the curated catalog is the product and it is open: every number live, with its history, source and recipe;
              rankings, boards per company or sector, comparisons, embeds
-  free       Google sign-in; follow numbers on a board of their own
-  pro        paid through Stripe; the advanced part: ask for new numbers, improve recipes, Check now on any number
+  free       Google sign-in; follow numbers, create one new number a day, try three recipe improvements a day
+  pro        paid through Stripe; twenty of each a day, Check now on any number, faster checks, alerts
 """
 import env  # noqa: F401  loads .env first
 import json
@@ -30,6 +30,7 @@ import recipes
 import interest
 import cards
 import popular
+import lifecycle
 
 HERE = os.path.dirname(__file__)
 app = FastAPI(title="Tally")
@@ -98,7 +99,7 @@ PRICE_USD = int(os.environ.get("TALLY_PRICE_USD", "19"))
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "").rstrip("/")
 FEATURED = "A"       # the showcase board: live for everyone
 FREE_LIVE = 5
-FREE_CREATE = 0      # new numbers are part of Pro; the curated catalog is what everyone gets
+FREE_CREATE = 1      # new numbers a day on a free account (lifecycle.PER_DAY)
 COOKIE = "tally_session"
 
 
@@ -416,8 +417,6 @@ def recipe_revise(mid: int, body: Revision, request: Request):
         raise HTTPException(404, "no such number")
     if free_sources.is_free(m):
         raise HTTPException(400, "This number is read straight from a public API; its recipe is changed in the source repository.")
-    if u["plan"] != "pro":
-        raise HTTPException(402, "Reading a recipe is open to everyone. Improving one is part of Pro.")
     if recipes.trials_left(u) <= 0:
         raise HTTPException(429, "You have used today's recipe trials. Each one runs an agent, so they are limited; try again tomorrow.")
     try:
@@ -435,8 +434,6 @@ def recipe_revert(mid: int, body: Revert, request: Request):
     m = core.metric(mid)
     if not m:
         raise HTTPException(404, "no such number")
-    if u["plan"] != "pro":
-        raise HTTPException(402, "Restoring a recipe version is part of Pro.")
     try:
         return {"version": recipes.revert(u, m, body.version)}
     except ValueError as e:
@@ -723,9 +720,10 @@ def _rankings0():
     names = {t["title"].replace("{company} · ", "").lower(): t["title"].replace("{company} · ", "") for t in TEMPLATES if t.get("pack", "company") == "company"}
     names |= {"npm downloads, weekly": "npm downloads, weekly", "pypi downloads, weekly": "PyPI downloads, weekly"}
     by = {}
+    new_since = (datetime.now(timezone.utc) - timedelta(days=core.MIN_DAYS)).strftime("%Y-%m-%d")
     for m in db.q("SELECT * FROM metrics WHERE title LIKE '% · %'"):
         tid = m["title"].split(" · ", 1)[1].strip().lower()  # by what the number is, whether it came from a pack or was asked for
-        if tid in names:
+        if tid in names and (m.get("curated") or (m.get("created_at") or "") < new_since):  # a number someone just created earns its place in a ranking after two weeks
             t = tile(m, None)
             if t["value"] is not None:
                 by.setdefault(tid, []).append(t)
@@ -965,20 +963,57 @@ class AddMetric(BaseModel):
 
 @app.post("/api/metrics")
 def add_metric(body: AddMetric, request: Request):
+    """Ask for a number from inside the app: the same lifecycle as the public page, published as soon as it is proven."""
     u = need_user(request)
-    q = body.question.strip()
-    if not q:
-        raise HTTPException(400, "question is empty")
-    mid = core.match_metric(q)
-    if mid:
-        core.follow(u["id"], mid)
-        return {"metric": tile(core.metric(mid), u), "matched": True, "path": pp.number_path(core.metric(mid))}
-    if is_guest(u) and guest_cap_reached():
-        raise HTTPException(402, "Guest accounts have used up their shared allowance of new metrics. Everything already in the catalog is still yours to follow; sign in with Google to create more.")
-    if u["plan"] != "pro" and db.one("SELECT COUNT(*) n FROM metrics WHERE created_by=?", (u["id"],))["n"] >= FREE_CREATE:
-        raise HTTPException(402, "The record does not have this number yet. Asking Tally to find and track a new number is part of Pro.")
-    m, _ = core.create_metric(u["id"], q, skip_match=True)
+    try:
+        r = lifecycle.draft(u, body.question)
+        if r["status"] == "matched":
+            mid = int(r["path"].split("/")[2])
+            core.follow(u["id"], mid)
+            return {"metric": tile(core.metric(mid), u), "matched": True, "path": r["path"]}
+        if r["status"] == "failed":
+            raise HTTPException(422, "No source could be quoted for this number, so it was not added. It is on the wanted list: " + "; ".join(r["reasons"])[:300])
+        m = lifecycle.publish(u, r["draft"])
+    except lifecycle.Refused as e:
+        raise HTTPException(402, str(e))
     return {"metric": tile(m, u), "matched": False, "path": pp.number_path(m)}
+
+
+class Draft(BaseModel):
+    question: str
+
+
+class Publish(BaseModel):
+    draft: int
+
+
+@app.post("/api/numbers/draft")
+def number_draft(body: Draft, request: Request):
+    """Step one of creating a number: find it and show what was found. Nothing is public yet."""
+    u = need_user(request)
+    try:
+        return lifecycle.draft(u, body.question) | {"left": lifecycle.left_today(u)}
+    except lifecycle.Refused as e:
+        raise HTTPException(402, str(e))
+    except Exception as e:
+        print("draft failed:", type(e).__name__, str(e)[:200])
+        raise HTTPException(502, "The search could not be completed. Nothing was created; try again in a minute.")
+
+
+@app.post("/api/numbers/publish")
+def number_publish(body: Publish, request: Request):
+    u = need_user(request)
+    try:
+        m = lifecycle.publish(u, body.draft)
+    except lifecycle.Refused as e:
+        raise HTTPException(400, str(e))
+    _featured["at"] = 0.0
+    return {"path": pp.number_path(m), "title": m["title"]}
+
+
+@app.get("/wanted")
+def wanted_page():
+    return HTMLResponse(pp.wanted_page(lifecycle.wanted()))
 
 
 class Pack(BaseModel):
@@ -1169,6 +1204,7 @@ def _autosync():
                 core.roll_periods()
                 if os.environ.get("TALLY_DAILY_READ", "1") != "0":
                     core.refresh_searched()
+                lifecycle.retire_stale()
                 added = popular.daily()
                 if added:
                     print("popular, added today:", added)

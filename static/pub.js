@@ -27,7 +27,7 @@
       const j = await fetch("/api/suggest?q=" + encodeURIComponent(q)).then(r => r.json()).catch(() => ({ numbers: [] }));
       if (mine !== seq) return;  // a later keystroke already answered
       box.innerHTML = (j.boards || []).map(b => `<a class="board" href="${esc(b.path)}"><span><b>${esc(b.name)}</b> · all ${b.count} numbers</span><em>board</em></a>`).join("") + j.numbers.map(n => `<a href="${esc(n.path)}"><span>${esc(n.title)}</span><em>${esc(n.value)}</em></a>`).join("")
-        + `<a class="new" href="/track?q=${encodeURIComponent(q)}"><span>Track “${esc(q)}” as a new number</span><em>Pro</em></a>`;
+        + `<a class="new" href="/track?q=${encodeURIComponent(q)}"><span>Create “${esc(q)}” as a new number</span><em>${j.numbers.length ? "not listed?" : "not in the record yet"}</em></a>`;
       sel = -1; box.hidden = false;
       clearTimeout(settle); settle = setTimeout(() => { if (input.value.trim() === q) tell(q, j.numbers.length + (j.boards || []).length); }, 1500);
       box.onclick = () => tell(q, j.numbers.length + (j.boards || []).length);
@@ -94,18 +94,40 @@
     });
   }
 
-  // ---- ask for a number the record does not have
+  // ---- create a number: find it, show what was found, publish on confirmation
   const tb = document.querySelector("[data-track]");
   if (tb) {
-    const holder = document.getElementById("signin"), note = document.getElementById("tracknote");
+    const holder = document.getElementById("signin"), note = document.getElementById("tracknote"), pv = document.getElementById("preview");
     tb.addEventListener("click", async () => {
       const q = document.getElementById("trackq").value.trim();
       if (!q) { note.textContent = "Type the number you want, for example “Stripe latest valuation”."; return; }
       const m = await me();
-      if (!m.user && !(await signIn(holder, "Sign in first. Adding a number to the record is part of Pro."))) return;
-      tb.disabled = true; note.textContent = "Searching for it and reading the source. This takes about half a minute.";
-      try { const j = await post("/api/metrics", { question: q }); location.href = j.path || "/n/" + j.metric.id; }
-      catch (e) { tb.disabled = false; note.innerHTML = esc(e.message) + (e.status === 402 ? ' <a href="/app?plans=1">See Pro</a>' : ""); }
+      if (!m.user && !(await signIn(holder, "Sign in to create a number. It is yours to follow, and a free account can create one a day."))) return;
+      tb.disabled = true; pv.innerHTML = ""; note.textContent = "Searching, reading the source and rebuilding the past. This takes a minute or two; keep the page open.";
+      try {
+        const j = await post("/api/numbers/draft", { question: q });
+        if (j.status === "matched") { note.innerHTML = `The record already has this: <a href="${esc(j.path)}">${esc(j.title)}</a>.`; }
+        else if (j.status === "failed") {
+          note.textContent = "No page could be quoted for this number, so nothing was created.";
+          pv.innerHTML = `<ul class="rows" style="margin-top:10px">${j.reasons.map(r => `<li><span style="font:inherit;color:inherit;white-space:normal">✗ ${esc(r)}</span></li>`).join("")}</ul>`
+            + (j.notes ? `<p class="meta">Agent's note: ${esc(j.notes)}</p>` : "") + '<p class="meta">It is on the <a href="/wanted">wanted list</a>. Try other words, or name the page that states it.</p>';
+        } else {
+          note.textContent = "Found. Check it, then publish.";
+          const hist = (j.history || []).map(h => `<tr><td>${esc(h.date)}</td><td>${esc(h.value)}</td><td>${h.url ? `<a href="${esc(h.url)}" rel="nofollow noopener">${esc(h.url.split("/")[2] || "")}</a>` : ""}</td></tr>`).join("");
+          pv.innerHTML = `<div class="card" style="margin-top:14px;background:var(--paper)"><b style="font-size:18px">${esc(j.title)}</b><p class="q" style="margin:2px 0 10px">${esc(j.question)}</p>`
+            + (j.status === "list" ? `<p>${esc(j.note)}</p>` : `<div class="val" style="font-size:44px">${esc(j.value)}</div>`
+              + (j.quote ? `<blockquote style="margin-top:10px">${esc(j.quote)}</blockquote>` : "") + `<p class="meta">Read from <a href="${esc(j.url)}" rel="nofollow noopener">${esc(j.url)}</a></p>`
+              + (hist ? `<p class="meta" style="margin-top:12px">${j.history.length} past values, each from a dated source</p><table class="pts"><tr><th>When</th><th>Value</th><th>Source</th></tr>${hist}</table>`
+                      : '<p class="meta">No dated past values were found. Its history starts today and grows with a reading every day.</p>'))
+            + `<div class="cta" style="margin-top:14px"><button class="follow" type="button" id="pub">Publish this number</button></div><p class="meta" id="pubnote">Publishing makes the page public and puts it on your board.</p></div>`;
+          document.getElementById("pub").addEventListener("click", async ev => {
+            ev.target.disabled = true;
+            try { const r = await post("/api/numbers/publish", { draft: j.draft }); location.href = r.path; }
+            catch (e) { ev.target.disabled = false; document.getElementById("pubnote").textContent = e.message; }
+          });
+        }
+      } catch (e) { note.innerHTML = esc(e.message) + (e.status === 402 ? ' <a href="/app?plans=1">See the plans</a>' : ""); }
+      tb.disabled = false;
     });
   }
 })();

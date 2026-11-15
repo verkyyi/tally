@@ -9,7 +9,7 @@ import db
 import free_sources
 
 SECTIONS = ("Source", "Read", "History", "Update", "Checks")
-TRIALS_PER_DAY = {"free": 0, "pro": 20}
+TRIALS_PER_DAY = {"free": 3, "pro": 20}
 GLOBAL_TRIALS_PER_DAY = 150
 JUMP = core.JUMP  # a trial value more than 3x away from the live one is held back, not adopted
 RECONCILE = 0.15  # rounds listed for a running total must add up to within 15% of the total read today
@@ -87,7 +87,7 @@ def trials_left(u):
     day = db.now()[:10]
     mine = db.one("SELECT COUNT(*) n FROM recipes WHERE author=? AND created_at>=? AND version>1", (u["id"], day))["n"]
     everyone = db.one("SELECT COUNT(*) n FROM recipes WHERE created_at>=? AND version>1 AND author!='tally'", (day,))["n"]
-    return max(0, min(TRIALS_PER_DAY.get(u["plan"], 0) - mine, GLOBAL_TRIALS_PER_DAY - everyone))
+    return max(0, min(TRIALS_PER_DAY.get(u["plan"], 3) - mine, GLOBAL_TRIALS_PER_DAY - everyone))
 
 
 def _verify(m, res, pages):
