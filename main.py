@@ -1236,6 +1236,7 @@ def _autosync():
                 if os.environ.get("TALLY_DAILY_READ", "1") != "0":
                     core.refresh_searched()
                 lifecycle.retire_stale()
+                lifecycle.repair_due()
                 n = alerts.flush()
                 if n:
                     print("alert emails sent:", n)

@@ -589,11 +589,13 @@ def refresh_searched(limit=2, older_than_hours=22):
         if n >= limit:
             break
         try:
-            run_now(m["id"])
+            out = run_now(m["id"])
             n += 1
+            # A read that finds nothing, or finds a jump no second source backs, counts as a failure; enough of them in a row send for the agent.
+            db.run("UPDATE metrics SET read_failures=? WHERE id=?", (0 if out.get("found") else (metric(m["id"]).get("read_failures") or 0) + 1, m["id"]))
         except Exception as e:  # one unreadable source must not stop the round, nor be retried every five minutes
             print("daily read failed:", m["id"], m["title"], type(e).__name__, str(e)[:120])
-            db.run("UPDATE metrics SET last_checked_at=? WHERE id=?", (db.now(), m["id"]))
+            db.run("UPDATE metrics SET last_checked_at=?, read_failures=COALESCE(read_failures,0)+1 WHERE id=?", (db.now(), m["id"]))
     return n
 
 

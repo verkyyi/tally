@@ -12,6 +12,7 @@ Drafting and publishing are separate so the person sees what was found before it
 the catalog until they confirm; a draft that could not be proven is kept as a wanted number."""
 import json
 import re
+from datetime import datetime, timedelta, timezone
 
 import core
 import db
@@ -187,6 +188,67 @@ def create_curated(question, company=None, on_done=None):
     db.run("UPDATE metrics SET curated=1, company=COALESCE(?,company) WHERE id=?", (company, m["id"]))
     db.run("DELETE FROM board_items WHERE user='tally'")
     return "published", core.metric(m["id"]), p
+
+
+FAILS, REPAIR_EVERY_DAYS, REPAIRS_PER_DAY = 3, 7, 10
+
+
+def repair(m):
+    """The fallback when the plain daily read keeps failing. First the agent follows the recipe as it stands; it is more capable
+    than the cheap reader and often gets the value from the same source. If that fails too, it researches the number afresh and
+    writes a new recipe and update plan, adopted only if it passes the usual checks. Returns "read", "repaired" or "failed"."""
+    import agent
+    db.run("UPDATE metrics SET repaired_at=? WHERE id=?", (db.now(), m["id"]))
+    passed = lambda checks: all(c["ok"] for c in checks if not c["name"].startswith("No unexplained jump"))  # the agent is the second look a big move was waiting for
+    cur = recipes.live(m)
+    run = agent.run_recipe(m, cur["body"])
+    res = run["result"]
+    checks, _, _ = recipes._verify(m, res, run["pages"])
+    if res and res.get("found") and passed(checks):
+        core.record_direct(m, {"value": res["value"], "evidence_url": res["evidence_url"], "quote": res["quote"]}, "agent")
+        db.run("UPDATE metrics SET read_failures=0, last_checked_at=? WHERE id=?", (db.now(), m["id"]))
+        return "read"
+    run = agent.create(m["question"])
+    res = run["result"]
+    checks, _, hist = recipes._verify(m, res, run["pages"])
+    if not (res and res.get("found") and passed(checks)):
+        return "failed"
+    r, plan = res["recipe"], res.get("plan") or {}
+    body = (f"## Source\n{res['evidence_url']}\n{r['Source']}\n\n## Read\n{r['Read'] or 'Read the single value that answers the question from the source page, with the sentence that states it.'}\n\n"
+            f"## History\n{r['History'] or recipes.parse(cur['body']).get('History', '')}\n\n## Update\n{r['Update'] or 'Once a day.'}\n\n## Checks\n{r['Checks'] or CHECKS}\n")
+    ver = db.one("SELECT MAX(version) v FROM recipes WHERE metric_id=?", (m["id"],))["v"] + 1
+    db.run("UPDATE recipes SET status='superseded' WHERE metric_id=? AND status='live'", (m["id"],))
+    db.run("INSERT INTO recipes(metric_id,version,body,author,note,status,created_at,trial_json) VALUES(?,?,?,?,?,?,?,?)",
+           (m["id"], ver, body, "tally", f"Repaired by an agent after {m.get('read_failures') or FAILS} daily reads in a row found no usable value.", "live", db.now(),
+            json.dumps({"checks": checks, "notes": res.get("notes"), "steps": run["steps"], "model": run["model"], "usage": run["usage"], "adopted": True, "created": True})))
+    secs = recipes.parse(body)
+    db.run("UPDATE metrics SET source_url=?, instructions=?, search_query=COALESCE(?,search_query), update_json=?, recipe_version=?, read_failures=0, last_checked_at=? WHERE id=?",
+           (res["evidence_url"], secs.get("Read"), recipes._search_line(secs.get("Source", "")), json.dumps(plan), ver, db.now(), m["id"]))
+    fresh = core.metric(m["id"])
+    core.record_direct(fresh, {"value": res["value"], "evidence_url": res["evidence_url"], "quote": res["quote"]}, "agent")
+    if not plan.get("running_total"):
+        for h in hist:
+            at = h["date"] + "T00:00:00Z"
+            if not db.one("SELECT 1 x FROM observations WHERE metric_id=? AND substr(as_of,1,7)=?", (m["id"], at[:7])):
+                db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)", (m["id"], h["value"], at, h.get("url"), "source_history", f"recipe v{ver}", ver))
+    return "repaired"
+
+
+def repair_due(limit=1):
+    """Send the agent to the numbers whose daily read has failed several times in a row: at most one attempt per number a week, a few a day in all."""
+    day, week = db.now()[:10], (datetime.now(timezone.utc) - timedelta(days=REPAIR_EVERY_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if db.one("SELECT COUNT(*) n FROM metrics WHERE repaired_at>=?", (day,))["n"] >= REPAIRS_PER_DAY:
+        return []
+    out = []
+    for m in db.q("SELECT * FROM metrics WHERE COALESCE(read_failures,0)>=? AND kind='direct' AND COALESCE(skill,'') NOT LIKE 'free|%' AND (repaired_at IS NULL OR repaired_at<?) "
+                  "ORDER BY read_failures DESC LIMIT ?", (FAILS, week, limit)):
+        try:
+            how = repair(m)
+        except Exception as e:
+            how = f"error {type(e).__name__}: {str(e)[:120]}"
+        print("repair:", m["id"], m["title"], "->", how)
+        out.append((m["id"], how))
+    return out
 
 
 def wanted(limit=60):

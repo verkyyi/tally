@@ -476,6 +476,9 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     if per:
         tabs = "".join(f'<a href="{number_path(m)}{"" if i == 0 else "?period=" + k[:7]}" class="rg{" on" if on else ""}">{esc(lab)}</a>' for i, (k, lab, on) in enumerate(per["tabs"]))
         body += f'<div class="meta" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><b style="color:var(--ink)">{esc(per["label"])}{" so far" if per["current"] else ""}</b><span class="rgs" style="flex-wrap:wrap">{tabs}</span></div>'
+    if (m.get("read_failures") or 0) >= 3:
+        body += (f'<div class="meta" style="color:#b54708">Tally has not been able to read this number for {m["read_failures"]} days in a row. '
+                 + ("An agent re-researched it and could not find a page that states it; it tries again weekly." if m.get("repaired_at") else "An agent is being sent to re-research it.") + "</div>")
     made = (m.get("created_at") or "")[:10]
     if not m.get("curated") and m.get("created_by") not in (None, "system", "tally") and made:
         from datetime import timedelta as _td2
@@ -576,6 +579,22 @@ def points_table(m, pts, limit=40):
     return f'<h2>Where each point comes from</h2><div style="overflow-x:auto"><table class="pts"><tr><th>When</th><th>Value</th><th>Source</th></tr>{rows}</table></div>{more}'
 
 
+GROUPS = ("Money", "Customers and usage", "Prices and plans", "People", "Compute", "Other")
+_CAT = ((re.compile(r"\bipo\b", re.I), "Money"),
+        (re.compile(r"price|plan\b|seat|per million|mtok|rate limit|spend cap|\btier", re.I), "Prices and plans"),
+        (re.compile(r"employee|headcount|\broles?\b|hiring|job post|staff", re.I), "People"),
+        (re.compile(r"customer|users?\b|stars|downloads|rating|launches|subscribers|traffic|installs", re.I), "Customers and usage"),
+        (re.compile(r"compute|gigawatt|\bgw\b|capacity|commitments|chips|data cent", re.I), "Compute"),
+        (re.compile(r"valuation|funding|round|revenue|loss|income|profit|cash|debt|indebted|retention|raised|placement|shares|capital|investment|fund size|deals", re.I), "Money"))
+
+
+def category(m):
+    """Which part of a company's board a number belongs to, from what it measures."""
+    what = (m.get("title") or "").split(" · ", 1)[-1] if (m.get("company") or "") else (m.get("title") or "")
+    what = (m.get("title") or "") if " · " not in (m.get("title") or "") else what + " " + (m.get("title") or "").split(" · ")[0]
+    return next((g for rx, g in _CAT if rx.search(what)), "Other")
+
+
 def subject_page(name, tiles, metrics=None, series=None):
     have = [t for t in tiles if t["value"] is not None]
     bits = []
@@ -586,7 +605,16 @@ def subject_page(name, tiles, metrics=None, series=None):
     desc = f"{name} in numbers: {'; '.join(bits)}. Each with its source and history, kept current on Tally." if bits else f"Numbers Tally tracks about {name}, each with its source."
     series = series or {}
     order = sorted(tiles, key=lambda t: (-min(len(series.get(t["id"], [])), 3), t["value"] is None))
-    cards = "".join(landing_card(metrics[t["id"]], t, series.get(t["id"], [])) if t["value"] is not None and metrics and t["id"] in metrics else tile_link(t) for t in order)
+    card = lambda t: landing_card(metrics[t["id"]], t, series.get(t["id"], [])) if t["value"] is not None and metrics and t["id"] in metrics else tile_link(t)
+    by = {}
+    for t in order:
+        by.setdefault(category(metrics[t["id"]]) if metrics and t["id"] in metrics else "Other", []).append(t)
+    if len(tiles) >= 6 and len(by) > 1:  # a long board is read by what its numbers are about
+        jump = " · ".join(f'<a href="#{slug(g)}">{g} <span style="color:#667085">{len(by[g])}</span></a>' for g in GROUPS if g in by)
+        cards = f'<p class="meta" style="margin:0 0 4px">{jump}</p>' + "".join(f'<h2 id="{slug(g)}" style="margin:26px 0 10px">{g}</h2><div class="cards">{"".join(card(t) for t in by[g])}</div>' for g in GROUPS if g in by)
+        cards = f'</div>{cards}<div>'
+    else:
+        cards = "".join(card(t) for t in order)
     charted = sum(1 for t in tiles if len(series.get(t["id"], [])) >= 2)
     body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / {esc(name)}</div><h1 style="display:flex;align-items:center;gap:14px"><img src="/logo/{slug(name)}.png" alt="" width="44" height="44" style="border-radius:11px;background:#fff;border:1px solid #e1e4ea" onerror="this.remove()">{esc(name)} in numbers</h1>'
             f'<p class="q">{len(tiles)} numbers about {esc(name)}{f", {charted} with a history to chart" if charted else ""}. Each opens to its evidence, its past and its source.</p>'

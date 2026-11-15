@@ -77,6 +77,8 @@ MIGRATIONS = [
     "CREATE TABLE IF NOT EXISTS gone(id INTEGER PRIMARY KEY, title TEXT, to_path TEXT, at TEXT)",  # numbers taken out of the record: their old address leads somewhere that still exists
     "CREATE TABLE IF NOT EXISTS asks(day TEXT, q TEXT, via TEXT, found INTEGER DEFAULT 0, n INTEGER DEFAULT 0, PRIMARY KEY(day, q, via))",  # what people and agents searched for, and whether the record had it; words only, nothing about who asked
     "CREATE TABLE IF NOT EXISTS fetches(day TEXT, kind TEXT, metric_id INTEGER DEFAULT 0, n INTEGER DEFAULT 0, PRIMARY KEY(day, kind, metric_id))",  # data addresses read by scripts and agents (json, md, csv, svg, embed, llms, search)
+    "ALTER TABLE metrics ADD COLUMN read_failures INTEGER DEFAULT 0",  # daily reads in a row that produced no usable value; any good reading resets it
+    "ALTER TABLE metrics ADD COLUMN repaired_at TEXT",                 # when an agent last tried to repair this number's recipe
     "ALTER TABLE metrics ADD COLUMN update_json TEXT",  # how to keep the number current, as the creating agent wrote it: method, address, how often
     "CREATE TABLE IF NOT EXISTS drafts(id INTEGER PRIMARY KEY, user TEXT, question TEXT, title TEXT, status TEXT, payload TEXT, created_at TEXT, metric_id INTEGER)",  # a requested number before it is published: what was asked, what the agent found
     "ALTER TABLE users ADD COLUMN email_alerts INTEGER DEFAULT 1",  # 1 = email this person when a number they follow moves
