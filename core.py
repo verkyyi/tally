@@ -275,7 +275,7 @@ def resolve_direct(m, exclude_domain=None, fresh=False):
     urls, results = [], None
     if m.get("source_url") and domain(m["source_url"]) != exclude_domain:
         urls.append(m["source_url"])
-    if len(urls) < 1 or exclude_domain:
+    if len(urls) < 1 or exclude_domain or plan.get("method") == "search":  # a value that moves to a new page each time (a new announcement) is searched for, not only re-read
         results, _ = telem.search(m["search_query"] or m["question"], m["id"], auto=True, num_results=5)
         hint = (m.get("source_hint") or "").lower()
         results.sort(key=lambda r: (0 if hint and hint in domain(r["url"]) else 1, r.get("rank") or 99))
