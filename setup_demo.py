@@ -322,6 +322,18 @@ def retire():
     print("numbers retired:", n)
 
 
+def add_popular():
+    """Add the round numbers, with history, for the named companies; with no names, show the most-read companies the catalog lacks."""
+    import popular
+    names = sys.argv[2:]
+    if not names:
+        for w, r, n in popular.ranked()[:30]:
+            print(f"{int(w):>8,}  x{r:.2f}  {n}")
+        return
+    for name, rows in popular.add(names):
+        print(name, "|", len(rows), "numbers |", sum(r[3] for r in rows), "past points", flush=True)
+
+
 def periods():
     """Turn the numbers that were made for one month ("AI agents · Nov 2026 funding") into lasting numbers counted per period. Safe to run again."""
     import re
@@ -377,4 +389,4 @@ def period_history():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()

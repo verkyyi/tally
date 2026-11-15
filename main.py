@@ -29,6 +29,7 @@ import logos
 import recipes
 import interest
 import cards
+import popular
 
 HERE = os.path.dirname(__file__)
 app = FastAPI(title="Tally")
@@ -1126,6 +1127,9 @@ def _autosync():
                 core.roll_periods()
                 if os.environ.get("TALLY_DAILY_READ", "1") != "0":
                     core.refresh_searched()
+                added = popular.daily()
+                if added:
+                    print("popular, added today:", added)
                 interest.refresh(sorted({pp.subject(m) for m in db.q("SELECT title, company FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%'")}), limit=12)
                 if os.environ.get("TALLY_PACER", "1") != "0":
                     r = core.pace()

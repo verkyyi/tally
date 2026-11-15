@@ -15,6 +15,7 @@ VIEWS = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wiki
 
 
 KIND = re.compile(r"compan|software|startup|organi[sz]ation|firm|platform|accelerator|\bapp\b|service|framework|library|database|editor|tool|website|venture|investor|laborator", re.I)
+NOT_IT = re.compile(r"automobile|brand of|film|album|band\b|video game|ship|aircraft|planet", re.I)  # "Mercury (automobile)" is a brand of the Ford Motor Company, not the bank
 API = "https://en.wikipedia.org/w/api.php"
 
 
@@ -32,7 +33,7 @@ def _article(subject):
         desc = {p["title"]: p.get("description") or "" for p in (r.json().get("query") or {}).get("pages", {}).values()} if r.status_code == 200 else {}
     except (httpx.HTTPError, ValueError, IndexError):
         return None
-    return next((t for t in titles if KIND.search(desc.get(t, ""))), None)
+    return next((t for t in titles if KIND.search(desc.get(t, "")) and not NOT_IT.search(desc.get(t, ""))), None)
 
 
 def _views(article):
@@ -55,7 +56,7 @@ def refresh(subjects, older_than_hours=20, limit=60):
     n = 0
     for s in subjects:
         row = db.one("SELECT * FROM interest WHERE subject=?", (s,))
-        if row and row["at"] > cutoff:
+        if s.startswith("*") or (row and row["at"] > cutoff):
             continue
         article = (row or {}).get("article") or _article(s)
         got = _views(article) if article else None
