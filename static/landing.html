@@ -31,7 +31,8 @@ h1{font-size:clamp(38px,6.4vw,62px);line-height:1.03;letter-spacing:-.045em;marg
 .pick{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 17px;text-align:left;text-decoration:none;transition:border-color .15s,box-shadow .15s}
 .pick:hover,.pick:focus-visible{border-color:var(--accent);box-shadow:0 0 0 3px var(--tint);outline:none}
 .pick b{display:flex;align-items:center;gap:9px;font-size:17px;letter-spacing:-.01em}
-.av{width:26px;height:26px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none}
+.av{width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none;position:relative;overflow:hidden}
+.av img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff}
 .pick span.b{display:block;font:13px/1.45 var(--mono);color:var(--mute);margin-top:7px}
 form{display:flex;gap:8px;margin:14px 0 0}
 form input{flex:1;min-width:0;padding:13px 15px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:inherit}
@@ -66,12 +67,12 @@ footer{padding:18px 0 40px;color:var(--mute);font-size:14px;border-top:1px solid
   <p class="lede">New funding, new hires, new launches. Tally tracks them for the companies you care about and shows the source behind every number.</p>
   <p class="ask">Pick one to start. You can add more later.</p>
   <div class="picks" id="picks">
-    <a class="pick" href="/app?start=Cursor"><b><span class="av">C</span>Cursor</b><span class="b">funding · open roles · launches</span></a>
-    <a class="pick" href="/app?start=Lovable"><b><span class="av">L</span>Lovable</b><span class="b">funding · open roles · launches</span></a>
-    <a class="pick" href="/app?start=Y%20Combinator&pack=accelerator"><b><span class="av">Y</span>Y Combinator</b><span class="b">batch sizes · AI companies</span></a>
-    <a class="pick" href="/app?start=Linear"><b><span class="av">L</span>Linear</b><span class="b">funding · open roles · launches</span></a>
-    <a class="pick" href="/app?start=LangChain"><b><span class="av">L</span>LangChain</b><span class="b">GitHub stars · downloads</span></a>
-    <a class="pick" href="/app?start=Tavily"><b><span class="av">T</span>Tavily</b><span class="b">funding · open roles · launches</span></a>
+    <a class="pick" href="/app?start=Cursor"><b><span class="av">C<img src="/logo/cursor.png" alt="" loading="lazy" onerror="this.remove()"></span>Cursor</b><span class="b">funding · open roles · launches</span></a>
+    <a class="pick" href="/app?start=Lovable"><b><span class="av">L<img src="/logo/lovable.png" alt="" loading="lazy" onerror="this.remove()"></span>Lovable</b><span class="b">funding · open roles · launches</span></a>
+    <a class="pick" href="/app?start=Y%20Combinator&pack=accelerator"><b><span class="av">Y<img src="/logo/y-combinator.png" alt="" loading="lazy" onerror="this.remove()"></span>Y Combinator</b><span class="b">batch sizes · AI companies</span></a>
+    <a class="pick" href="/app?start=Linear"><b><span class="av">L<img src="/logo/linear.png" alt="" loading="lazy" onerror="this.remove()"></span>Linear</b><span class="b">funding · open roles · launches</span></a>
+    <a class="pick" href="/app?start=LangChain"><b><span class="av">L<img src="/logo/langchain.png" alt="" loading="lazy" onerror="this.remove()"></span>LangChain</b><span class="b">GitHub stars · downloads</span></a>
+    <a class="pick" href="/app?start=Tavily"><b><span class="av">T<img src="/logo/tavily.png" alt="" loading="lazy" onerror="this.remove()"></span>Tavily</b><span class="b">funding · open roles · launches</span></a>
   </div>
   <form action="/app" method="get" id="f" autocomplete="off"><div class="sbox"><input name="start" id="q" placeholder="Or type any company, accelerator, sector or investor" aria-label="Name" required>
     <div id="sug" hidden></div></div><input type="hidden" name="pack" id="pack" disabled><button>Start</button></form>
@@ -88,6 +89,7 @@ footer{padding:18px 0 40px;color:var(--mute);font-size:14px;border-top:1px solid
   <span><a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span></footer>
 </div>
 <script>
+const slug=t=>String(t||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 // Suggestions as you type: cached names first, then anything already in the catalog. Picking one starts a board.
 let NAMES=[], sel=-1;
@@ -107,7 +109,7 @@ function show(){ const q=Q.value.trim(); sel=-1; if(q.length<1){SUG.hidden=true;
   const l=q.toLowerCase(), rank=x=>{const n=x.n.toLowerCase(); return n.startsWith(l)||(x.a||"").toLowerCase().startsWith(l)?0:n.split(/\s+/).some(w=>w.startsWith(l))?1:n.includes(l)?2:9};
   const m=NAMES.map(x=>[rank(x),x]).filter(x=>x[0]<9).sort((a,b)=>a[0]-b[0]||(b[1].d||0)-(a[1].d||0)||(b[1].c||0)-(a[1].c||0)||a[1].n.localeCompare(b[1].n)).slice(0,7).map(x=>x[1]);
   if(!m.length){SUG.hidden=true; return}
-  SUG.innerHTML=m.map(x=>`<a href="/app?start=${encodeURIComponent(x.n)}${x.t!="company"?"&pack="+x.t:""}" data-n="${esc(x.n)}"><i>${hl(x.n,q)}</i><span>${TYPE[x.t]}${x.c?" · "+x.c+(x.c==1?" number":" numbers")+" ready":""}</span></a>`).join(""); SUG.hidden=false }
+  SUG.innerHTML=m.map(x=>`<a href="/app?start=${encodeURIComponent(x.n)}${x.t!="company"?"&pack="+x.t:""}" data-n="${esc(x.n)}"><i style="display:flex;align-items:center;gap:9px"><span class="av" style="width:22px;height:22px;border-radius:6px;font-size:11px">${esc(x.n[0])}<img src="/logo/${slug(x.n)}.png" alt="" loading="lazy" onerror="this.remove()"></span><span style="font:inherit;color:inherit">${hl(x.n,q)}</span></i><span>${TYPE[x.t]}${x.c?" · "+x.c+(x.c==1?" number":" numbers")+" ready":""}</span></a>`).join(""); SUG.hidden=false }
 function mark(){ [...SUG.children].forEach((a,i)=>a.classList.toggle("sel",i==sel)) }
 Q.addEventListener("focus",()=>loadNames().then(show)); Q.addEventListener("input",()=>loadNames().then(show));
 Q.addEventListener("keydown",e=>{ const n=SUG.hidden?0:SUG.children.length; if(!n) return;
@@ -119,7 +121,7 @@ document.getElementById("f").addEventListener("submit",e=>{ const x=NAMES.find(y
 (async()=>{try{
   fetch("/api/me").then(r=>r.json()).then(m=>document.getElementById("price").textContent=m.price_usd).catch(()=>{});
   const st=(await (await fetch("/api/starters")).json()).starters;
-  if(st.length>=3) document.getElementById("picks").innerHTML=st.map(e=>`<a class="pick" href="/app?start=${encodeURIComponent(e.name)}${e.type!="company"?"&pack="+e.type:""}"><b><span class="av">${esc(e.name[0])}</span>${esc(e.name)}</b><span class="b">${esc(e.blurb.join(" · "))}</span></a>`).join("");
+  if(st.length>=3) document.getElementById("picks").innerHTML=st.map(e=>`<a class="pick" href="/app?start=${encodeURIComponent(e.name)}${e.type!="company"?"&pack="+e.type:""}"><b><span class="av">${esc(e.name[0])}<img src="/logo/${slug(e.name)}.png" alt="" loading="lazy" onerror="this.remove()"></span>${esc(e.name)}</b><span class="b">${esc(e.blurb.join(" · "))}</span></a>`).join("");
 }catch(e){}})();
 </script>
 </body>

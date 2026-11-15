@@ -213,7 +213,7 @@ def subject_page(name, tiles):
         bits.append(f'{t["title"].split(" · ")[-1]} {txt}{" " + unit if unit else ""}')
     title = f"{name}: {', '.join(x.split(' · ')[-1] for x in [t['title'] for t in tiles][:4])} | Tally"
     desc = f"{name} in numbers: {'; '.join(bits)}. Each with its source and history, kept current on Tally." if bits else f"Numbers Tally tracks about {name}, each with its source."
-    body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / {esc(name)}</div><h1>{esc(name)} in numbers</h1>'
+    body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / {esc(name)}</div><h1 style="display:flex;align-items:center;gap:14px"><img src="/logo/{slug(name)}.png" alt="" width="44" height="44" style="border-radius:11px;background:#fff;border:1px solid #e1e4ea" onerror="this.remove()">{esc(name)} in numbers</h1>'
             f'<p class="q">{len(tiles)} numbers tracked about {esc(name)}. Each opens to its evidence and history.</p><div class="grid">{"".join(tile_link(t) for t in tiles)}</div>'
             f'<div class="cta"><a class="btn" href="/app?q={esc(name)}">Track {esc(name)} on your board</a></div>')
     return shell(title[:110], desc[:300], subject_path(name), body)

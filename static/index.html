@@ -32,6 +32,8 @@ form{flex:1;display:flex;gap:8px;min-width:280px;position:relative}
 .spack .chip.on{background:var(--ink);color:var(--paper)}
 #starter .shead{padding:14px 0 6px}#starter .spack{padding:0}
 #starter{max-width:520px;margin:0 auto}
+.lg{border-radius:7px;background:var(--ink);color:#fff;display:inline-grid;place-items:center;font:700 12px var(--display);flex:none;position:relative;overflow:hidden;vertical-align:middle}
+.lg img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff}
 .spicks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .spick{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;text-decoration:none}
 .spick:hover{border-color:var(--accent);box-shadow:0 0 0 3px #eaf0ff}
@@ -260,6 +262,8 @@ async function buildStarter(es,view,replace){
   if(got){ S.addMore={left:3,done:es.map(e=>e.name)}; renderAddMore(); toast(`Your board is ready: ${got} numbers.`,5000) }
   else toast(`Nothing in the catalog yet for ${missed.join(", ")}. New names are built with Pro; here is the example board.`,8000)}
 function pendingSetup(){ try{const v=sessionStorage.getItem("tally_setup"); if(!v) return null; sessionStorage.removeItem("tally_setup"); return JSON.parse(v)}catch(e){return null} }
+const nslug=t=>String(t||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+const logoTag=(name,size=24)=>`<span class="lg" style="width:${size}px;height:${size}px">${esc(String(name||"?")[0])}<img src="/logo/${nslug(name)}.png" alt="" loading="lazy" onerror="this.remove()"></span>`;
 let STARTERS=null;
 async function loadStarters(){ if(!STARTERS){ try{STARTERS=(await (await fetch("/api/starters")).json()).starters}catch(e){STARTERS=[]} } return STARTERS }
 function startWith(e){ closeModal();
@@ -268,7 +272,7 @@ function startWith(e){ closeModal();
 async function starterModal(){
   const st=(await loadStarters()).slice(0,4);
   modal(`<div id="starter"><h2>Pick one to start</h2><p style="color:#475467;margin:6px 0 16px">You can add more later.</p>
-    <div class="spicks">${st.map(e=>`<a href="#" class="spick" data-e="${esc(JSON.stringify({name:e.name,type:e.type}))}"><b>${esc(e.name)}</b><span>${esc(e.blurb.join(" · "))}</span></a>`).join("")}</div>
+    <div class="spicks">${st.map(e=>`<a href="#" class="spick" data-e="${esc(JSON.stringify({name:e.name,type:e.type}))}"><b style="display:flex;align-items:center;gap:8px">${logoTag(e.name)}${esc(e.name)}</b><span>${esc(e.blurb.join(" · "))}</span></a>`).join("")}</div>
     <form id="stform" style="margin-top:12px;min-width:0"><input type="text" id="stname" placeholder="Or type a company name"><button>Start</button></form>
     <p style="margin:14px 0 0;text-align:center"><a href="#" id="stskip" class="when">Skip, show me the example board</a></p></div>`);
   $("#starter").onclick=ev=>{ const c=ev.target.closest(".spick"); if(c){ev.preventDefault(); return startWith(JSON.parse(c.dataset.e))}
@@ -442,7 +446,7 @@ async function openPanel(id){
   if(S.open!==id) return;  // another card was opened while this one was loading
   const m=e.metric, v=val(m.value,m.unit); let d="";
   if(m.live&&m.value!=null&&m.previous!=null){const x=m.value-m.previous; d=`<span class="${x>0?"up":"down"}">${x>0?"▲ +":"▼ −"}${num(Math.abs(x))}</span> <span class="flat">from ${num(m.previous)}</span>`}
-  let h=`<div class="ph"><button class="ghost x">×</button><h2>${esc(m.title)}</h2><div class="q">${esc(m.question)}</div>
+  let h=`<div class="ph"><button class="ghost x">×</button><h2 style="display:flex;align-items:center;gap:10px">${logoTag(m.title.split(" · ")[0],28)}<span>${esc(m.title)}</span></h2><div class="q">${esc(m.question)}</div>
     <div class="hero"><div class="val${v?"":" none"}">${v?v.text+`<small>${esc(v.unit)}</small>`:"no value yet"}</div><div class="hd">${d}</div><div class="hs">${m.live?spark(m.spark):""}</div></div>
     <div class="pmeta">${m.live?`<span>${ico("clock")}checked ${ago(m.last_checked)}</span>`:`<span>delayed value, as of ${ago(m.as_of)}</span>`}${
       m.live&&m.next_check?`<span>${ico("radar")}${/^in /.test(until(m.next_check))?"next check "+until(m.next_check):"check due"}</span>`:m.monitor?`<span>${ico("radar")}auto-check on</span>`:""}<span>${ico("people")}tracked by ${m.followers}</span></div>

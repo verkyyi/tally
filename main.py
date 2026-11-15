@@ -24,6 +24,7 @@ import core
 import db
 import telem
 import public_pages as pp
+import logos
 
 HERE = os.path.dirname(__file__)
 app = FastAPI(title="Tally")
@@ -67,6 +68,14 @@ async def count_visit(request: Request, call_next):
     except Exception as e:  # counting must never break a page
         print("visit count failed:", str(e)[:100])
     return response
+
+
+@app.get("/logo/{name}.png")
+def logo(name: str):
+    got = logos.get(name)
+    if not got:
+        raise HTTPException(404, "no logo")
+    return RawResponse(got[0], media_type=got[1], headers={"Cache-Control": "public, max-age=604800"})
 
 
 INDEXNOW_KEY = "19bccdf8fa4dfb52e08617be44f6b610"  # public by design: search engines read it back from the site to confirm ownership

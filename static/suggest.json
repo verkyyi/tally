@@ -5,609 +5,712 @@
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "openai.com"
   },
   {
    "name": "Anthropic",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "anthropic.com"
   },
   {
    "name": "Perplexity",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "perplexity.ai"
   },
   {
    "name": "Cursor",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "cursor.com"
   },
   {
    "name": "Replit",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "replit.com"
   },
   {
    "name": "Cognition",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "cognition.ai"
   },
   {
    "name": "Harvey",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "harvey.ai"
   },
   {
    "name": "Glean",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "glean.com"
   },
   {
    "name": "Sierra",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "sierra.ai"
   },
   {
    "name": "Decagon",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "decagon.ai"
   },
   {
    "name": "Scale AI",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "scale.com"
   },
   {
    "name": "Together AI",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "together.ai"
   },
   {
    "name": "Fireworks AI",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "fireworks.ai"
   },
   {
    "name": "Groq",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "groq.com"
   },
   {
    "name": "Cerebras",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "cerebras.ai"
   },
   {
    "name": "Databricks",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "databricks.com"
   },
   {
    "name": "LangChain",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "langchain.com"
   },
   {
    "name": "LlamaIndex",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "llamaindex.ai"
   },
   {
    "name": "Baseten",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "baseten.co"
   },
   {
    "name": "Anyscale",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "anyscale.com"
   },
   {
    "name": "Weights & Biases",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "wandb.ai"
   },
   {
    "name": "Chroma",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "trychroma.com"
   },
   {
    "name": "Exa",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "exa.ai"
   },
   {
    "name": "Browserbase",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "browserbase.com"
   },
   {
    "name": "Writer",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "writer.com"
   },
   {
    "name": "Mercor",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "mercor.com"
   },
   {
    "name": "Windsurf",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "windsurf.com"
   },
   {
    "name": "Physical Intelligence",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "physicalintelligence.company"
   },
   {
    "name": "Figure",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "figure.ai"
   },
   {
    "name": "Waymo",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "waymo.com"
   },
   {
    "name": "Gamma",
    "tags": [
     "AI",
     "Bay Area"
-   ]
+   ],
+   "domain": "gamma.app"
   },
   {
    "name": "Notion",
    "tags": [
     "Tech",
     "Bay Area"
-   ]
+   ],
+   "domain": "notion.com"
   },
   {
    "name": "Figma",
    "tags": [
     "Tech",
     "Bay Area"
-   ]
+   ],
+   "domain": "figma.com"
   },
   {
    "name": "Vercel",
    "tags": [
     "Tech",
     "Bay Area"
-   ]
+   ],
+   "domain": "vercel.com"
   },
   {
    "name": "Stripe",
    "tags": [
     "Tech",
     "Bay Area"
-   ]
+   ],
+   "domain": "stripe.com"
   },
   {
    "name": "Brex",
    "tags": [
     "Tech",
     "Bay Area"
-   ]
+   ],
+   "domain": "brex.com"
   },
   {
    "name": "Mercury",
    "tags": [
     "Tech",
     "Bay Area"
-   ]
+   ],
+   "domain": "mercury.com"
   },
   {
    "name": "Rippling",
    "tags": [
     "Tech",
     "Bay Area"
-   ]
+   ],
+   "domain": "rippling.com"
   },
   {
    "name": "Retool",
    "tags": [
     "Tech",
     "Bay Area"
-   ]
+   ],
+   "domain": "retool.com"
   },
   {
    "name": "Airtable",
    "tags": [
     "Tech",
     "Bay Area"
-   ]
+   ],
+   "domain": "airtable.com"
   },
   {
    "name": "Sentry",
    "tags": [
     "Tech",
     "Bay Area"
-   ]
+   ],
+   "domain": "sentry.io"
   },
   {
    "name": "Cloudflare",
    "tags": [
     "Tech",
     "Bay Area"
-   ]
+   ],
+   "domain": "cloudflare.com"
   },
   {
    "name": "Lovable",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "lovable.dev"
   },
   {
    "name": "ElevenLabs",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "elevenlabs.io"
   },
   {
    "name": "Runway",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "runwayml.com"
   },
   {
    "name": "Pika",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "pika.art"
   },
   {
    "name": "Suno",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "suno.com"
   },
   {
    "name": "Midjourney",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "midjourney.com"
   },
   {
    "name": "Mistral AI",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "mistral.ai"
   },
   {
    "name": "Cohere",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "cohere.com"
   },
   {
    "name": "Hugging Face",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "huggingface.co"
   },
   {
    "name": "Pinecone",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "pinecone.io"
   },
   {
    "name": "Weaviate",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "weaviate.io"
   },
   {
    "name": "Modal",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "modal.com"
   },
   {
    "name": "Replicate",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "replicate.com"
   },
   {
    "name": "Tavily",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "tavily.com"
   },
   {
    "name": "Firecrawl",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "firecrawl.dev"
   },
   {
    "name": "Hebbia",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "hebbia.com"
   },
   {
    "name": "Abridge",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "abridge.com"
   },
   {
    "name": "Skild AI",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "skild.ai"
   },
   {
    "name": "Granola",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "granola.ai"
   },
   {
    "name": "Clay",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "clay.com"
   },
   {
    "name": "n8n",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "n8n.io"
   },
   {
    "name": "Bolt",
    "tags": [
     "AI"
-   ]
+   ],
+   "domain": "bolt.new"
   },
   {
    "name": "Linear",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "linear.app"
   },
   {
    "name": "Supabase",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "supabase.com"
   },
   {
    "name": "Ramp",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "ramp.com"
   },
   {
    "name": "Deel",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "deel.com"
   },
   {
    "name": "Canva",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "canva.com"
   },
   {
    "name": "Papermark",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "papermark.com"
   },
   {
    "name": "Attio",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "attio.com"
   },
   {
    "name": "Warp",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "warp.dev"
   },
   {
    "name": "Zed",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "zed.dev"
   },
   {
    "name": "PostHog",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "posthog.com"
   },
   {
    "name": "Datadog",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "datadoghq.com"
   },
   {
    "name": "Tailscale",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "tailscale.com"
   },
   {
    "name": "Neon",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "neon.com"
   },
   {
    "name": "PlanetScale",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "planetscale.com"
   },
   {
    "name": "Clerk",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "clerk.com"
   },
   {
    "name": "Resend",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "resend.com"
   },
   {
    "name": "Railway",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "railway.com"
   },
   {
    "name": "Render",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "render.com"
   },
   {
    "name": "Zapier",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "zapier.com"
   },
   {
    "name": "Snowflake",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "snowflake.com"
   },
   {
    "name": "Anduril",
    "tags": [
     "Tech"
-   ]
+   ],
+   "domain": "anduril.com"
   }
  ],
  "accelerators": [
   {
    "name": "Y Combinator",
-   "alias": "YC"
+   "alias": "YC",
+   "domain": "ycombinator.com"
   },
   {
-   "name": "a16z Speedrun"
+   "name": "a16z Speedrun",
+   "domain": "a16z.com"
   },
   {
-   "name": "Techstars"
+   "name": "Techstars",
+   "domain": "techstars.com"
   },
   {
-   "name": "500 Global"
+   "name": "500 Global",
+   "domain": "500.co"
   },
   {
-   "name": "Antler"
+   "name": "Antler",
+   "domain": "antler.co"
   },
   {
-   "name": "Entrepreneur First"
+   "name": "Entrepreneur First",
+   "domain": "joinef.com"
   },
   {
-   "name": "South Park Commons"
+   "name": "South Park Commons",
+   "domain": "southparkcommons.com"
   },
   {
-   "name": "HF0"
+   "name": "HF0",
+   "domain": "hf0.com"
   },
   {
-   "name": "Neo"
+   "name": "Neo",
+   "domain": "neo.com"
   },
   {
-   "name": "PearX"
+   "name": "PearX",
+   "domain": "pear.vc"
   },
   {
-   "name": "Alchemist Accelerator"
+   "name": "Alchemist Accelerator",
+   "domain": "alchemistaccelerator.com"
   },
   {
-   "name": "Plug and Play"
+   "name": "Plug and Play",
+   "domain": "plugandplaytechcenter.com"
   },
   {
-   "name": "Sequoia Arc"
+   "name": "Sequoia Arc",
+   "domain": "sequoiacap.com"
   },
   {
-   "name": "AI Grant"
+   "name": "AI Grant",
+   "domain": "aigrant.com"
   },
   {
-   "name": "StartX"
+   "name": "StartX",
+   "domain": "startx.com"
   },
   {
-   "name": "Berkeley SkyDeck"
+   "name": "Berkeley SkyDeck",
+   "domain": "skydeck.berkeley.edu"
   },
   {
-   "name": "Founders, Inc."
+   "name": "Founders, Inc.",
+   "domain": "f.inc"
   },
   {
-   "name": "LAUNCH"
+   "name": "LAUNCH",
+   "domain": "launch.co"
   }
  ],
  "sectors": [
@@ -662,64 +765,84 @@
  ],
  "investors": [
   {
-   "name": "Andreessen Horowitz"
+   "name": "Andreessen Horowitz",
+   "domain": "a16z.com"
   },
   {
-   "name": "Sequoia Capital"
+   "name": "Sequoia Capital",
+   "domain": "sequoiacap.com"
   },
   {
-   "name": "Founders Fund"
+   "name": "Founders Fund",
+   "domain": "foundersfund.com"
   },
   {
-   "name": "Benchmark"
+   "name": "Benchmark",
+   "domain": "benchmark.com"
   },
   {
-   "name": "Accel"
+   "name": "Accel",
+   "domain": "accel.com"
   },
   {
-   "name": "Lightspeed"
+   "name": "Lightspeed",
+   "domain": "lsvp.com"
   },
   {
-   "name": "General Catalyst"
+   "name": "General Catalyst",
+   "domain": "generalcatalyst.com"
   },
   {
-   "name": "Khosla Ventures"
+   "name": "Khosla Ventures",
+   "domain": "khoslaventures.com"
   },
   {
-   "name": "Index Ventures"
+   "name": "Index Ventures",
+   "domain": "indexventures.com"
   },
   {
-   "name": "Greylock"
+   "name": "Greylock",
+   "domain": "greylock.com"
   },
   {
-   "name": "Kleiner Perkins"
+   "name": "Kleiner Perkins",
+   "domain": "kleinerperkins.com"
   },
   {
-   "name": "First Round Capital"
+   "name": "First Round Capital",
+   "domain": "firstround.com"
   },
   {
-   "name": "Initialized Capital"
+   "name": "Initialized Capital",
+   "domain": "initialized.com"
   },
   {
-   "name": "Conviction"
+   "name": "Conviction",
+   "domain": "conviction.com"
   },
   {
-   "name": "Felicis"
+   "name": "Felicis",
+   "domain": "felicis.com"
   },
   {
-   "name": "NFX"
+   "name": "NFX",
+   "domain": "nfx.com"
   },
   {
-   "name": "Pear VC"
+   "name": "Pear VC",
+   "domain": "pear.vc"
   },
   {
-   "name": "Floodgate"
+   "name": "Floodgate",
+   "domain": "floodgate.com"
   },
   {
-   "name": "SV Angel"
+   "name": "SV Angel",
+   "domain": "svangel.com"
   },
   {
-   "name": "Thrive Capital"
+   "name": "Thrive Capital",
+   "domain": "thrivecap.com"
   }
  ]
 }
