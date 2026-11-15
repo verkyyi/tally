@@ -251,7 +251,7 @@ def round_history():
         if not ids and db.one("SELECT 1 x FROM observations WHERE metric_id=? AND origin='source_history'", (m["id"],)):
             continue
         try:
-            rep = recipes.revise({"id": "tally"}, m, recipes.with_round_history(m), "History from dated funding rounds.")
+            rep = recipes.revise({"id": "tally"}, m, recipes.with_round_history(m), "History from dated funding rounds.", again=bool(ids))
         except Exception as e:
             print("FAILED", m["id"], m["title"], type(e).__name__, str(e)[:160], flush=True)
             continue

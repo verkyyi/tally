@@ -214,9 +214,9 @@ def fmt(v):
 
 # ---------- never guess: a number must be readable in the text it was taken from ----------
 def _renderings(v):
-    """The ways a number is usually written: 3370000000 -> 3.37 (billion), 3370 (million), 3,370,000,000 ..."""
+    """The ways a number is usually written: 3370000000 -> 3.37 (billion), 3370 (million), 3,370,000,000; 1.25e12 -> 1.25 (trillion) ..."""
     out = set()
-    for div in (1, 1e3, 1e6, 1e9):
+    for div in (1, 1e3, 1e6, 1e9, 1e12):  # as written, in thousands, millions, billions, trillions
         x = v / div
         if abs(x) < 0.001:
             continue

@@ -134,7 +134,7 @@ def with_round_history(m):
     return "\n\n".join(f"## {s}\n{secs[s]}" for s in SECTIONS if secs.get(s)) + "\n"
 
 
-def revise(u, m, body, note):
+def revise(u, m, body, note, again=False):
     """Try a revised recipe and adopt it if the trial verifies. Returns the trial report."""
     import agent
     body = (body or "").strip()[:8000]
@@ -142,7 +142,7 @@ def revise(u, m, body, note):
     if not secs.get("Source") or not secs.get("Read"):
         raise ValueError("A recipe needs at least a Source section and a Read section, each starting with a line like '## Source'.")
     cur = live(m)
-    if body == cur["body"].strip():
+    if body == cur["body"].strip() and not again:  # a batch may run the same recipe again, e.g. to collect the history a first run skipped
         raise ValueError("Nothing changed from the current recipe.")
     old = core.latest_obs(m["id"]) if m["kind"] == "direct" else {"value": core.count_value(m["id"]), "quote": None}
     report = {"old": {"value": (old or {}).get("value"), "quote": (old or {}).get("quote")}}
