@@ -222,11 +222,12 @@ async function loadMe(){
   S.me=await (await fetch("/api/me")).json(); const u=S.me.user, a=$("#acct");
   a.innerHTML=u?`${u.plan=="pro"?"":`<button class="pro" id="upg">Upgrade</button>`}<span class="plan ${u.plan}">${u.plan}</span>
       <span class="who" tabindex="0">${u.picture?`<img src="${esc(u.picture)}" alt="" referrerpolicy="no-referrer">`:`<span class="av">${esc((u.name||u.email||"?")[0].toUpperCase())}</span>`}<span>${esc((u.name||u.email).split(" ")[0])}</span>
-        <span class="menu"><div><span class="em">${esc(u.email||"")}</span><button class="ghost" id="setup">Set up my board</button><button class="ghost" id="out">Sign out</button></div></span></span>`
+        <span class="menu"><div><span class="em">${esc(u.email||"")}</span><button class="ghost" id="setup">Set up my board</button><button class="ghost" id="share">Share my board</button><button class="ghost" id="out">Sign out</button></div></span></span>`
     :`<button id="in">Sign in</button>`;
   if($("#in")) $("#in").onclick=()=>signInModal();
   if($("#upg")) $("#upg").onclick=()=>plansModal();
   if($("#setup")) $("#setup").onclick=()=>starterModal();
+  if($("#share")) $("#share").onclick=shareModal;
   if($("#out")) $("#out").onclick=async()=>{await api("/api/auth/logout",{}); closePanel(); await loadMe(); refresh()};
   const b=$("#banner");
   if(!u){b.hidden=false;b.innerHTML=`<span>You're browsing the <b>featured board</b>. Everything in the catalog is open to read and search; featured numbers are live, the rest are delayed. Sign in for your own board and to track new companies and numbers.</span><span style="display:flex;gap:8px;flex-wrap:wrap">${S.me.guest_login?'<button id="guest2">Try everything, no sign-up</button>':""}<button id="in2"${S.me.guest_login?' class="ghost"':""}>Sign in with Google</button></span>`;$("#in2").onclick=()=>signInModal(); if($("#guest2")) $("#guest2").onclick=guestIn}
@@ -236,7 +237,7 @@ async function loadMe(){
 function modal(html){$("#modal").innerHTML=`<button class="ghost x">×</button>`+html; $("#veil").hidden=false}
 function closeModal(){$("#veil").hidden=true}
 $("#veil").onclick=ev=>{if(ev.target.id=="veil"||ev.target.closest(".x")) closeModal()};
-async function afterSignIn(u){closeModal(); toast("Signed in as "+(u.name||u.email)); await loadMe(); await refresh(); if(u.new||S.wantSetup){S.wantSetup=false; starterModal()}}
+async function afterSignIn(u){closeModal(); toast("Signed in as "+(u.name||u.email)); await loadMe(); await refresh(); if(S.wantCopy){const t=S.wantCopy; S.wantCopy=null; return copyShared(t)} if(u.new||S.wantSetup){S.wantSetup=false; starterModal()}}
 // First-run setup: pick a role and a few names; the board is built from curated recipes. Nothing to compose.
 async function starterModal(){
   await loadDir(); if(!CAT.length) await loadCat();
@@ -263,6 +264,14 @@ async function starterModal(){
         try{const r=await api("/api/packs",{company:e.name,pack:e.type,phrase:e.adj,view:e.type=="company"&&view=="investor"?"investor":null,replace_board:got==0,hide_empty:true}); got+=r.tiles.length; if(!r.tiles.length) missed.push(e.name); await loadBoard()}catch(err){missed.push(e.name)} }
       S.pending=null; S.busy=false; await loadMe(); refresh(); toast(`Your board is ready: ${got} numbers.${missed.length?" Nothing found yet for: "+missed.join(", ")+".":""}`,7000)}};
 }
+async function shareModal(){
+  let r; try{r=await api("/api/board/share",{})}catch(e){return toast(e.message,6000)}
+  modal(`<h2>Share your board</h2><p style="color:#475467;margin:6px 0 16px">Anyone with this link can read your board, without an account. They see the numbers, not who you are. They can copy it to a board of their own.</p>
+    <div style="display:flex;gap:8px"><input type="text" id="shurl" readonly value="${esc(r.url)}" style="flex:1"><button id="shcopy">Copy link</button></div>
+    <p style="margin:16px 0 0"><a href="${esc(r.path)}" target="_blank">Open the shared page ↗</a> &nbsp; <a href="#" id="shstop" class="when">Stop sharing</a></p>`);
+  $("#shcopy").onclick=async()=>{try{await navigator.clipboard.writeText(r.url); toast("Link copied")}catch(e){$("#shurl").select(); toast("Press Cmd+C to copy")}};
+  $("#shstop").onclick=async ev=>{ev.preventDefault(); await api("/api/board/unshare",{}); closeModal(); toast("Sharing stopped. The old link no longer works.")}}
+async function copyShared(tok){ try{const r=await api("/api/board/copy",{token:tok}); toast(`Added ${r.added} numbers from the shared board.`,6000); await loadMe(); refresh()}catch(e){toast(e.message,6000)} }
 async function guestIn(){
   try{const r=await fetch("/api/auth/guest",{method:"POST"}), j=await r.json(); if(!r.ok) return toast(j.detail||"Guest access is off");
     closeModal(); await loadMe(); refresh(); toast("You have a guest account with everything unlocked: your own board, Check now, new numbers.",6000)}
@@ -271,7 +280,7 @@ function signInModal(why){
   modal(`<h2>Sign in to Tally</h2><p style="color:#475467;margin:6px 0 18px">${esc(why&&why!="Sign in to do that"?why:"Reading and searching the catalog is open to everyone. Sign in to keep your own board, see more live numbers and ask for new ones.")}</p>
     <div id="gbtn"></div>${S.me.google_client_id?"":'<div class="when">Google sign-in is not configured on this server yet.</div>'}
     ${S.me.guest_login?'<p style="margin:16px 0 0"><button class="ghost" id="guest">Continue as a guest, everything unlocked</button></p>':""}
-    ${S.me.demo_login?'<p class="when" style="margin-top:18px">Presenting? <a href="#" id="demo">Use the demo passcode</a></p>':""}`);
+`);
   if($("#guest")) $("#guest").onclick=guestIn;
   if(S.me.google_client_id&&window.google){
     google.accounts.id.initialize({client_id:S.me.google_client_id,callback:async r=>{
@@ -617,6 +626,7 @@ document.onkeydown=ev=>{if(ev.key=="Escape"){closeModal();closePanel()}};
   if(p.get("tab")) setTab(p.get("tab")); else refresh();
   if(p.get("q")){ setTab("catalog"); $("#cq").value=p.get("q"); loadCatalog() }
   if(p.get("open")){ openPanel(+p.get("open")); history.replaceState({},"","/app") }
+  if(p.get("copy")){ const tok=p.get("copy"); history.replaceState({},"","/app"); if(S.me.user) copyShared(tok); else {S.wantCopy=tok; signInModal("Sign in to copy this board to your own.")} }
   if(p.get("setup")){ history.replaceState({},"","/app"); if(S.me.user) starterModal(); else {S.wantSetup=true; signInModal("Sign in to build your board. It takes about a minute.")} }
   if(p.get("checkout")=="success"&&p.get("session_id")){
     try{const r=await api("/api/billing/confirm?session_id="+encodeURIComponent(p.get("session_id"))); toast(r.pro?"Welcome to Pro. Every metric is live now.":"Payment not confirmed yet.",6000)}catch(e){toast(e.message,6000)}

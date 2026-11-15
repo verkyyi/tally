@@ -64,6 +64,7 @@ MIGRATIONS = [
     "ALTER TABLE metrics ADD COLUMN next_tick_at TEXT",
     "ALTER TABLE metrics ADD COLUMN last_tick_at TEXT",
     "ALTER TABLE metrics ADD COLUMN baselined INTEGER DEFAULT 0",  # a paced monitor's first run is its baseline, not a change
+    "ALTER TABLE users ADD COLUMN share_token TEXT",  # set = the board is readable at /b/<token>
     "CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY, metric_id INTEGER, change_id INTEGER, user TEXT, action TEXT, at TEXT)",
 ]
 

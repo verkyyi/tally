@@ -165,6 +165,21 @@ def index_page(groups):
                  "Live numbers about companies, accelerators, sectors and investors, each with its source: funding, valuation, headcount, open roles, launches, batch sizes.", "/numbers", body)
 
 
+def board_page(token, tiles):
+    have = [t for t in tiles if t["value"] is not None]
+    names = []
+    for t in tiles:
+        n = t["title"].split(" · ")[0]
+        if n not in names:
+            names.append(n)
+    title = f"A Tally board: {', '.join(names[:4])}{' and more' if len(names) > 4 else ''} | Tally"
+    desc = f"{len(tiles)} live numbers about {', '.join(names[:6])}. Funding, hiring and launches, each with its source."
+    body = (f'<div class="crumb">Shared board</div><h1>{esc(", ".join(names[:3]))}{" and more" if len(names) > 3 else ""}</h1>'
+            f'<p class="q">{len(tiles)} numbers, {len(have)} with a value today. Each opens to its evidence and history.</p><div class="grid">{"".join(tile_link(t) for t in tiles)}</div>'
+            f'<div class="cta"><a class="btn" href="/app?copy={esc(token)}">Copy this board</a><a class="btn ghost" href="/app?setup=1">Build my own</a></div>')
+    return shell(title[:110], desc[:300], f"/b/{token}", body).replace('<meta name="twitter:card"', '<meta name="robots" content="noindex"><meta name="twitter:card"', 1)
+
+
 def groups():
     g = {}
     for m in db.q("SELECT id, title, company FROM metrics ORDER BY id"):

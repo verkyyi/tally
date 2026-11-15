@@ -256,6 +256,51 @@ def public_index():
     return HTMLResponse(pp.index_page(sorted(((n, len(ids)) for n, ids in pp.groups().items()), key=lambda x: (-x[1], x[0].lower()))))
 
 
+# ---------- a board anyone can open: the owner shares a link, the reader can copy it ----------
+def _shared_ids(token):
+    o = db.one("SELECT id FROM users WHERE share_token=?", (token,)) if token and len(token) >= 12 else None
+    if not o:
+        raise HTTPException(404, "This board is no longer shared")
+    return o, [r["metric_id"] for r in db.q("SELECT metric_id FROM board_items WHERE user=? AND muted=0 ORDER BY rowid", (o["id"],))]
+
+
+@app.get("/b/{token}")
+def shared_board(token: str):
+    owner, ids = _shared_ids(token)
+    live = set(ids)  # a shared board shows what its owner sees; the evidence behind each number follows the reader's own access
+    return HTMLResponse(pp.board_page(token, [tile(core.metric(i), None, live) for i in ids]))
+
+
+@app.post("/api/board/share")
+def share_board(request: Request):
+    u = need_user(request)
+    tok = db.one("SELECT share_token FROM users WHERE id=?", (u["id"],))["share_token"]
+    if not tok:
+        tok = secrets.token_urlsafe(12)
+        db.run("UPDATE users SET share_token=? WHERE id=?", (tok, u["id"]))
+    return {"path": f"/b/{tok}", "url": f"{pp.SITE}/b/{tok}"}
+
+
+@app.post("/api/board/unshare")
+def unshare_board(request: Request):
+    u = need_user(request)
+    db.run("UPDATE users SET share_token=NULL WHERE id=?", (u["id"],))
+    return {"ok": True}
+
+
+class CopyBoard(BaseModel):
+    token: str
+
+
+@app.post("/api/board/copy")
+def copy_board(body: CopyBoard, request: Request):
+    u = need_user(request)
+    _, ids = _shared_ids(body.token)
+    for i in ids:
+        core.follow(u["id"], i)
+    return {"added": len(ids)}
+
+
 @app.get("/sitemap.xml")
 def sitemap():
     urls = ["/", "/app", "/numbers"] + [pp.subject_path(n) for n in pp.groups()] + [pp.number_path(m) for m in db.q("SELECT id, title FROM metrics ORDER BY id")]

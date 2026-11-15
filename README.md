@@ -1,42 +1,42 @@
 # Tally
 
-**A running tally of the outside world.** A personal dashboard of live numbers about companies you care about,
-built from a shared catalog: anything one person tracks is instantly available to everyone.
+**Know the moment your pipeline moves.** Tally tracks funding, hiring and launches at the companies you watch,
+shows the source behind every number, and tells you what changed. Built for angels, scouts and pre-seed funds.
 
-Live at https://tallycatalog.com.
+- Live: https://tallycatalog.com
+- Every number, with its evidence: https://tallycatalog.com/numbers
 
-Built for SearchHack on [Telem AI](https://telem.ai) (Search, Fetch and Monitors) with Tavily as a pinned search provider.
+## What it does
 
-## How it works
+1. **Pick who you watch.** Companies, accelerators, sectors and investors. Nothing to type.
+2. **Get a board.** Funding, latest round, valuation, headcount, open roles and launches, from curated recipes.
+3. **See what changed.** Numbers are re-checked in the background; the Activity tab lists what moved.
 
-1. Type a question ("What does Competitor X charge for enterprise?").
-2. Tally matches it to a metric in the shared catalog, or defines a new one.
-3. **direct** metrics read one value from a source page (Telem Search -> Telem Fetch -> extract).
-   **count** metrics keep a ledger of entries found by search (Tavily pinned, plus Telem auto-routing).
-   The count is always `COUNT(entries)`, never the size of one search response.
-4. Each metric gets an hourly Telem monitor. `Sync` pages through its change feed into the change log.
-5. Every number opens to its evidence: the source and quote, or the ledger of entries.
-
-The trace panel shows Telem calls, providers, latency, estimated search cost and calls saved by sharing.
-Cost is an estimate from the provider price list; Telem does not return it.
-Seeded history is flagged `seeded = 1` in the database and marked in the UI.
+Numbers live in one shared catalog, so a number one person tracks is there for everyone, with its history.
 
 ## How a number is made
 
-Every metric is a small recipe: **gather** evidence (Telem Search, then Telem Fetch), **read** fields from it (a Claude prompt guided by a source skill in `skills/`), and **reduce** to one number (read one value, or count a ledger of entries keyed by URL). Curated metrics come from `templates.json`; type a company name and you get the whole pack. The app shows the source, the skill, the last Telem trace and the change history for every number. If a value is not on the page, the tile says "no value yet".
+Every number is a small, open recipe:
 
-The recipes are open: `skills/` and `templates.json` are part of this repo. The hosted product is the always-on runtime, the shared catalog and its accumulated history.
+- **Gather** evidence: search, then read the pages.
+- **Read** the fields, guided by plain-language reading instructions in `skills/`.
+- **Reduce** to one number: read one value, count a list of entries, or add up, average or take the largest across them.
 
-**Seeded data:** sparkline points before a metric was first tracked are simulated, flagged `seeded = 1` in the database and marked "seeded" in the UI. Everything else is read live.
+The recipes are in this repo: `templates.json` (19 curated recipes in company, accelerator, sector and investor packs) and `skills/`.
+
+Three rules keep the numbers honest:
+
+- A value is accepted only if it can be read in the text it came from. Otherwise the card says "no value yet".
+- A count is a list you can open, one entry per link. It is never the size of a search result.
+- A funding round reported by two sites is one entry.
+
+Search and page reading run on [Telem](https://telem.ai), with Tavily pinned for finding entries. Extraction uses Claude.
 
 ## Run
 
 ```sh
 uv venv --python 3.11 .venv && uv pip install -p .venv/bin/python -r requirements.txt
 cp .env.example .env            # TELEM_API_KEY, ANTHROPIC_API_KEY, LLM_MODEL
-.venv/bin/python setup_demo.py monitors   # six hourly monitors, first
-.venv/bin/python setup_demo.py build      # six demo tiles for user A
-.venv/bin/python setup_demo.py seed       # seeded sparkline history + one held-out entry
 ./run.sh                                  # http://127.0.0.1:8000
 ```
 
