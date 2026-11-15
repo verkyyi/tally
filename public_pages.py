@@ -242,8 +242,8 @@ def landing_compare(a, ta, b, tb, kind):
 
 
 def track_page(q):
-    body = ('<div class="crumb"><a href="/numbers">Numbers</a> / New</div><h1>Ask for a number</h1>'
-            '<p class="q">Tally searches for it, reads the value from a source it can quote, and gives the number its own page with a chart and a recipe. If no source states it, the page says “no value yet”.</p>'
+    body = ('<div class="crumb"><a href="/numbers">Numbers</a> / New</div><h1>Ask for a number <span style="font:14px var(--mono);color:var(--accent);font-weight:400;letter-spacing:0">Pro</span></h1>'
+            '<p class="q">The catalog is curated and free to use. With Pro you can add to it: Tally searches for your number, reads the value from a source it can quote, and gives the number its own page with a chart and a recipe. If no source states it, the page says “no value yet”.</p>'
             f'<div class="card"><label for="trackq" style="font-weight:600;display:block;margin-bottom:8px">Which number?</label>'
             f'<input id="trackq" value="{esc(q)}" placeholder="Stripe latest valuation" style="width:100%;font:17px var(--display);padding:12px 14px;border-radius:10px;border:1px solid var(--line)">'
             '<div class="cta" style="margin-top:14px"><button class="follow" type="button" data-track="1">Find this number</button></div>'
@@ -422,9 +422,9 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
         body += '<p class="meta" style="margin-top:14px">The live value, its source and the full list of entries are in the app.</p>'
     if recipe:
         body += (f'<h2>Recipe <span style="font:13px var(--mono);color:#667085;font-weight:400">version {recipe["version"]}</span></h2>'
-                 f'<p class="q" style="margin:0 0 10px">How this number is obtained, in plain words. Anyone can improve it; a change is tried by an agent before it counts.</p>'
-                 f'<div class="cta" style="margin-top:0"><a class="btn ghost" href="/n/{m["id"]}/recipe">Read or improve the recipe</a></div>')
-    body += f'<div class="cta"><a class="btn ghost" href="{subject_path(sub)}">More about {esc(sub)}</a><a class="btn ghost" href="/track">Ask for a number that is not here</a></div>'
+                 f'<p class="q" style="margin:0 0 10px">How this number is obtained, in plain words, with every earlier version. Open to read; Pro members can improve it.</p>'
+                 f'<div class="cta" style="margin-top:0"><a class="btn ghost" href="/n/{m["id"]}/recipe">Read the recipe</a></div>')
+    body += f'<div class="cta"><a class="btn ghost" href="{subject_path(sub)}">More about {esc(sub)}</a><a class="btn ghost" href="/numbers">Browse the catalog</a></div>'
     if related:
         body += f'<h2>More about {esc(sub)}</h2><div class="grid">{"".join(tile_link(r) for r in related[:8])}</div>'
     ld = None
@@ -516,9 +516,9 @@ def recipe_page(m, t, live, hist, editable):
             except ValueError:
                 pass
         rows += f'<li><span style="font:inherit;color:inherit;white-space:normal"><b>v{r["version"]}</b> · {st}{why} · {esc(r["note"] or "no note")}</span><span>{esc(who(r["author"]))} · {esc(when(r["created_at"]) or "")}{restore}</span></li>'
-    form = (f'<h2>Improve this recipe</h2><p class="q" style="margin:0 0 10px">Edit the text and press the button. An agent follows your version once; if the value it gets can be read in the source and '
+    form = (f'<h2>Improve this recipe <span style="font:12px var(--mono);color:var(--accent);font-weight:400">Pro</span></h2><p class="q" style="margin:0 0 10px">Edit the text and press the button. An agent follows your version once; if the value it gets can be read in the source and '
             f'is not an unexplained jump, your version goes live straight away. Otherwise it is kept in the history as not adopted, with the reason.</p>'
-            f'<div id="signin" class="card" hidden><p style="margin:0 0 10px">Sign in to edit a recipe.</p><a class="btn" href="/app">Sign in</a></div>'
+            f'<div id="signin" class="card" hidden><p style="margin:0 0 10px">Improving a recipe is part of Pro. Reading it, and every version of it, is open to everyone.</p><a class="btn" href="/app?plans=1">See Pro</a></div>'
             f'<form id="edit" hidden><textarea id="body" rows="18" spellcheck="false">{esc(live["body"])}</textarea>'
             f'<input id="note" placeholder="What did you change, and why? (one line)" maxlength="200">'
             f'<div class="cta" style="margin-top:10px"><button class="btn" id="go">Try it and publish</button><span class="meta" id="left"></span></div></form><div id="result"></div>'
@@ -528,7 +528,7 @@ def recipe_page(m, t, live, hist, editable):
 const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])), MID=%d;
 const num=v=>v==null?"no value":Number(v).toLocaleString("en-US",{maximumFractionDigits:2});
 (async()=>{ if(!$("#edit")) return; const me=await (await fetch("/api/me")).json();
-  if(!me.user){$("#signin").hidden=false; return} $("#edit").hidden=false;
+  if(!me.user||me.user.plan!="pro"){$("#signin").hidden=false; return} $("#edit").hidden=false;
   const st=await (await fetch("/api/recipes/"+MID)).json(); $("#left").textContent=st.left+" trial"+(st.left==1?"":"s")+" left today";
   $("#edit").onsubmit=async ev=>{ev.preventDefault(); $("#go").disabled=true; $("#go").textContent="The agent is following your recipe…";
     $("#result").innerHTML='<p class="meta">This takes up to a minute. Keep the page open.</p>';
@@ -555,7 +555,7 @@ document.addEventListener("click",async ev=>{const a=ev.target.closest(".rv"); i
            ".recipe p,.recipe li{margin:4px 0;color:#344054}.recipe ul{margin:4px 0;padding-left:20px}"
            "#body{width:100%;font:13px/1.55 var(--mono);padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:inherit;resize:vertical}"
            "#note{width:100%;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;background:#fff}button.btn{border:0;cursor:pointer;font:600 16px var(--display)}button.btn:disabled{opacity:.6;cursor:wait}</style>")
-    return shell(f"Recipe for {m['title']}: how the number is obtained | Tally", f"How Tally obtains {m['title']}: the source, how it is read, how its history is rebuilt and what makes a reading invalid. Open to improvement by anyone.",
+    return shell(f"Recipe for {m['title']}: how the number is obtained | Tally", f"How Tally obtains {m['title']}: the source, how it is read, how its history is rebuilt and what makes a reading invalid. Open for anyone to read.",
                  f"/n/{m['id']}/recipe", css + body)
 
 

@@ -1,9 +1,10 @@
 """Tally API. Run: ./run.sh  (uvicorn main:app --host 127.0.0.1 --port 8000)
 
 Access tiers
-  anonymous  search and read every number, live, with its history, source and recipe
-  free       Google sign-in; follow numbers, edit recipes, ask for FREE_CREATE new numbers
-  pro        paid through Stripe; unlimited new numbers, Check now on any number, more recipe trials
+  anonymous  the curated catalog is the product and it is open: every number live, with its history, source and recipe;
+             rankings, boards per company or sector, comparisons, embeds
+  free       Google sign-in; follow numbers on a board of their own
+  pro        paid through Stripe; the advanced part: ask for new numbers, improve recipes, Check now on any number
 """
 import env  # noqa: F401  loads .env first
 import json
@@ -95,7 +96,7 @@ PRICE_USD = int(os.environ.get("TALLY_PRICE_USD", "19"))
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "").rstrip("/")
 FEATURED = "A"       # the showcase board: live for everyone
 FREE_LIVE = 5
-FREE_CREATE = 3
+FREE_CREATE = 0      # new numbers are part of Pro; the curated catalog is what everyone gets
 COOKIE = "tally_session"
 
 
@@ -409,6 +410,8 @@ def recipe_revise(mid: int, body: Revision, request: Request):
         raise HTTPException(404, "no such number")
     if free_sources.is_free(m):
         raise HTTPException(400, "This number is read straight from a public API; its recipe is changed in the source repository.")
+    if u["plan"] != "pro":
+        raise HTTPException(402, "Reading a recipe is open to everyone. Improving one is part of Pro.")
     if recipes.trials_left(u) <= 0:
         raise HTTPException(429, "You have used today's recipe trials. Each one runs an agent, so they are limited; try again tomorrow.")
     try:
@@ -426,6 +429,8 @@ def recipe_revert(mid: int, body: Revert, request: Request):
     m = core.metric(mid)
     if not m:
         raise HTTPException(404, "no such number")
+    if u["plan"] != "pro":
+        raise HTTPException(402, "Restoring a recipe version is part of Pro.")
     try:
         return {"version": recipes.revert(u, m, body.version)}
     except ValueError as e:
@@ -813,7 +818,7 @@ def add_metric(body: AddMetric, request: Request):
     if is_guest(u) and guest_cap_reached():
         raise HTTPException(402, "Guest accounts have used up their shared allowance of new metrics. Everything already in the catalog is still yours to follow; sign in with Google to create more.")
     if u["plan"] != "pro" and db.one("SELECT COUNT(*) n FROM metrics WHERE created_by=?", (u["id"],))["n"] >= FREE_CREATE:
-        raise HTTPException(402, f"The free plan creates {FREE_CREATE} new metrics. Upgrade to Pro for unlimited.")
+        raise HTTPException(402, "The record does not have this number yet. Asking Tally to find and track a new number is part of Pro.")
     m, _ = core.create_metric(u["id"], q, skip_match=True)
     return {"metric": tile(m, u), "matched": False, "path": pp.number_path(m)}
 

@@ -24,7 +24,7 @@
       const j = await fetch("/api/suggest?q=" + encodeURIComponent(q)).then(r => r.json()).catch(() => ({ numbers: [] }));
       if (mine !== seq) return;  // a later keystroke already answered
       box.innerHTML = (j.boards || []).map(b => `<a class="board" href="${esc(b.path)}"><span><b>${esc(b.name)}</b> · all ${b.count} numbers</span><em>board</em></a>`).join("") + j.numbers.map(n => `<a href="${esc(n.path)}"><span>${esc(n.title)}</span><em>${esc(n.value)}</em></a>`).join("")
-        + `<a class="new" href="/track?q=${encodeURIComponent(q)}"><span>Track “${esc(q)}” as a new number</span><em>${j.numbers.length ? "not listed?" : "not in the record yet"}</em></a>`;
+        + `<a class="new" href="/track?q=${encodeURIComponent(q)}"><span>Track “${esc(q)}” as a new number</span><em>Pro</em></a>`;
       sel = -1; box.hidden = false;
     };
     input.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(show, 140); });
@@ -89,10 +89,10 @@
       const q = document.getElementById("trackq").value.trim();
       if (!q) { note.textContent = "Type the number you want, for example “Stripe latest valuation”."; return; }
       const m = await me();
-      if (!m.user && !(await signIn(holder, "Sign in so the number is yours to follow. Finding it takes a search, so new numbers are limited per person."))) return;
+      if (!m.user && !(await signIn(holder, "Sign in first. Adding a number to the record is part of Pro."))) return;
       tb.disabled = true; note.textContent = "Searching for it and reading the source. This takes about half a minute.";
       try { const j = await post("/api/metrics", { question: q }); location.href = j.path || "/n/" + j.metric.id; }
-      catch (e) { tb.disabled = false; note.textContent = e.message; }
+      catch (e) { tb.disabled = false; note.innerHTML = esc(e.message) + (e.status === 402 ? ' <a href="/app?plans=1">See Pro</a>' : ""); }
     });
   }
 })();
