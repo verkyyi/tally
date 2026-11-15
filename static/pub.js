@@ -121,7 +121,7 @@
         + `<div class="val" style="font-size:44px">${esc(j.value)}</div>` + (j.quote ? `<blockquote style="margin-top:10px">${esc(j.quote)}</blockquote>` : "")
         + `<p class="meta">Read from <a href="${esc(j.url)}" rel="nofollow noopener" target="_blank">${esc(j.url)}</a></p>`
         + (hist ? `<p class="meta" style="margin-top:12px">${j.history.length} past values, each from a dated source</p><table class="pts"><tr><th>When</th><th>Value</th><th>Source</th></tr>${hist}</table>`
-                : '<p class="meta">No dated past values were found. Its history starts today and grows with every reading.</p>')
+                : `<p class="meta"><b style="color:#d92d20">No past values could be proven.</b> ${esc(j.no_past || "")} Its history would start today.</p>`)
         + `<p class="meta" style="margin-top:12px">Kept current ${every}, ${how}.</p>` + (j.notes ? `<p class="meta">Agent's note: ${esc(j.notes)}</p>` : "")
         + `<details style="margin-top:10px"><summary class="meta" style="cursor:pointer">The recipe the agent wrote for this number</summary><pre style="white-space:pre-wrap;font:13px/1.5 var(--mono);margin:8px 0 0">${esc(j.recipe || "")}</pre></details>`
         + `<div class="cta" style="margin-top:14px"><button class="follow" type="button" id="pub">Publish this number</button></div><p class="meta" id="pubnote">Publishing makes the page public and puts it on your board.</p></div>` + steps;

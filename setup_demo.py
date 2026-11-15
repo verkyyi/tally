@@ -334,6 +334,27 @@ def add_popular():
         print(name, "|", len(rows), "numbers |", sum(r[3] for r in rows), "past points", flush=True)
 
 
+def create_numbers():
+    """Create Tally's own numbers through the same lifecycle visitors use. Usage: create_numbers list.json   (a JSON list of {"q": question, "company": name})"""
+    import lifecycle
+    from concurrent.futures import ThreadPoolExecutor
+    items = json.load(open(sys.argv[2]))
+
+    def one(it):
+        try:
+            status, m, p = lifecycle.create_curated(it["q"], it.get("company"))
+        except Exception as e:
+            return f"FAILED {it['q'][:70]} | {type(e).__name__} {str(e)[:120]}"
+        if status == "published":
+            pts = db.one("SELECT COUNT(*) n FROM observations WHERE metric_id=? AND origin='source_history'", (m["id"],))["n"]
+            return f"{m['id']} {m['title']} | {(core.latest_obs(m['id']) or {}).get('value'):g} {m['unit'] or ''} | past points {pts} | plan {core.update_plan(m).get('method')}/{core.update_plan(m).get('every')}" + ("" if pts else f" | NO PAST: {(p.get('no_past') or '')[:160]}")
+        return f"{status.upper()} {it['q'][:70]} | {'; '.join(p.get('reasons', []))[:200] or p.get('found_title') or ''}"
+
+    with ThreadPoolExecutor(3) as ex:
+        for line in ex.map(one, items):
+            print(line, flush=True)
+
+
 def scout():
     """Survey the open web for the numbers about a company worth recording, and save the list (nothing is created). Usage: scout "Anthropic" [out.json]"""
     import agent
@@ -400,4 +421,4 @@ def period_history():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()

@@ -178,7 +178,8 @@ You are given a request in a person's words. You decide how to do the research; 
 1. The number as it stands
 - A title in the form "Subject · what" (at most six words), the unit, today's value, a quote copied from a page you fetched that states the value, and that page's address.
 - Prefer the subject's own page or filing, then a primary report of the event, then a reputable database. Prefer a page with a stable address that will still state the value next month.
-- The past: every earlier value you can find stated with a date, each with the page that states it. Look for it where it naturally lives: the source's own table or changelog, dated announcements, an API with dates, archived copies of the same page (web.archive.org). Report the values themselves; never fill in between two of them, and never estimate.
+- The past. This is the reason Tally exists: anyone can ask a search engine for today's figure, and nobody else keeps how it got here. So rebuilding the past is not optional and is where most of your effort goes. Find every earlier value stated with a date, each with the page that states it. Look where it naturally lives: the source's own table, changelog or earlier filings; dated announcements of each change; an API with dates; archived copies of the same page (list them with https://web.archive.org/cdx/search/cdx?url=<page>&output=json&collapse=timestamp:6 and read a copy with https://web.archive.org/web/<timestamp>/<page>). Aim for the whole life of the number, not the last year. Report the values themselves; never fill in between two of them, and never estimate.
+- If the number truly has no past (it came into existence days ago), say so in no_past_reason with what you checked. A number with no past and no such reason is sent back to be researched again.
 
 2. The artifact that keeps it alive: a recipe, written by you from what you actually did, that someone else (or a cheaper program) can follow without you
 - source: the page or API address the value is read from, and the search to fall back on.
@@ -204,7 +205,7 @@ def create(question, on_step=None, max_iterations=24):
 
     @beta_tool
     def submit(found: bool, title: str = "", unit: str = "", value: float = 0, quote: str = "", evidence_url: str = "", history_json: str = "[]",
-               source: str = "", read: str = "", history: str = "", update: str = "", checks: str = "", update_json: str = "{}", notes: str = "") -> str:
+               source: str = "", read: str = "", history: str = "", update: str = "", checks: str = "", update_json: str = "{}", no_past_reason: str = "", notes: str = "") -> str:
         """Hand back the number and the recipe that keeps it alive. Call exactly once, at the end.
 
         Args:
@@ -221,6 +222,7 @@ def create(question, on_step=None, max_iterations=24):
             update: Recipe section: how often it can change and how to re-read it.
             checks: Recipe section: what would make a reading wrong for this number, as short lines.
             update_json: The update plan as JSON: {"method", "url", "json_path", "every", "holds", "running_total"}.
+            no_past_reason: Only when history_json is empty: why this number has no past, and where you looked. Empty otherwise.
             notes: Two or three sentences for the person who asked: what you found, what is uncertain, what you could not find.
         """
         try:
@@ -229,7 +231,7 @@ def create(question, on_step=None, max_iterations=24):
         except json.JSONDecodeError:
             plan = {}
         out.update({"found": bool(found), "on_topic": True, "title": title.strip()[:80], "unit": unit.strip()[:24], "value": float(value) if found else None, "quote": quote[:500],
-                    "evidence_url": evidence_url[:500], "history": _history(history_json), "notes": notes[:900], "plan": plan,
+                    "evidence_url": evidence_url[:500], "history": _history(history_json), "notes": notes[:900], "plan": plan, "no_past_reason": no_past_reason.strip()[:600],
                     "recipe": {"Source": source.strip()[:1500], "Read": read.strip()[:1500], "History": history.strip()[:1500], "Update": update.strip()[:800], "Checks": checks.strip()[:1200]}})
         return "recorded"
 
@@ -275,3 +277,37 @@ def scout(company, max_iterations=40):
 
     meta = _run(SCOUT, f"Company: {company}", [search, fetch, get_json, submit], max_iterations, effort="high")
     return {"result": out or None, "steps": steps} | meta
+
+
+PAST = """You rebuild the past of one number for Tally, a public record where every number has its history and the page each value was read from. Today's value is already known. Your only job is its earlier values.
+
+Find every earlier value of this same number that a page states with a date. Work through the places a number's past lives, in this order, and do not stop at the first one that yields something:
+1. The source itself: a table of earlier periods, a changelog, earlier filings or reports in the same series.
+2. Dated announcements of each change (the company's newsroom, press coverage of each event).
+3. Archived copies of the page that states it today: list them with https://web.archive.org/cdx/search/cdx?url=<page>&output=json&collapse=timestamp:6 and read copies spread across the years with https://web.archive.org/web/<timestamp>/<page>.
+4. An API that carries dates.
+
+One point per date, the value as it was then, with the address of the page you read it on. Use the first day of the month when only the month is known. Never fill in between two points and never estimate: a value that is not readable on the page you cite is discarded by a program afterwards. If after all four places there is nothing, say exactly what you tried.
+
+Call submit exactly once."""
+
+
+def backfill(metric, value, source_url, on_step=None, max_iterations=24):
+    """A run that does nothing but look for a number's earlier values. Returns {"result": {"history", "notes"}, "pages", "steps", ...}."""
+    pages, steps, out = {}, [], {}
+    search, fetch, get_json = _toolbox(pages, steps, metric.get("id"), on_step)
+
+    @beta_tool
+    def submit(history_json: str = "[]", notes: str = "") -> str:
+        """Hand back the past values. Call exactly once, at the end.
+
+        Args:
+            history_json: JSON list: [{"date": "YYYY-MM-DD", "value": number, "url": "page that states it"}]. "[]" only if nothing could be found.
+            notes: What you found, or exactly what you tried when nothing was found.
+        """
+        out.update({"history": _history(history_json), "notes": notes[:900]})
+        return "recorded"
+
+    user = f"Number: {metric['title']}\nQuestion it answers: {metric['question']}\nUnit: {metric.get('unit') or 'none'}\nToday's value: {value:g}\nRead today from: {source_url}"
+    meta = _run(PAST, user, [search, fetch, get_json, submit], max_iterations, effort="high")
+    return {"result": out or None, "pages": pages, "steps": steps} | meta

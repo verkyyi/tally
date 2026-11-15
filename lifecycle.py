@@ -83,6 +83,19 @@ def _work(did, q):
         m = {"id": None, "title": (res or {}).get("title") or q[:60], "question": q, "unit": (res or {}).get("unit") or "", "kind": "direct"}
         checks, value, hist = recipes._verify(m, res, run["pages"])
         plan = (res or {}).get("plan") or {}
+        past_note = (res or {}).get("no_past_reason") or ""
+        if value is not None and not hist:
+            # History is what Tally is for. A number that came back without one gets a second run that looks for nothing else.
+            steps = steps + [{"tool": "look", "arg": "No past values yet. A second run now looks only for this number's history"}]
+            _set(did, steps=steps)
+            again = agent.backfill(m, value, res["evidence_url"], on_step=lambda st: _set(did, steps=steps + st))
+            steps = steps + again["steps"]
+            today = db.now()[:10]
+            for h in sorted((again["result"] or {}).get("history") or [], key=lambda x: x["date"]):
+                if re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], recipes._page_for(h.get("url"), again["pages"])):
+                    hist.append(h)
+            checks.append({"name": "A second run looked only for its past", "ok": True, "detail": f"{len(hist)} past values could be read in the pages they cite."})
+            past_note = past_note or ((again["result"] or {}).get("notes") or "")
         if value is not None and hist and plan.get("running_total"):
             hist, ok, total = recipes.running_total(hist, value)
             checks.append({"name": "The rounds add up to the total", "ok": ok, "detail": f"{len(hist)} dated rounds add up to {total:g}; the total read is {value:g}."})
@@ -102,7 +115,8 @@ def _work(did, q):
         body = (f"## Source\n{res['evidence_url']}\n{r['Source']}\n\n## Read\n{r['Read'] or 'Read the single value that answers the question from the source page, with the sentence that states it.'}\n\n"
                 f"## History\n{r['History'] or 'Observed from the day this number was created.'}\n\n## Update\n{r['Update'] or 'Once a day.'}\n\n## Checks\n{r['Checks'] or CHECKS}\n")
         db.run("UPDATE drafts SET title=? WHERE id=?", (m["title"], did))
-        _set(did, "ready", value=value, unit=m["unit"], quote=res["quote"], url=res["evidence_url"], history=hist, running=bool(plan.get("running_total")), plan=plan, body=body, **report)
+        _set(did, "ready", value=value, unit=m["unit"], quote=res["quote"], url=res["evidence_url"], history=hist, running=bool(plan.get("running_total")), plan=plan, body=body,
+             no_past="" if hist else (past_note or "Two runs found no earlier value stated with a date."), **report)
     except Exception as e:
         print("creation failed:", did, type(e).__name__, str(e)[:200])
         _set(did, "failed", reasons=["The research could not be completed. Nothing was created; try again in a minute."])
@@ -122,7 +136,7 @@ def state(u, did):
         out |= {"reasons": p.get("reasons", [])}
     elif row["status"] == "ready":
         txt, unit = pp.fmt(p["value"], p.get("unit"))
-        out |= {"value": txt + (" " + unit if unit else ""), "quote": p["quote"], "url": p["url"], "recipe": p["body"], "plan": p.get("plan"),
+        out |= {"value": txt + (" " + unit if unit else ""), "quote": p["quote"], "url": p["url"], "recipe": p["body"], "plan": p.get("plan"), "no_past": p.get("no_past") or "",
                 "history": [{"date": h["date"], "value": " ".join(x for x in pp.fmt(h["value"], p.get("unit")) if x), "url": h.get("url")} for h in p.get("history") or []]}
     return out
 
@@ -156,6 +170,23 @@ def publish(u, did):
     core.follow(u["id"], mid)
     db.run("UPDATE drafts SET status='published', metric_id=? WHERE id=?", (mid, did))
     return core.metric(mid)
+
+
+def create_curated(question, company=None, on_done=None):
+    """Tally's own additions go through the same lifecycle as anyone's, without the daily allowance: research, proof, history, publish.
+    Returns (status, metric or None, draft payload)."""
+    u = {"id": "tally", "plan": "pro"}
+    q = " ".join(question.split())[:240]
+    did, _ = db.run("INSERT INTO drafts(user,question,title,status,payload,created_at) VALUES(?,?,?,?,?,?)", (u["id"], q, q[:60], "working", json.dumps({"steps": []}), db.now()))
+    _work(did, q)
+    row = db.one("SELECT * FROM drafts WHERE id=?", (did,))
+    p = json.loads(row["payload"] or "{}")
+    if row["status"] != "ready":
+        return row["status"], None, p
+    m = publish(u, did)
+    db.run("UPDATE metrics SET curated=1, company=COALESCE(?,company) WHERE id=?", (company, m["id"]))
+    db.run("DELETE FROM board_items WHERE user='tally'")
+    return "published", core.metric(m["id"]), p
 
 
 def wanted(limit=60):
