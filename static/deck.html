@@ -6,48 +6,56 @@
 <title>Tally — investor deck</title>
 <link rel="icon" href="/static/img/logo.svg" type="image/svg+xml">
 <style>
-:root{--paper:#f4f0e6;--card:#fbf9f3;--ink:#1d1b16;--mute:#7b7566;--line:#d9d2c0;--accent:#c2410c;--new:#fff1c9;
-  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+:root{--paper:#f5f6f8;--card:#ffffff;--ink:#0e1320;--mute:#667085;--line:#e1e4ea;--accent:#2f5bff;--new:#fff3bf;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--display:"Inter","SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:#12110e;overflow:hidden;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;color:var(--ink)}
+html,body{margin:0;height:100%;background:#070a12;overflow:hidden;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;color:var(--ink)}
 #stage{position:absolute;left:50%;top:50%;width:1280px;height:720px;transform-origin:center;background:var(--paper)}
 .slide{position:absolute;inset:0;padding:64px 80px;display:none;flex-direction:column}
 .slide.on{display:flex}
 .eyebrow{font:15px var(--mono);text-transform:uppercase;letter-spacing:.14em;color:var(--accent)}
-h1{font:700 92px/1.02 var(--serif);letter-spacing:-2.5px;margin:18px 0 0}
-h2{font:700 54px/1.08 var(--serif);letter-spacing:-1.3px;margin:14px 0 26px;max-width:22em}
+h1{font:700 92px/1.02 var(--display);letter-spacing:-2.5px;margin:18px 0 0}
+h2{font:700 54px/1.08 var(--display);letter-spacing:-1.3px;margin:14px 0 26px;max-width:22em}
 h2 em,h1 em{font-style:italic;color:var(--accent)}
-p.big{font-size:27px;line-height:1.4;color:#4a463c;max-width:30em;margin:0}
+p.big{font-size:27px;line-height:1.4;color:#475467;max-width:30em;margin:0}
 .marks{display:inline-flex;gap:7px;position:relative;height:56px;margin-bottom:8px}
 .marks i{width:6px;height:56px;background:var(--ink);border-radius:2px}
 .marks:after{content:"";position:absolute;left:-12px;right:-12px;top:25px;height:6px;background:var(--accent);transform:rotate(-24deg);border-radius:2px}
 .cols{display:grid;gap:24px;flex:1;align-content:start;margin-top:6px}
 .c2{grid-template-columns:1fr 1fr}.c3{grid-template-columns:repeat(3,1fr)}.c4{grid-template-columns:repeat(4,1fr)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px 30px}
-.card b{display:block;font:700 29px/1.2 var(--serif);margin-bottom:10px}
-.card p{margin:0;font-size:21.5px;line-height:1.42;color:#4a463c}
+.card b{display:block;font:700 29px/1.2 var(--display);margin-bottom:10px}
+.card p{margin:0;font-size:21.5px;line-height:1.42;color:#475467}
 .card .n{font:15px var(--mono);color:var(--accent);text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:10px}
 .num{font:600 60px/1 var(--mono);letter-spacing:-2px;font-variant-numeric:tabular-nums}
 .num small{font:15px var(--mono);color:var(--mute);letter-spacing:0;margin-left:8px}
 .lab{font:14px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--mute);margin-top:10px}
 .dark{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-.dark .lab{color:#a8a08c}.dark p{color:#cfc8b6}
+.dark .lab{color:#98a2b3}.dark p{color:#c3cad6}
 .ledger{list-style:none;margin:14px 0 0;padding:0;font:16px var(--mono)}
 .ledger li{padding:7px 10px;border-bottom:1px solid var(--line)}
 .ledger li.new{background:var(--new)}
 .flow{display:flex;align-items:stretch;gap:0;margin-bottom:22px}
 .flow .card{flex:1;border-radius:0;border-right:none}
 .flow .card:first-child{border-radius:14px 0 0 14px}.flow .card:last-child{border-radius:0 14px 14px 0;border-right:1px solid var(--line)}
-.shot{flex:1;min-height:0;border:1px solid var(--ink);border-radius:12px;overflow:hidden;box-shadow:8px 8px 0 var(--ink);background:var(--card)}
+.shot{flex:1;min-height:0;border:1px solid var(--ink);border-radius:12px;overflow:hidden;box-shadow:0 12px 32px rgba(14,19,32,.12);background:var(--card)}
 .shot img{width:100%;height:100%;object-fit:cover;object-position:top left;display:block}
 .foot{position:absolute;left:80px;right:80px;bottom:26px;display:flex;justify-content:space-between;font:13px var(--mono);color:var(--mute)}
 .url{font:600 30px var(--mono);color:var(--accent)}
-#hint{position:fixed;left:50%;transform:translateX(-50%);bottom:6px;color:#77705f;font:12px var(--mono);transition:opacity .8s}
+#hint{position:fixed;left:50%;transform:translateX(-50%);bottom:6px;color:#667085;font:12px var(--mono);transition:opacity .8s}
 #notes{position:fixed;left:0;right:0;bottom:0;background:#000d;color:#eee;padding:14px 24px;font-size:16px;line-height:1.45;display:none;max-height:32vh;overflow:auto}
 @media print{@page{size:1280px 720px;margin:0}html,body{overflow:visible;background:none;height:auto}
   #stage{position:static;transform:none!important;width:auto;height:auto}
   .slide{display:flex!important;position:relative;width:1280px;height:720px;page-break-after:always;background:var(--paper);-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #hint,#notes{display:none!important}}
+
+/* ---- look: cool paper, cobalt accent, one sans family; numbers in the display face ---- */
+h1,h2,h3{letter-spacing:-.02em}
+h1 em,h2 em{font-style:normal}
+.val,.num,.hero .val,.price,.hub b,.stat b,.tstat b{font-family:var(--display);font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.val small,.num small{font-family:var(--mono);font-weight:400;letter-spacing:0}
+.val.none,.hero .val.none{font:500 17px var(--display);font-style:normal;letter-spacing:0}
+.brand span{font-style:normal}
 </style>
 </head>
 <body>
@@ -56,7 +64,7 @@ p.big{font-size:27px;line-height:1.4;color:#4a463c;max-width:30em;margin:0}
 <section class="slide" data-notes="0:00 — This is Tally: a running tally of the outside world. One shared, always-current catalog of numbers about companies and markets.">
   <div style="margin-top:100px"><span class="marks"><i></i><i></i><i></i><i></i></span>
   <h1>Tally</h1>
-  <p class="big" style="margin-top:22px;font:italic 36px var(--serif);color:var(--ink)">A running tally of the outside world.</p>
+  <p class="big" style="margin-top:22px;font:italic 36px var(--display);color:var(--ink)">A running tally of the outside world.</p>
   <p class="big" style="margin-top:34px">One shared, always-current catalog of numbers about companies and markets. Ask once; everyone who cares gets it, with the evidence.</p></div>
   <div class="foot"><span>SearchHack · Nov 14, 2026</span><span>Built on Telem AI + Tavily</span></div>
 </section>
