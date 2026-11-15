@@ -61,6 +61,15 @@ def count_value(mid):
     return reduce_rows(m.get("reducer"), db.q("SELECT value FROM entries WHERE metric_id=? AND held_out=0", (mid,)))
 
 
+ROUND_KINDS = {"total funding raised": "funding", "latest round size": "latest_round", "latest valuation": "valuation"}
+
+
+def round_kind(m):
+    """'funding', 'latest_round' or 'valuation' for a number that only moves when a round is announced, else None."""
+    t = (m.get("title") or "").lower()
+    return next((k for suffix, k in ROUND_KINDS.items() if t.endswith(suffix)), None)
+
+
 def latest_obs(mid):
     return db.one("SELECT * FROM observations WHERE metric_id=? AND value IS NOT NULL ORDER BY as_of DESC, id DESC LIMIT 1", (mid,))
 

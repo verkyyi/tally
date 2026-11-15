@@ -237,6 +237,29 @@ def free():
     print("free numbers: created", made, "| switched existing to the free source", reused, "| source unavailable", failed, "| total", db.one("SELECT COUNT(*) n FROM metrics WHERE skill LIKE 'free|%'")["n"])
 
 
+def round_history():
+    """History for funding, round-size and valuation numbers from dated rounds: each number's recipe gets a History section and is
+    tried by the agent; verified past points are kept. Pass metric ids to limit the run; numbers that already have history are skipped."""
+    import recipes
+    ids = [int(x) for x in sys.argv[2:]]
+    done = kept = 0
+    for m in db.q("SELECT * FROM metrics WHERE kind='direct' ORDER BY id"):
+        if not core.round_kind(m) or (ids and m["id"] not in ids) or not core.latest_obs(m["id"]):
+            continue
+        if not ids and db.one("SELECT 1 x FROM observations WHERE metric_id=? AND origin='source_history'", (m["id"],)):
+            continue
+        try:
+            rep = recipes.revise({"id": "tally"}, m, recipes.with_round_history(m), "History from dated funding rounds.")
+        except Exception as e:
+            print("FAILED", m["id"], m["title"], type(e).__name__, str(e)[:160], flush=True)
+            continue
+        done += 1
+        kept += rep["history_points"] if rep["adopted"] else 0
+        bad = "; ".join(f"{c['name']}: {c['detail']}" for c in rep["checks"] if not c["ok"])
+        print(m["id"], m["title"], "| adopted" if rep["adopted"] else "| REJECTED", "| points", rep.get("history_points"), "| tokens", (rep.get("usage") or {}).get("input"), "|", bad or (rep.get("notes") or ""), flush=True)
+    print("numbers tried:", done, "| history points kept:", kept)
+
+
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history}[sys.argv[1]]()

@@ -122,33 +122,67 @@ def _thin(pts, n=420):
     return pts[::k] + ([pts[-1]] if (len(pts) - 1) % k else [])
 
 
-def chart(pts, unit, w=820, h=280, card=False, versions=()):
-    """A real chart: area and line over time, three value gridlines, year marks. pts: [{at, value, origin}], oldest first."""
+C2 = "#e8590c"  # the second series in a comparison
+
+
+def _scale(vs):
+    lo, hi = min(vs), max(vs)
+    lo = 0 if lo >= 0 and lo < hi * 0.6 else lo  # start at zero unless the series sits far above it
+    return lo, (hi if hi > lo else lo + 1)
+
+
+def _line(ts, vs, X, Y, step):
+    """An SVG path through the points. step: the value holds until the next point (funding rounds), instead of sloping to it."""
+    d = ""
+    for i, (t, v) in enumerate(zip(ts, vs)):
+        d += f"M{X(t):.1f} {Y(v):.1f}" if not i else (f" H{X(t):.1f} V{Y(v):.1f}" if step else f" L{X(t):.1f} {Y(v):.1f}")
+    return d
+
+
+def chart(pts, unit, w=820, h=280, card=False, versions=(), step=False, other=None):
+    """A real chart: area and line over time, three value gridlines, year marks. pts: [{at, value, origin}], oldest first.
+    other: (pts, unit, step) draws a second series; it shares the value axis when the units match, else it gets its own on the right."""
+    from datetime import datetime as _dt
+    stamp = lambda ps: [_dt.strptime(p["at"][:10], "%Y-%m-%d").timestamp() for p in ps]
     pts = _thin([p for p in pts if p.get("value") is not None])
     if len(pts) < 2:
         return ""
-    from datetime import datetime as _dt
-    ts = [_dt.strptime(p["at"][:10], "%Y-%m-%d").timestamp() for p in pts]
-    vs = [p["value"] for p in pts]
-    t0, t1 = ts[0], ts[-1] if ts[-1] > ts[0] else ts[0] + 1
-    lo, hi = min(vs), max(vs)
-    lo = 0 if lo >= 0 and lo < hi * 0.6 else lo  # start at zero unless the series sits far above it
-    hi = hi if hi > lo else lo + 1
-    L, R, T, B = (8, 8, 10, 22) if card else (58, 14, 14, 30)
+    ts, vs = stamp(pts), [p["value"] for p in pts]
+    ts2 = vs2 = None
+    if other:
+        p2 = _thin([p for p in other[0] if p.get("value") is not None])
+        if len(p2) >= 2:
+            ts2, vs2 = stamp(p2), [p["value"] for p in p2]
+    shared = vs2 is not None and (other[1] or "") == (unit or "")
+    own = vs2 is not None and not shared
+    t0, t1 = min(ts[0], ts2[0]) if vs2 else ts[0], max(ts[-1], ts2[-1]) if vs2 else ts[-1]
+    t1 = t1 if t1 > t0 else t0 + 1
+    lo, hi = _scale(vs + vs2 if shared else vs)
+    L, R, T, B = (8, 8, 10, 22) if card else (58, 58 if own else 14, 14, 30)
     X = lambda t: L + (t - t0) / (t1 - t0) * (w - L - R)
     Y = lambda v: T + (1 - (v - lo) / (hi - lo)) * (h - T - B)
-    line = " ".join(("L" if i else "M") + f"{X(t):.1f} {Y(v):.1f}" for i, (t, v) in enumerate(zip(ts, vs)))
-    area = line + f" L{X(t1):.1f} {h - B} L{X(t0):.1f} {h - B} Z"
+    line = _line(ts, vs, X, Y, step)
+    area = line + f" L{X(ts[-1]):.1f} {h - B} L{X(ts[0]):.1f} {h - B} Z"
     grid = ""
     if not card:
         for f in (0, .5, 1):
             v = lo + (hi - lo) * f
             grid += (f'<line x1="{L}" x2="{w - R}" y1="{Y(v):.1f}" y2="{Y(v):.1f}" stroke="#e1e4ea"/>'
-                     f'<text x="{L - 8}" y="{Y(v) + 4:.1f}" text-anchor="end" font-size="11" fill="#667085">{esc(fmt(v, unit)[0])}</text>')
+                     f'<text x="{L - 8}" y="{Y(v) + 4:.1f}" text-anchor="end" font-size="11" fill="{"#2f5bff" if own else "#667085"}">{esc(fmt(v, unit)[0])}</text>')
+    second = ""
+    if vs2:
+        lo2, hi2 = (lo, hi) if shared else _scale(vs2)
+        Y2 = lambda v: T + (1 - (v - lo2) / (hi2 - lo2)) * (h - T - B)
+        second = (f'<path d="{_line(ts2, vs2, X, Y2, other[2])}" fill="none" stroke="{C2}" stroke-width="2" stroke-linejoin="round"/>'
+                  f'<circle cx="{X(ts2[-1]):.1f}" cy="{Y2(vs2[-1]):.1f}" r="4" fill="{C2}"/>')
+        if own and not card:
+            for f in (0, .5, 1):
+                v = lo2 + (hi2 - lo2) * f
+                second += f'<text x="{w - R + 8}" y="{Y2(v) + 4:.1f}" font-size="11" fill="{C2}">{esc(fmt(v, other[1])[0])}</text>'
     y0, y1 = _dt.fromtimestamp(t0).year, _dt.fromtimestamp(t1).year
     marks = ""
-    step = max(1, (y1 - y0) // 6 + (1 if (y1 - y0) % 6 else 0)) if y1 > y0 else 1
-    for y in range(y0 + 1, y1 + 1, step):
+    stride = max(1, (y1 - y0) // 6 + (1 if (y1 - y0) % 6 else 0)) if y1 > y0 else 1
+    for y in range(y0 + 1, y1 + 1, stride):
         x = X(_dt(y, 1, 1).timestamp())
         if L <= x <= w - R:
             marks += f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{T}" y2="{h - B}" stroke="#eef0f4"/><text x="{x:.1f}" y="{h - B + 16}" text-anchor="middle" font-size="11" fill="#667085">{y}</text>'
@@ -164,14 +198,45 @@ def chart(pts, unit, w=820, h=280, card=False, versions=()):
             marks += (f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{T}" y2="{h - B}" stroke="#d92d20" stroke-dasharray="3 3"/>'
                       f'<text x="{x - 4:.1f}" y="{T + 10}" text-anchor="end" font-size="10" fill="#d92d20">{esc(label)}</text>')
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" role="img" aria-label="History chart" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" '
-            f'style="width:100%;height:auto;display:block">{marks}{grid}<path d="{area}" fill="#2f5bff" fill-opacity=".09"/>'
-            f'<path d="{line}" fill="none" stroke="#2f5bff" stroke-width="2" stroke-linejoin="round"/><circle cx="{X(t1):.1f}" cy="{Y(vs[-1]):.1f}" r="4" fill="#2f5bff"/></svg>')
+            f'style="width:100%;height:auto;display:block">{marks}{grid}<path d="{area}" fill="#2f5bff" fill-opacity="{".05" if vs2 else ".09"}"/>'
+            f'<path d="{line}" fill="none" stroke="#2f5bff" stroke-width="2" stroke-linejoin="round"/><circle cx="{X(ts[-1]):.1f}" cy="{Y(vs[-1]):.1f}" r="4" fill="#2f5bff"/>{second}</svg>')
+
+
+def compare_path(a, b):
+    return f"/compare?a={a['id']}&b={b['id']}"
+
+
+def compare_page(a, b, ta, tb, pa, pb, others=()):
+    """Two numbers on one chart. a, b: metric rows; ta, tb: signed-out tiles; pa, pb: their public series; others: [(metric, label)] to swap in for b."""
+    same = (ta["unit"] or "") == (tb["unit"] or "")
+    svg = chart(pa, ta["unit"], step=bool(core.round_kind(a)), other=(pb, tb["unit"], bool(core.round_kind(b))))
+    def key(m, t, pts, colour):
+        txt, unit = fmt(t["value"], t["unit"])
+        return (f'<a class="t" href="{number_path(m)}"><b><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:{colour};margin-right:7px"></span>{esc(m["title"])}</b>'
+                f'<div class="v">{esc(txt or "no value yet")}<small>{esc(unit)}</small></div><div class="m">{len(pts):,} points{" since " + when(pts[0]["at"]) if pts else ""}</div></a>')
+    va, vb = fmt(ta["value"], ta["unit"]), fmt(tb["value"], tb["unit"])
+    title = f'{a["title"]} vs {b["title"]} | Tally'
+    desc = (f'{a["title"]} ({va[0] or "no value yet"}{" " + va[1] if va[1] else ""}) compared with {b["title"]} ({vb[0] or "no value yet"}{" " + vb[1] if vb[1] else ""}), '
+            "on one chart, each with its history and its source.")
+    body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / Compare</div><h1>{esc(subject(a))} vs {esc(subject(b))}</h1>'
+            f'<p class="q">{esc(a["title"].split(" · ")[-1] if a["title"].split(" · ")[-1] == b["title"].split(" · ")[-1] else a["title"] + " and " + b["title"])}, on one chart.</p>'
+            f'<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">{key(a, ta, pa, "#2f5bff")}{key(b, tb, pb, C2)}</div>')
+    if svg:
+        body += (f'<div class="card" style="padding:16px 16px 8px;margin-top:12px">{svg}</div><p class="meta">'
+                 + ("Both on the same scale." if same else "Each line has its own scale: left for the blue one, right for the orange one.")
+                 + " Every point links back to a source on the number's own page.</p>")
+    else:
+        body += '<p class="meta" style="margin-top:14px">A chart needs at least two readings of each number; one of these has fewer so far.</p>'
+    body += f'<div class="cta"><a class="btn ghost" href="{esc(compare_path(b, a))}">Swap</a><a class="btn ghost" href="/n/{a["id"]}/history.csv">CSV: {esc(subject(a))}</a><a class="btn ghost" href="/n/{b["id"]}/history.csv">CSV: {esc(subject(b))}</a></div>'
+    if others:
+        body += (f'<h2>Compare {esc(subject(a))} with</h2><div class="cols">' + "".join(f'<a href="{esc(compare_path(a, m))}">{esc(label)}</a>' for m, label in others) + "</div>")
+    return shell(title[:110], desc[:300], compare_path(a, b), body)
 
 
 def card_svg(m, t, pts):
     """A standalone chart image for embedding in a README, a post or a deck."""
     txt, unit = fmt(t["value"], t["unit"])
-    inner = chart(pts, t["unit"], 600, 150, card=True)
+    inner = chart(pts, t["unit"], 600, 150, card=True, step=bool(core.round_kind(m)))
     inner = inner[inner.index(">") + 1:inner.rindex("</svg>")] if inner else '<text x="24" y="150" font-size="13" fill="#667085">History appears after the next check.</text>'
     since = when(pts[0]["at"]) if pts else None
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="260" viewBox="0 0 600 260" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">'
@@ -251,7 +316,7 @@ def top_index(items):
     return shell("Company rankings: funding, valuation, headcount, open roles | Tally", "Companies ranked by funding, valuation, headcount, open roles and launches, each figure with its source.", "/top", body)
 
 
-def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=()):
+def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(), compare=()):
     """m: metric row, t: the signed-out tile, ev: the signed-out evidence dict (may be locked), pts: the full series."""
     txt, unit = fmt(t["value"], t["unit"])
     sub = subject(m)
@@ -276,13 +341,15 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
                 + (" Computed from the entries\' own dates where marked in the download." if any(p["origin"] == "backfill" for p in pts) else ""))
         url = SITE + number_path(m)
         body += (f'<h2 style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><span>History</span><span class="rgs">{tabs}</span></h2>'
-                 f'<div class="card" style="padding:16px 16px 8px">{chart(shown, t["unit"], versions=versions)}</div><p class="meta">{esc(note)}{" Red marks show where the recipe changed." if versions else ""}</p>'
+                 f'<div class="card" style="padding:16px 16px 8px">{chart(shown, t["unit"], versions=versions, step=bool(core.round_kind(m)))}</div><p class="meta">{esc(note)}{" Red marks show where the recipe changed." if versions else ""}</p>'
                  f'<div class="cta" style="margin-top:14px"><a class="btn ghost" href="/n/{m["id"]}/history.csv">Download CSV</a>'
                  f'<details class="emb"><summary class="btn ghost">Embed this chart</summary><div class="embbox"><p class="meta" style="margin:0 0 6px">A live image. Paste into a README, a post or a doc.</p>'
                  f'<b>Markdown</b><pre>[![{esc(m["title"])}]({SITE}/n/{m["id"]}/chart.svg)]({url})</pre><b>HTML</b><pre>&lt;a href="{url}"&gt;&lt;img src="{SITE}/n/{m["id"]}/chart.svg" alt="{esc(m["title"])}" width="600"&gt;&lt;/a&gt;</pre>'
                  f'<img src="/n/{m["id"]}/chart.svg" alt="" width="420" style="max-width:100%;margin-top:6px"></div></details></div>')
     else:
         body += '<p class="meta" style="margin-top:14px">History starts with the next check; the chart appears once there are two readings.</p>'
+    if compare:
+        body += ('<p class="meta" style="margin-top:16px;line-height:2">Compare with: ' + " · ".join(f'<a href="{esc(compare_path(m, o))}">{esc(label)}</a>' for o, label in compare) + "</p>")
     if not ev.get("locked"):
         if m["kind"] == "direct":
             o = ev.get("observation") or {}

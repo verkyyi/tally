@@ -385,7 +385,25 @@ def public_number(mid: int, slug: str = "", range: str = "all"):
     related = [tile(core.metric(i), None) for i in pp.groups().get(sub, []) if i != mid]
     live = recipes.live(m)
     versions = [(r["created_at"], f"v{r['version']}") for r in db.q("SELECT version, created_at FROM recipes WHERE metric_id=? AND version>1 AND status IN ('live','superseded') ORDER BY version", (mid,))]
-    return HTMLResponse(pp.number_page(m, t, ev, related, _public_series(m, t), range if range in ("90d", "1y", "5y", "all") else "all", live, versions))
+    return HTMLResponse(pp.number_page(m, t, ev, related, _public_series(m, t), range if range in ("90d", "1y", "5y", "all") else "all", live, versions, _comparable(m)))
+
+
+def _comparable(m, limit=8):
+    """Other subjects' numbers of the same kind (same words after the dot) that have a history to draw: [(metric, subject)]."""
+    if " · " not in m["title"]:
+        return []
+    rows = db.q("SELECT m.id, m.title, m.company, COUNT(o.id) n FROM metrics m JOIN observations o ON o.metric_id=m.id AND o.seeded=0 AND o.value IS NOT NULL "
+                "WHERE m.title LIKE ? AND m.id!=? GROUP BY m.id HAVING n>=2 ORDER BY n DESC, m.id LIMIT ?", ("% · " + m["title"].split(" · ", 1)[1], m["id"], limit * 3))
+    return [(r, pp.subject(r)) for r in rows if pp.subject(r) != pp.subject(m)][:limit]
+
+
+@app.get("/compare")
+def public_compare(a: int, b: int):
+    ma, mb = core.metric(a), core.metric(b)
+    if not ma or not mb or a == b:
+        raise HTTPException(404, "pick two different numbers to compare")
+    ta, tb = tile(ma, None), tile(mb, None)
+    return HTMLResponse(pp.compare_page(ma, mb, ta, tb, _public_series(ma, ta), _public_series(mb, tb), [(m, s) for m, s in _comparable(ma) if m["id"] != b]))
 
 
 @app.get("/c/{slug}")

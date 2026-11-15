@@ -12,6 +12,16 @@ SECTIONS = ("Source", "Read", "History", "Update", "Checks")
 TRIALS_PER_DAY = {"free": 3, "pro": 20}
 GLOBAL_TRIALS_PER_DAY = 150
 JUMP = 3.0  # a trial value more than 3x away from the live one is held back, not adopted
+RECONCILE = 0.15  # rounds listed for a running total must add up to within 15% of the total read today
+_ROUNDS = ("Search for every {what} the company has announced, and read the pages that state them: its own announcements, its Wikipedia article, "
+           "news reports of each round. Open as many pages as it takes to cover them all, from the first to the latest. "
+           "One point for each, never the same one twice: the value is {value}, dated at the first day of the month it was announced, "
+           "with the page that states {amount}. Leave out any that no page states with a figure.")
+ROUND_HISTORY = {
+    "funding": _ROUNDS.format(what="funding round", amount="its amount", value="that round's size") + " Report each round's own size, not a sum: Tally adds the rounds up, and the history shown is their running total.",
+    "latest_round": _ROUNDS.format(what="earlier funding round", amount="its amount", value="that round's size"),
+    "valuation": _ROUNDS.format(what="earlier valuation", amount="it", value="the valuation"),
+}
 
 
 def baseline(m):
@@ -70,7 +80,7 @@ def history(mid):
 def trials_left(u):
     day = db.now()[:10]
     mine = db.one("SELECT COUNT(*) n FROM recipes WHERE author=? AND created_at>=? AND version>1", (u["id"], day))["n"]
-    everyone = db.one("SELECT COUNT(*) n FROM recipes WHERE created_at>=? AND version>1", (day,))["n"]
+    everyone = db.one("SELECT COUNT(*) n FROM recipes WHERE created_at>=? AND version>1 AND author!='tally'", (day,))["n"]
     return max(0, min(TRIALS_PER_DAY.get(u["plan"], 3) - mine, GLOBAL_TRIALS_PER_DAY - everyone))
 
 
@@ -102,6 +112,28 @@ def _verify(m, res, pages):
     return checks, value, hist
 
 
+def running_total(hist, total_now):
+    """Round sizes -> the total raised after each round. Returns (points, reconciles, sum): the sum must land near today's total,
+    otherwise rounds are missing and the series would understate the past."""
+    by = {}
+    for h in hist:
+        by.setdefault(h["date"], []).append(h)
+    out, total = [], 0.0
+    for d in sorted(by):
+        total += sum(h["value"] for h in by[d])
+        out.append({"date": d, "value": total, "url": by[d][0].get("url")})
+    return out, bool(total_now) and abs(total - total_now) <= RECONCILE * total_now, total
+
+
+def with_round_history(m):
+    """The live recipe with its History section replaced by the dated-rounds instruction for this kind of number, or None."""
+    k = core.round_kind(m)
+    if not k or m["kind"] != "direct":
+        return None
+    secs = parse(live(m)["body"]) | {"History": ROUND_HISTORY[k]}
+    return "\n\n".join(f"## {s}\n{secs[s]}" for s in SECTIONS if secs.get(s)) + "\n"
+
+
 def revise(u, m, body, note):
     """Try a revised recipe and adopt it if the trial verifies. Returns the trial report."""
     import agent
@@ -118,8 +150,13 @@ def revise(u, m, body, note):
         run = agent.run_recipe(m, body)
         res = run["result"]
         checks, value, hist = _verify(m, res, run["pages"])
+        running = bool(hist) and bool(re.search(r"running total", secs.get("History", ""), re.I))
+        if running:
+            hist, ok, total = running_total(hist, res["value"])
+            checks.append({"name": "The rounds add up to the total", "ok": ok, "detail": f"{len(hist)} dated rounds add up to {total:g}; the total read is {res['value']:g}."})
+            value = value if ok else None
         report |= {"new": {"value": (res or {}).get("value"), "quote": (res or {}).get("quote"), "url": (res or {}).get("evidence_url")}, "notes": (res or {}).get("notes"),
-                   "steps": run["steps"], "model": run["model"], "usage": run["usage"], "history_points": len(hist)}
+                   "steps": run["steps"], "model": run["model"], "usage": run["usage"], "history_points": len(hist), "history_reported": ((res or {}).get("history") or [])[:60]}
     else:  # a list-based number: the revised reading instructions are run through the same gather-and-read pipeline
         trial = dict(m) | {"instructions": secs["Read"], "source_url": _first_url(secs["Source"]) or m.get("source_url"), "search_query": _search_line(secs["Source"]) or m.get("search_query")}
         entries = core.find_entries(trial)
@@ -129,7 +166,7 @@ def revise(u, m, body, note):
         checks = [{"name": "The recipe produced entries", "ok": len(entries) > 0, "detail": f"{len(entries)} entries found."},
                   {"name": "Every entry has its own link", "ok": bool(entries) and all(e.get("url") for e in entries), "detail": ""},
                   {"name": "No unexplained jump from the current value", "ok": not jump, "detail": f"Current {ov:g}, trial {n:g}." if jump else ""}]
-        value, hist, res = (n if all(c["ok"] for c in checks) else None), [], None
+        value, hist, res, running = (n if all(c["ok"] for c in checks) else None), [], None, False
         report |= {"new": {"value": n, "quote": "; ".join(e["title"] for e in entries[:5]), "url": trial["source_url"]}, "entries": len(entries), "history_points": 0}
     report["checks"], report["adopted"] = checks, value is not None
     ver = db.one("SELECT COALESCE(MAX(version),1) v FROM recipes WHERE metric_id=?", (m["id"],))["v"] + 1
@@ -143,10 +180,13 @@ def revise(u, m, body, note):
         fresh = core.metric(m["id"])
         if m["kind"] == "direct":
             core.record_direct(fresh, {"value": value, "evidence_url": res["evidence_url"], "quote": res["quote"]}, "recipe")
+            if hist:  # the past as this version rebuilds it replaces what an earlier version rebuilt
+                db.run("DELETE FROM observations WHERE metric_id=? AND origin='source_history' AND quote LIKE 'recipe v%'", (m["id"],))
             for h in hist:
                 at = h["date"] + "T00:00:00Z"
                 if not db.one("SELECT 1 x FROM observations WHERE metric_id=? AND as_of=?", (m["id"], at)):
-                    db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote) VALUES(?,?,?,?,?,0,?)", (m["id"], h["value"], at, h.get("url"), "source_history", f"recipe v{ver}"))
+                    db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote) VALUES(?,?,?,?,?,0,?)",
+                           (m["id"], h["value"], at, h.get("url"), "source_history", f"recipe v{ver}" + (": running total of the rounds" if running else "")))
         else:
             core.upsert_entries(fresh, entries, "recipe")
             core.record_count_obs(m["id"], "recipe")
