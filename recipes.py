@@ -11,7 +11,7 @@ import free_sources
 SECTIONS = ("Source", "Read", "History", "Update", "Checks")
 TRIALS_PER_DAY = {"free": 3, "pro": 20}
 GLOBAL_TRIALS_PER_DAY = 150
-JUMP = 3.0  # a trial value more than 3x away from the live one is held back, not adopted
+JUMP = core.JUMP  # a trial value more than 3x away from the live one is held back, not adopted
 RECONCILE = 0.15  # rounds listed for a running total must add up to within 15% of the total read today
 _ROUNDS = ("Search for every {what} the company has announced, and read the pages that state them: its own announcements, its Wikipedia article, "
            "news reports of each round. Open as many pages as it takes to cover them all, from the first to the latest. "
@@ -185,8 +185,8 @@ def revise(u, m, body, note):
             for h in hist:
                 at = h["date"] + "T00:00:00Z"
                 if not db.one("SELECT 1 x FROM observations WHERE metric_id=? AND as_of=?", (m["id"], at)):
-                    db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote) VALUES(?,?,?,?,?,0,?)",
-                           (m["id"], h["value"], at, h.get("url"), "source_history", f"recipe v{ver}" + (": running total of the rounds" if running else "")))
+                    db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)",
+                           (m["id"], h["value"], at, h.get("url"), "source_history", f"recipe v{ver}" + (": running total of the rounds" if running else ""), ver))
         else:
             core.upsert_entries(fresh, entries, "recipe")
             core.record_count_obs(m["id"], "recipe")

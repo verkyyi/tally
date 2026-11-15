@@ -248,10 +248,10 @@ def card_svg(m, t, pts):
 
 
 def history_csv(m, pts):
-    rows = ["date,value,kind,source"]
+    rows = ["date,value,kind,source,recipe_version"]
     for p in pts:
         kind = "source history" if p["origin"] == "source_history" else "computed from entry dates" if p["origin"] == "backfill" else "observed"
-        rows.append(f'{p["at"][:10]},{p["value"]:g},{kind},{(p.get("url") or m.get("source_url") or "").replace(",", "%2C")}')
+        rows.append(f'{p["at"][:10]},{p["value"]:.12g},{kind},{(p.get("url") or m.get("source_url") or "").replace(",", "%2C")},{p.get("version") or ""}')
     return "\n".join(rows) + "\n"
 
 

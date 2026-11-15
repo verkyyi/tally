@@ -193,10 +193,31 @@ def resolve_direct(m, exclude_domain=None, fresh=False):
     return ex
 
 
+JUMP = 3.0  # a reading more than 3x away from the last one is not taken on one source's word
+
+
+def jump_held(m, ex):
+    """True if this reading is more than 3x away from the last one and no second source agrees with it.
+    Such a reading is not recorded: the number keeps its last value until two sources say the same."""
+    prev = latest_obs(m["id"])
+    if not prev or not prev["value"] or not ex.get("value") or free_sources.is_free(m):
+        return False
+    if 1 / JUMP <= ex["value"] / prev["value"] <= JUMP:
+        return False
+    try:
+        second = resolve_direct(m, exclude_domain=domain(ex["evidence_url"]))
+    except telem.TelemError:
+        second = None
+    if second and second.get("value") and 0.8 <= second["value"] / ex["value"] <= 1.25:
+        return False
+    print("held jump:", m["id"], prev["value"], "->", ex["value"], "second source:", (second or {}).get("value"))
+    return True
+
+
 def record_direct(m, ex, origin):
     prev = latest_obs(m["id"])
-    db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote) VALUES(?,?,?,?,?,0,?)",
-           (m["id"], ex["value"], db.now(), ex["evidence_url"], origin, ex.get("quote")))
+    db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)",
+           (m["id"], ex["value"], db.now(), ex["evidence_url"], origin, ex.get("quote"), m.get("recipe_version")))
     if prev and prev["value"] != ex["value"]:
         add_change(m["id"], fmt(prev["value"]), fmt(ex["value"]), origin, "value_changed", url=ex["evidence_url"])
     return prev is not None and prev["value"] != ex["value"]
@@ -434,6 +455,7 @@ def run_now(mid):
     m = metric(mid)
     if m["kind"] == "direct":
         ex = resolve_direct(m, fresh=True)
+        ex = None if ex and jump_held(m, ex) else ex
         changed = record_direct(m, ex, "run_now") if ex else False
         out = {"value": ex["value"] if ex else None, "changed": changed, "found": bool(ex)}
     else:
@@ -561,7 +583,7 @@ def sync_metric(m):
         try:
             if m["kind"] == "direct":
                 ex = resolve_direct(m, fresh=True)
-                added += 1 if ex and record_direct(m, ex, "monitor") else 0
+                added += 1 if ex and not jump_held(m, ex) and record_direct(m, ex, "monitor") else 0
             else:
                 added += len(upsert_entries(m, find_entries(m), "monitor") or [])
                 record_count_obs(mid, "monitor")
@@ -668,8 +690,8 @@ def backfill_free(m):
 
 def series(mid, upto=None):
     """Every real reading of a number, oldest first: [{at, value, origin, url}]. Simulated points are never included."""
-    rows = db.q("SELECT as_of, value, origin, evidence_url FROM observations WHERE metric_id=? AND value IS NOT NULL AND seeded=0 ORDER BY as_of, id", (mid,))
-    return [{"at": r["as_of"], "value": r["value"], "origin": r["origin"], "url": r["evidence_url"]} for r in rows if not upto or r["as_of"] <= upto]
+    rows = db.q("SELECT as_of, value, origin, evidence_url, recipe_version FROM observations WHERE metric_id=? AND value IS NOT NULL AND seeded=0 ORDER BY as_of, id", (mid,))
+    return [{"at": r["as_of"], "value": r["value"], "origin": r["origin"], "url": r["evidence_url"], "version": r["recipe_version"]} for r in rows if not upto or r["as_of"] <= upto]
 
 
 def refresh_free(limit=3, older_than_hours=20):
