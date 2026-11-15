@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tally — know the moment your pipeline moves</title>
-<link rel="icon" href="/static/img/logo.svg?v=3" type="image/svg+xml"><link rel="icon" type="image/png" sizes="32x32" href="/static/img/favicon-32.png?v=3"><link rel="apple-touch-icon" href="/static/img/favicon-180.png?v=3">
+<title>Tally — know when the startups you watch make a move</title>
+<link rel="icon" href="/static/img/logo.svg" type="image/svg+xml">
 <link rel="canonical" href="https://tallycatalog.com/">
 <meta name="description" content="Tally tracks funding, hiring and launches at the companies you watch, shows the source behind every number, and tells you what changed. Built for angels, scouts and pre-seed funds.">
-<meta property="og:title" content="Tally — know the moment your pipeline moves">
+<meta property="og:title" content="Tally — know when the startups you watch make a move">
 <meta property="og:description" content="Funding, hiring and launches at the companies you watch, each with its source. Pick one company to start.">
 <meta property="og:image" content="https://tallycatalog.com/static/img/board.png">
 <meta property="og:type" content="website">
@@ -37,7 +37,16 @@ form{display:flex;gap:8px;margin:14px 0 0}
 form input{flex:1;min-width:0;padding:13px 15px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:inherit}
 form input:focus{outline:2px solid var(--accent);outline-offset:1px}
 form button{padding:13px 22px;border-radius:10px;background:var(--accent);color:#fff;font:600 16px var(--display);border:0;cursor:pointer}
+.sbox{position:relative;flex:1;min-width:0;display:flex}
+#sug{position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(14,19,32,.12);z-index:5;text-align:left;padding:6px;max-height:320px;overflow:auto}
+#sug a{display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:9px 11px;border-radius:8px;text-decoration:none;font-size:16px}
+#sug a.sel,#sug a:hover{background:var(--tint)}
+#sug a span{font:12px var(--mono);color:var(--mute);white-space:nowrap}
+#sug a i{font-style:normal}
+#sug mark{background:none;color:var(--accent);font-weight:700}
 .tiny{font-size:14px;color:var(--mute);margin:14px 0 0}
+.gh{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink);font-weight:600}
+.gh svg{width:17px;height:17px;fill:currentColor}
 .three{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;padding:30px 0 36px;border-top:1px solid var(--line)}
 .three b{display:block;font-size:17px;letter-spacing:-.01em;margin-bottom:3px}.three p{margin:0;color:var(--body);font-size:15.500px}
 footer{padding:18px 0 40px;color:var(--mute);font-size:14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
@@ -53,8 +62,8 @@ footer{padding:18px 0 40px;color:var(--mute);font-size:14px;border-top:1px solid
 
 <div class="hero">
   <div class="eyebrow">For angels, scouts and pre-seed funds</div>
-  <h1>Know the moment your pipeline moves.</h1>
-  <p class="lede">Funding, hiring and launches at the companies you watch, each with its source.</p>
+  <h1>Know when the startups you watch make a move.</h1>
+  <p class="lede">New funding, new hires, new launches. Tally tracks them for the companies you care about and shows the source behind every number.</p>
   <p class="ask">Pick one to start. You can add more later.</p>
   <div class="picks" id="picks">
     <a class="pick" href="/app?start=Cursor"><b><span class="av">C</span>Cursor</b><span class="b">funding · open roles · launches</span></a>
@@ -64,7 +73,8 @@ footer{padding:18px 0 40px;color:var(--mute);font-size:14px;border-top:1px solid
     <a class="pick" href="/app?start=LangChain"><b><span class="av">L</span>LangChain</b><span class="b">GitHub stars · downloads</span></a>
     <a class="pick" href="/app?start=Tavily"><b><span class="av">T</span>Tavily</b><span class="b">funding · open roles · launches</span></a>
   </div>
-  <form action="/app" method="get"><input name="start" placeholder="Or type any company" aria-label="Company name" required><button>Start</button></form>
+  <form action="/app" method="get" id="f" autocomplete="off"><div class="sbox"><input name="start" id="q" placeholder="Or type any company, accelerator, sector or investor" aria-label="Name" required>
+    <div id="sug" hidden></div></div><input type="hidden" name="pack" id="pack" disabled><button>Start</button></form>
   <p class="tiny">Free. One click, then sign in with Google to keep your board.</p>
 </div>
 
@@ -74,11 +84,36 @@ footer{padding:18px 0 40px;color:var(--mute);font-size:14px;border-top:1px solid
   <div><b>You see what changed</b><p>Checked in the background; changes are listed for you.</p></div>
 </div>
 
-<footer><span>Free to start · <a href="/app?plans=1">Pro $<span id="price">19</span> a month</a> for everything live</span>
-  <span><a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="https://github.com/verkyyi/tally">Source</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span></footer>
+<footer><span><a class="gh" href="https://github.com/verkyyi/tally" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>Open source</a> &nbsp;·&nbsp; Free to start · <a href="/app?plans=1">Pro $<span id="price">19</span> a month</a> for everything live</span>
+  <span><a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span></footer>
 </div>
 <script>
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// Suggestions as you type: cached names first, then anything already in the catalog. Picking one starts a board.
+let NAMES=[], sel=-1;
+const TYPE={company:"Company",accelerator:"Accelerator",sector:"Sector",investor:"Investor"};
+async function loadNames(){ if(NAMES.length) return;
+  try{ const d=await (await fetch("/static/suggest.json")).json();
+    NAMES=[...d.companies.map(x=>({n:x.name,t:"company"})),...d.accelerators.map(x=>({n:x.name,t:"accelerator",a:x.alias})),...d.sectors.map(x=>({n:x.name,t:"sector"})),...(d.investors||[]).map(x=>({n:x.name,t:"investor"}))];
+    NAMES.forEach(x=>x.d=1) }catch(e){}
+  try{ const have=new Set(NAMES.map(x=>x.n.toLowerCase())), c=(await (await fetch("/api/catalog")).json()).metrics, seen={};
+    c.forEach(m=>{const k=m.title.split(" · ")[0]; if(m.title.includes(" · ")&&!have.has(k.toLowerCase())&&k.toLowerCase()!="yc") seen[k]=(seen[k]||0)+1});
+    Object.keys(seen).forEach(k=>NAMES.push({n:k,t:"company",c:seen[k]})); NAMES.forEach(x=>{ if(!x.c){const k=x.n.toLowerCase(); x.c=c.filter(m=>m.title.toLowerCase().startsWith(k+" ·")).length} }) }catch(e){} }
+const Q=document.getElementById("q"), SUG=document.getElementById("sug"), PACK=document.getElementById("pack");
+function hl(t,q){const i=t.toLowerCase().indexOf(q.toLowerCase()); return i<0?esc(t):esc(t.slice(0,i))+"<mark>"+esc(t.slice(i,i+q.length))+"</mark>"+esc(t.slice(i+q.length))}
+function show(){ const q=Q.value.trim(); sel=-1; if(q.length<1){SUG.hidden=true; return}
+  const l=q.toLowerCase(), rank=x=>{const n=x.n.toLowerCase(); return n.startsWith(l)||(x.a||"").toLowerCase().startsWith(l)?0:n.split(/\s+/).some(w=>w.startsWith(l))?1:n.includes(l)?2:9};
+  const m=NAMES.map(x=>[rank(x),x]).filter(x=>x[0]<9).sort((a,b)=>a[0]-b[0]||(b[1].d||0)-(a[1].d||0)||(b[1].c||0)-(a[1].c||0)||a[1].n.localeCompare(b[1].n)).slice(0,7).map(x=>x[1]);
+  if(!m.length){SUG.hidden=true; return}
+  SUG.innerHTML=m.map(x=>`<a href="/app?start=${encodeURIComponent(x.n)}${x.t!="company"?"&pack="+x.t:""}" data-n="${esc(x.n)}"><i>${hl(x.n,q)}</i><span>${TYPE[x.t]}${x.c?" · "+x.c+(x.c==1?" number":" numbers")+" ready":""}</span></a>`).join(""); SUG.hidden=false }
+function mark(){ [...SUG.children].forEach((a,i)=>a.classList.toggle("sel",i==sel)) }
+Q.addEventListener("focus",()=>loadNames().then(show)); Q.addEventListener("input",()=>loadNames().then(show));
+Q.addEventListener("keydown",e=>{ const n=SUG.hidden?0:SUG.children.length; if(!n) return;
+  if(e.key=="ArrowDown"){e.preventDefault(); sel=(sel+1)%n; mark()} else if(e.key=="ArrowUp"){e.preventDefault(); sel=(sel-1+n)%n; mark()}
+  else if(e.key=="Enter"&&sel>=0){e.preventDefault(); location.href=SUG.children[sel].href} else if(e.key=="Escape"){SUG.hidden=true} });
+document.addEventListener("click",e=>{ if(!e.target.closest(".sbox")) SUG.hidden=true });
+document.getElementById("f").addEventListener("submit",e=>{ const x=NAMES.find(y=>y.n.toLowerCase()==Q.value.trim().toLowerCase()||(y.a||"").toLowerCase()==Q.value.trim().toLowerCase());
+  if(x){ Q.value=x.n; if(x.t!="company"){PACK.disabled=false; PACK.value=x.t} } });
 (async()=>{try{
   fetch("/api/me").then(r=>r.json()).then(m=>document.getElementById("price").textContent=m.price_usd).catch(()=>{});
   const st=(await (await fetch("/api/starters")).json()).starters;
