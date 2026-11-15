@@ -1,0 +1,753 @@
+{
+ "companies": [
+  {
+   "name": "OpenAI",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Anthropic",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Perplexity",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Cursor",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Replit",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Cognition",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Harvey",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Glean",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Sierra",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Decagon",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Scale AI",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Together AI",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Fireworks AI",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Groq",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Cerebras",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Databricks",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "LangChain",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "LlamaIndex",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Baseten",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Anyscale",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Weights & Biases",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Chroma",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Exa",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Browserbase",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Writer",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Mercor",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Windsurf",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Physical Intelligence",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Figure",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Waymo",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Gamma",
+   "tags": [
+    "AI",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Notion",
+   "tags": [
+    "Tech",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Figma",
+   "tags": [
+    "Tech",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Vercel",
+   "tags": [
+    "Tech",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Stripe",
+   "tags": [
+    "Tech",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Brex",
+   "tags": [
+    "Tech",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Mercury",
+   "tags": [
+    "Tech",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Rippling",
+   "tags": [
+    "Tech",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Retool",
+   "tags": [
+    "Tech",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Airtable",
+   "tags": [
+    "Tech",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Sentry",
+   "tags": [
+    "Tech",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Cloudflare",
+   "tags": [
+    "Tech",
+    "Bay Area"
+   ]
+  },
+  {
+   "name": "Lovable",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "ElevenLabs",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Runway",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Pika",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Suno",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Midjourney",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Mistral AI",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Cohere",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Hugging Face",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Pinecone",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Weaviate",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Modal",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Replicate",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Tavily",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Firecrawl",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Hebbia",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Abridge",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Skild AI",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Granola",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Clay",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "n8n",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Bolt",
+   "tags": [
+    "AI"
+   ]
+  },
+  {
+   "name": "Linear",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Supabase",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Ramp",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Deel",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Canva",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Papermark",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Attio",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Warp",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Zed",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "PostHog",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Datadog",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Tailscale",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Neon",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "PlanetScale",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Clerk",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Resend",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Railway",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Render",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Zapier",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Snowflake",
+   "tags": [
+    "Tech"
+   ]
+  },
+  {
+   "name": "Anduril",
+   "tags": [
+    "Tech"
+   ]
+  }
+ ],
+ "accelerators": [
+  {
+   "name": "Y Combinator",
+   "alias": "YC"
+  },
+  {
+   "name": "a16z Speedrun"
+  },
+  {
+   "name": "Techstars"
+  },
+  {
+   "name": "500 Global"
+  },
+  {
+   "name": "Antler"
+  },
+  {
+   "name": "Entrepreneur First"
+  },
+  {
+   "name": "South Park Commons"
+  },
+  {
+   "name": "HF0"
+  },
+  {
+   "name": "Neo"
+  },
+  {
+   "name": "PearX"
+  },
+  {
+   "name": "Alchemist Accelerator"
+  },
+  {
+   "name": "Plug and Play"
+  },
+  {
+   "name": "Sequoia Arc"
+  },
+  {
+   "name": "AI Grant"
+  },
+  {
+   "name": "StartX"
+  },
+  {
+   "name": "Berkeley SkyDeck"
+  },
+  {
+   "name": "Founders, Inc."
+  },
+  {
+   "name": "LAUNCH"
+  }
+ ],
+ "sectors": [
+  {
+   "name": "AI agents",
+   "adj": "AI agent"
+  },
+  {
+   "name": "AI infrastructure",
+   "adj": "AI infrastructure"
+  },
+  {
+   "name": "AI coding tools",
+   "adj": "AI coding tool"
+  },
+  {
+   "name": "AI search",
+   "adj": "AI search"
+  },
+  {
+   "name": "Voice AI",
+   "adj": "voice AI"
+  },
+  {
+   "name": "Robotics",
+   "adj": "robotics"
+  },
+  {
+   "name": "Developer tools",
+   "adj": "developer tool"
+  },
+  {
+   "name": "Fintech",
+   "adj": "fintech"
+  },
+  {
+   "name": "Healthcare AI",
+   "adj": "healthcare AI"
+  },
+  {
+   "name": "Legal AI",
+   "adj": "legal AI"
+  },
+  {
+   "name": "Defense tech",
+   "adj": "defense tech"
+  },
+  {
+   "name": "Climate tech",
+   "adj": "climate tech"
+  }
+ ],
+ "dims": {
+  "company": [
+   {
+    "label": "total funding raised",
+    "q": "How much total funding has {x} raised?",
+    "tpl": "total funding raised"
+   },
+   {
+    "label": "open engineering roles",
+    "q": "How many open engineering roles does {x} have?",
+    "tpl": "open engineering roles"
+   },
+   {
+    "label": "launches this quarter",
+    "q": "How many product launches or major feature releases has {x} announced this quarter?",
+    "tpl": "launches this quarter"
+   },
+   {
+    "label": "latest valuation",
+    "q": "What is {x}'s latest reported valuation?"
+   },
+   {
+    "label": "latest funding round size",
+    "q": "How large was {x}'s most recent funding round?"
+   },
+   {
+    "label": "headcount",
+    "q": "How many employees does {x} have?"
+   },
+   {
+    "label": "open roles, all teams",
+    "q": "How many open roles does {x} have in total?"
+   },
+   {
+    "label": "open sales roles",
+    "q": "How many open sales and go-to-market roles does {x} have?"
+   },
+   {
+    "label": "GitHub stars",
+    "q": "How many GitHub stars does {x}'s main open-source repository have?",
+    "tpl": "GitHub stars"
+   },
+   {
+    "label": "entry plan price",
+    "q": "What is the listed monthly price of {x}'s lowest-priced paid plan?",
+    "tpl": "entry plan price"
+   },
+   {
+    "label": "App Store rating",
+    "q": "What is the App Store rating of the {x} iOS app?",
+    "tpl": "App Store rating"
+   }
+  ],
+  "accelerator": [
+   {
+    "label": "companies in the current batch",
+    "q": "How many companies are in {x}'s current batch?"
+   },
+   {
+    "label": "AI companies in the current batch",
+    "q": "How many AI companies are in {x}'s current batch?"
+   },
+   {
+    "label": "portfolio companies hiring now",
+    "q": "How many {x} portfolio companies are hiring now?"
+   },
+   {
+    "label": "companies funded, all time",
+    "q": "How many companies has {x} funded in total?"
+   }
+  ],
+  "sector": [
+   {
+    "label": "funding announced this month",
+    "q": "Total funding announced by {x} startups this month"
+   },
+   {
+    "label": "largest round this month",
+    "q": "Largest funding round announced this month by any {x} startup"
+   },
+   {
+    "label": "funding rounds this month",
+    "q": "How many funding rounds have {x} startups announced this month?"
+   },
+   {
+    "label": "launches this month",
+    "q": "How many {x} products have launched this month?"
+   }
+  ]
+ }
+}

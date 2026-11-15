@@ -414,17 +414,30 @@ async function followMetric(id){ await api(`/api/metrics/${id}/follow`,{}); toas
 let tplNames=null, sugT=null;
 const sugRow=(act,arg,main,sub,btn)=>`<div class="srow" data-act="${act}" data-arg="${esc(arg)}"><div><b>${main}</b>${sub?`<div class="when">${sub}</div>`:""}</div><span class="sbtn">${btn}</span></div>`;
 function catRow(m){const v=val(m.value,m.unit); return sugRow(m.on_board?"open":"follow",m.id,esc(m.title),`${v?v.text+" "+esc(v.unit):"no value yet"} · tracked by ${m.followers}${m.live?"":" · delayed"}`,m.on_board?"On your board":"Follow")}
+// What an angel or pre-seed investor looks for first: funding, hiring, launches, batches. Prices and ratings come last.
+const INV=[[/fund|raised|round|valuation/i,5],[/\byc\b|batch|accelerator/i,4],[/roles|hiring|headcount/i,4],[/launch/i,3],[/stars/i,1],[/price|plan|rating/i,0]];
+const invScore=m=>{const r=INV.find(x=>x[0].test(m.title)); return r?r[1]:2};
+const chipRow=(label,items)=>`<div class="shead">${label}</div><div class="spack">${items.map(x=>`<a href="#" class="chip" data-fill="${esc(x)}">${esc(x)}</a>`).join("")}</div>`;
 async function showEmpty(){
-  if(!tplNames) tplNames=(await api("/api/templates")).templates;
-  const pop=(await api("/api/catalog?sort=popular")).metrics.filter(m=>m.value!=null&&!m.on_board).slice(0,5);
+  await loadDir();
+  if(!CAT.length) await loadCat();
+  const seen=new Set(), pop=CAT.filter(m=>m.value!=null&&!m.on_board).sort((x,y)=>invScore(y)-invScore(x)||y.followers-x.followers)
+    .filter(m=>{const k=m.title.split(" · ")[0]; if(seen.has(k)) return false; seen.add(k); return true}).slice(0,5);  // one row per company, not five of the same
   if($("#q").value.trim()) return;  // the user started typing while this loaded
-  $("#sugg").innerHTML=`<div class="shead">Popular in the catalog</div>${pop.map(catRow).join("")}
-    <div class="shead">Starter packs</div>
-    <div class="spack"><a href="#" class="chip" data-fill="Lovable">A company</a>${tplNames.map(t=>`<span>${esc(t.name)}</span>`).join("")}</div>
-    <div class="spack"><a href="#" class="chip" data-fill="YC">An accelerator: YC</a><span>batch size</span><span>new batch so far</span><span>AI companies</span><span>hiring now</span></div>
-    <div class="shead">Or ask for a number that has to be added up</div><div class="spack">${["Total funding announced by AI agent startups this month","Largest seed round announced by an AI startup this month","How many open engineering roles does Cursor have?"].map(x=>`<a href="#" class="chip" data-fill="${esc(x)}">${esc(x)}</a>`).join("")}</div>`;
+  const bay=DIR.companies.filter(c=>c.tags.includes("Bay Area")).map(c=>c.name);
+  $("#sugg").innerHTML=`<div class="shead">Popular with investors</div>${pop.map(catRow).join("")}
+    ${chipRow("Pick a company · then choose what to track",bay.slice(0,14))}
+    ${chipRow("Or an accelerator",DIR.accelerators.slice(0,8).map(x=>x.name))}
+    ${chipRow("Or a sector",DIR.sectors.slice(0,8).map(x=>x.name))}
+    <div class="shead">Or type any question</div><div class="spack">${["Total funding announced by AI agent startups this month","How many open engineering roles does Cursor have?"].map(x=>`<a href="#" class="chip" data-fill="${esc(x)}">${esc(x)}</a>`).join("")}</div>`;
   $("#sugg").hidden=false;
 }
+// A cached directory of names and metric dimensions, so nobody has to compose a question. No Telem call until a row is picked.
+let DIR={companies:[],accelerators:[],sectors:[],dims:{company:[],accelerator:[],sector:[]}}, dirLoaded=false;
+async function loadDir(){ if(dirLoaded) return; dirLoaded=true; try{DIR=await (await fetch("/static/suggest.json")).json()}catch(e){} }
+function entities(){return [...DIR.companies.map(x=>({...x,type:"company"})),...DIR.accelerators.map(x=>({...x,type:"accelerator"})),...DIR.sectors.map(x=>({...x,type:"sector"}))]}
+const entLabel=e=>({company:"Company",accelerator:"Accelerator",sector:"Sector"}[e.type])+(e.tags?" · "+e.tags.join(" · "):"");
+function findEntity(q){const l=q.toLowerCase(); return entities().find(e=>e.name.toLowerCase()==l||(e.alias||"").toLowerCase()==l)}
 // Suggestions are computed in the browser from the cached catalog, so they appear as you type.
 let CAT=[], COMPANIES=[], sel=0;
 async function loadCat(){try{CAT=(await (await fetch("/api/catalog")).json()).metrics; COMPANIES=[...new Set(CAT.map(m=>m.title.split(" · ")[0]))].sort()}catch(e){}}
@@ -432,22 +445,32 @@ const QW=new Set(["what","how","when","which","who","why","is","are","does","do"
 const isCompany=t=>{const w=t.split(/\s+/).filter(Boolean); return w.length>0&&w.length<=3&&!t.includes("?")&&!w.some(x=>QW.has(x.toLowerCase()))};
 function hl(text,words){let h=esc(text); words.forEach(w=>{if(w.length>1) h=h.replace(new RegExp("("+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig"),"<mark>$1</mark>")}); return h}
 function completion(q){ if(!q) return ""; const l=q.toLowerCase();
-  const c=COMPANIES.find(x=>x.toLowerCase().startsWith(l)&&x.length>q.length)||CAT.map(m=>m.question).find(x=>x.toLowerCase().startsWith(l)&&x.length>q.length);
+  const c=COMPANIES.find(x=>x.toLowerCase().startsWith(l)&&x.length>q.length)||entities().map(e=>e.name).find(x=>x.toLowerCase().startsWith(l)&&x.length>q.length)
+    ||CAT.map(m=>m.question).find(x=>x.toLowerCase().startsWith(l)&&x.length>q.length);
   return c?q+c.slice(q.length):""}
 function setSel(n){const rows=[...document.querySelectorAll("#sugg .srow")]; if(!rows.length) return; sel=(n+rows.length)%rows.length;
   rows.forEach((r,k)=>r.classList.toggle("sel",k==sel)); rows[sel].scrollIntoView({block:"nearest"})}
 async function showResults(){
   const raw=$("#q").value, q=raw.trim().replace(/\s+/g," "); $("#ghost").value=raw&&raw==raw.trimStart()?completion(raw):"";
   if(!q) return showEmpty();
-  const words=q.toLowerCase().split(" "), ql=q.toLowerCase(), score=m=>{const t=m.title.toLowerCase(); return t.startsWith(ql)?4:t.split(/[\s·]+/).some(w=>w.startsWith(words[0]))&&words.every(w=>t.includes(w))?3:words.every(w=>t.includes(w))?2:q.length>3&&words.every(w=>(t+" "+m.question.toLowerCase()).includes(w))?1:0},
-    found=CAT.map(m=>[score(m),m]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]||b[1].followers-a[1].followers).map(x=>x[1]);
+  await loadDir();
+  const ent=findEntity(q), cq=ent&&ent.alias?ent.alias:q;  // "Y Combinator" searches the catalog as "YC"
+  const shown=ent?ent.name:q;  // a known name is shown with its own capitals, however it was typed
+  const words=cq.toLowerCase().split(" "), ql=cq.toLowerCase(), score=m=>{const t=m.title.toLowerCase(); return t.startsWith(ql)?4:t.split(/[\s·]+/).some(w=>w.startsWith(words[0]))&&words.every(w=>t.includes(w))?3:words.every(w=>t.includes(w))?2:q.length>3&&words.every(w=>(t+" "+m.question.toLowerCase()).includes(w))?1:0},
+    found=CAT.map(m=>[score(m),m]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]||invScore(b[1])-invScore(a[1])||b[1].followers-a[1].followers).map(x=>x[1]);
   let h="";
   if(found.length) h+=`<div class="shead">In the catalog${found.length>7?" · "+found.length+" matches":""}</div>`+found.slice(0,7).map(m=>{const v=val(m.value,m.unit);
     return sugRow(m.on_board?"open":"follow",m.id,hl(m.title,words),`${v?v.text+" "+esc(v.unit):"no value yet"} · tracked by ${m.followers}${m.live?"":" · delayed"}`,m.on_board?"On your board":"Follow")}).join("");
   if(found.filter(m=>!m.on_board).length>1&&isCompany(q)) h+=sugRow("followall",found.filter(m=>!m.on_board).slice(0,8).map(m=>m.id).join(","),`Follow all ${Math.min(found.filter(m=>!m.on_board).length,8)} for “${esc(q)}”`,"already tracked in the catalog: arrives at once, no new Telem calls","Follow all");
-  if(isCompany(q)){const have=CAT.filter(m=>m.curated&&m.title.toLowerCase().startsWith(q.toLowerCase()+" ·")).length;
-    h+=`<div class="shead">Starter pack, if “${esc(q)}” is a company</div>`+sugRow("pack",q,`Track ${esc(q)} as a company: 6 metrics`,have?`${have} already in the catalog, reused at once`:"entry plan price, engineering roles, GitHub stars, launches, App Store rating, funding","Track")}
-  h+=`<div class="shead">Create new</div>`+sugRow("create",q,`Create a new metric: “${esc(q)}”`,"Telem finds the source; the catalog is checked first","Create");
+  let names=[];
+  if(!ent&&q.length>=2){const l=q.toLowerCase(); names=entities().filter(e=>e.name.toLowerCase().startsWith(l)||(e.alias||"").toLowerCase().startsWith(l)||e.name.toLowerCase().split(/\s+/).some(w=>w.startsWith(l))).slice(0,5);
+    if(names.length) h+=`<div class="shead">Did you mean</div>`+names.map(e=>sugRow("fill",e.name,hl(e.name,[q]),entLabel(e),"Choose")).join("")}
+  if(ent){const titles=new Set(CAT.map(m=>m.title.toLowerCase())), x=ent.adj||ent.alias||ent.name,
+      ds=(DIR.dims[ent.type]||[]).filter(d=>!(d.tpl&&titles.has((ent.name+" · "+d.tpl).toLowerCase()))).slice(0,ent.type=="company"?6:4);
+    if(ds.length) h+=`<div class="shead">Track about ${esc(ent.name)} · pick one, no typing needed</div>`+ds.map(d=>sugRow("create",d.q.replace("{x}",x),`${esc(ent.name)} · ${esc(d.label)}`,esc(d.q.replace("{x}",x)),"Track")).join("")}
+  if(isCompany(q)&&!(ent&&ent.type!="company")&&!(names.length&&q.length<4)){const have=CAT.filter(m=>m.curated&&m.title.toLowerCase().startsWith(q.toLowerCase()+" ·")).length;
+    h+=`<div class="shead">${ent?"Or the whole starter pack":`Starter pack, if “${esc(q)}” is a company`}</div>`+sugRow("pack",shown,`Track ${esc(shown)} as a company: 6 metrics`,have?`${have} already in the catalog, reused at once`:"entry plan price, engineering roles, GitHub stars, launches, App Store rating, funding","Track")}
+  h+=`<div class="shead">Or ask it your own way</div>`+sugRow("create",q,`Create a new metric: “${esc(q)}”`,"Telem finds the source; the catalog is checked first","Create");
   $("#sugg").innerHTML=h; $("#sugg").hidden=false; setSel(0);
 }
 function hideSugg(){$("#sugg").hidden=true}
@@ -467,7 +490,9 @@ async function doPack(c){
   catch(e){toast(e.message,6000)}
   S.pending=null; S.busy=false; await loadMe(); refresh()}
 async function pick(row){
-  const act=row.dataset.act, arg=row.dataset.arg; hideSugg(); $("#ghost").value="";
+  const act=row.dataset.act, arg=row.dataset.arg;
+  if(act=="fill"){$("#q").value=arg; $("#q").focus(); return showResults()}
+  hideSugg(); $("#ghost").value="";
   if(act=="open") return openPanel(+arg);
   if(act=="follow"){ if(!S.me.user) return signInModal("Sign in to follow catalog metrics on your own board."); $("#q").value=""; try{await followMetric(arg); S.flash=+arg; setTab("board")}catch(e){} return }
   if(act=="followall"){ if(!S.me.user) return signInModal("Sign in to follow catalog metrics on your own board."); $("#q").value="";
