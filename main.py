@@ -337,7 +337,7 @@ def suggest(q: str = ""):
     if not words:
         return {"numbers": [], "boards": []}
     # a company, sector or investor whose name matches: its page lists every number tracked about it
-    boards = sorted(((n, len(ids)) for n, ids in pp.groups().items() if len(ids) >= 2 and all(w in n.lower() for w in words)), key=lambda x: (not x[0].lower().startswith(words[0]), -x[1]))[:3]
+    boards = sorted(((n, len(ids)) for n, ids in pp.groups().items() if len(ids) >= 2 and all(w in n.lower() for w in words)), key=lambda x: (x[0].lower() != " ".join(words), not x[0].lower().startswith(words[0]), -x[1]))[:3]
     hits = []
     for m in db.q("SELECT * FROM metrics ORDER BY id"):
         hay = " ".join([m["title"] or "", m["question"] or "", m.get("company") or ""]).lower()
