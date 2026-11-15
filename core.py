@@ -66,10 +66,50 @@ def follow(user, mid):
     db.run("INSERT OR IGNORE INTO board_items(user,metric_id,muted) VALUES(?,?,0)", (user, mid))
 
 
+SITE = os.environ.get("TALLY_SITE", "https://tallycatalog.com")
+WEBHOOK_HOSTS = ("https://hooks.slack.com/", "https://discord.com/api/webhooks/", "https://discordapp.com/api/webhooks/")
+
+
+def is_major(kind, before, after, metric_kind):
+    """A change that moved the number, as opposed to a small edit to one entry."""
+    if kind == "entity_added":
+        return before is not None
+    if kind == "value_changed" and metric_kind == "direct":
+        return not (isinstance(after, str) and after.strip().startswith("{")) and not (isinstance(before, str) and before.strip().startswith("{"))
+    return kind == "source_changed"
+
+
+def post_webhook(url, text):
+    import httpx
+    if not url or not url.startswith(WEBHOOK_HOSTS):
+        return False
+    try:
+        r = httpx.post(url, json={"content": text} if "discord" in url else {"text": text}, timeout=8)
+        return r.status_code < 300
+    except httpx.HTTPError:
+        return False
+
+
+def notify(mid, before, after, kind, note):
+    """Tell everyone who follows this number and has alerts on. Runs off the request thread; a failed post is dropped."""
+    m = metric(mid)
+    hooks = [r["webhook_url"] for r in db.q("SELECT u.webhook_url FROM users u JOIN board_items b ON b.user=u.id WHERE b.metric_id=? AND b.muted=0 AND u.webhook_url IS NOT NULL", (mid,))]
+    if not m or not hooks or not is_major(kind, before, after, m["kind"]):
+        return
+    text = f"{m['title']}: {before} → {after}" + (f" · {note}" if note else "") + f"\n{SITE}/n/{mid}"
+    import threading
+    for h in set(hooks):
+        threading.Thread(target=post_webhook, args=(h, text), daemon=True).start()
+
+
 def add_change(mid, before, after, origin, kind, note=None, entry_id=None, url=None, at=None):
     db.run("INSERT INTO changes(metric_id,before,after,entry_id,at,origin,kind,note,url) VALUES(?,?,?,?,?,?,?,?,?)",
            (mid, None if before is None else str(before), None if after is None else str(after),
             entry_id, at or db.now(), origin, kind, note, url))
+    try:
+        notify(mid, None if before is None else str(before), None if after is None else str(after), kind, note)
+    except Exception as e:  # an alert must never break recording the change
+        print("notify failed:", str(e)[:120])
 
 
 def fmt(v):

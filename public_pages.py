@@ -90,10 +90,10 @@ def shell(title, desc, path, body, ld=None):
 <meta property="og:url" content="{SITE}{esc(path)}"><meta property="og:image" content="{SITE}/static/img/board.png"><meta name="twitter:card" content="summary_large_image">
 {f'<script type="application/ld+json">{ld}</script>' if ld else ''}<style>{CSS}</style></head><body><div class="wrap">
 <header><a class="brand" href="/"><img src="/static/img/logo.svg" alt="" width="30" height="30">Tally</a>
-<nav style="display:flex;gap:10px"><a class="btn ghost" href="/numbers">All numbers</a><a class="btn" href="/app">Open the live board</a></nav></header>
+<nav style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end"><a class="btn ghost" href="/changes">What changed</a><a class="btn ghost" href="/top">Rankings</a><a class="btn ghost" href="/numbers">All numbers</a><a class="btn" href="/app">Open the live board</a></nav></header>
 {body}
 <footer>Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
-<a href="/numbers">All numbers</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
+<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
 
 def number_path(m):
@@ -110,7 +110,65 @@ def tile_link(t):
     return f'<a class="t" href="{number_path(t)}"><b>{esc(t["title"])}</b>{v}<div class="m">{"live" if t["live"] else "delayed"} · tracked by {t["followers"]}</div></a>'
 
 
-def number_page(m, t, ev):
+def change_line(c):
+    """Plain words for one change row (joined with its metric's title, kind and unit)."""
+    if c["kind"] == "entity_added":
+        return f'{fmt(float(c["before"]), c["unit"])[0]} → {fmt(float(c["after"]), c["unit"])[0]}', f'new: {c["note"]}' if c.get("note") else ""
+    try:
+        return f'{fmt(float(c["before"]), c["unit"])[0]} → {fmt(float(c["after"]), c["unit"])[0]}', c.get("note") or ""
+    except (TypeError, ValueError):
+        return f'{c["before"]} → {c["after"]}', c.get("note") or ""
+
+
+def day(iso):
+    return when(iso) or ""
+
+
+def changes_page(rows, path="/changes", heading="What changed", intro="Numbers on Tally that moved recently. Each links to its evidence."):
+    items, last = "", None
+    for c in rows:
+        d = day(c["at"])
+        if d != last:
+            items += f'{"</ul>" if last else ""}<h2>{esc(d)}</h2><ul class="rows">'
+            last = d
+        a, note = change_line(c)
+        items += f'<li><span style="font:inherit;color:inherit;white-space:normal"><a href="/n/{c["metric_id"]}"><b>{esc(c["title"])}</b></a> &nbsp;{esc(a)}{" · " + esc(note) if note else ""}</span><span>{esc(c["at"][11:16])} UTC</span></li>'
+    items += "</ul>" if last else '<p class="q">Nothing has moved yet.</p>'
+    body = (f'<h1 style="margin-top:22px">{esc(heading)}</h1><p class="q">{esc(intro)} <a href="{esc(path.rstrip("/").replace("/changes", "") or "")}/feed.xml">Subscribe to the feed</a>.</p>{items}'
+            '<div class="cta"><a class="btn" href="/app?setup=1">Get this for the companies you watch</a></div>')
+    return shell(f"{heading}: funding, hiring and launches that moved | Tally", "A running list of numbers that changed: new funding rounds, new open roles, new launches, each with its source.", path, body).replace(
+        "</title>", f'</title><link rel="alternate" type="application/atom+xml" href="{esc(path.rstrip("/").replace("/changes", "") or "")}/feed.xml">', 1)
+
+
+def atom(rows, title, self_path):
+    updated = rows[0]["at"] if rows else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    out = (f'<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom"><title>{esc(title)}</title><id>{SITE}{esc(self_path)}</id>'
+           f'<link rel="self" href="{SITE}{esc(self_path)}"/><link href="{SITE}/changes"/><updated>{updated}</updated>')
+    for c in rows:
+        a, note = change_line(c)
+        out += (f'<entry><id>{SITE}/n/{c["metric_id"]}#c{c["id"]}</id><title>{esc(c["title"])}: {esc(a)}</title><link href="{SITE}/n/{c["metric_id"]}"/>'
+                f'<updated>{c["at"]}</updated><summary>{esc(note)}</summary></entry>')
+    return out + "</feed>"
+
+
+def top_page(name, sl, rows):
+    """rows: tiles with a value, already ranked."""
+    lis = "".join(f'<li><span style="font:inherit;color:inherit"><b style="display:inline-block;width:2em;color:#667085">{i + 1}</b><a href="{number_path(t)}">{esc(subject(t))}</a></span>'
+                  f'<span style="font:600 16px var(--display);color:#0e1320">{esc(fmt(t["value"], t["unit"])[0])} <small style="font:12px var(--mono);color:#667085">{esc(fmt(t["value"], t["unit"])[1])}</small></span></li>' for i, t in enumerate(rows))
+    lead = rows[0]
+    desc = f"{subject(lead)} leads with {fmt(lead['value'], lead['unit'])[0]}. {len(rows)} companies ranked by {name}, each number with its source, kept current on Tally."
+    body = (f'<div class="crumb"><a href="/top">Rankings</a> / {esc(name)}</div><h1>Ranked by {esc(name)}</h1><p class="q">{len(rows)} tracked on Tally. Each number opens to its evidence.</p>'
+            f'<ul class="rows">{lis}</ul><div class="cta"><a class="btn" href="/app?setup=1">Track the companies you watch</a><a class="btn ghost" href="/top">More rankings</a></div>')
+    return shell(f"Companies ranked by {name} | Tally", desc[:300], f"/top/{sl}", body)
+
+
+def top_index(items):
+    body = ('<h1 style="margin-top:22px">Rankings</h1><p class="q">Companies ranked on the numbers investors ask about. Every figure links to its source.</p><div class="grid">'
+            + "".join(f'<a class="t" href="/top/{sl}"><b>By {esc(n)}</b><div class="m" style="margin-top:6px">{c} ranked · led by {esc(lead)}</div></a>' for n, sl, c, lead in items) + "</div>")
+    return shell("Company rankings: funding, valuation, headcount, open roles | Tally", "Companies ranked by funding, valuation, headcount, open roles and launches, each figure with its source.", "/top", body)
+
+
+def number_page(m, t, ev, related=()):
     """m: metric row, t: the signed-out tile, ev: the signed-out evidence dict (may be locked)."""
     txt, unit = fmt(t["value"], t["unit"])
     sub = subject(m)
@@ -136,11 +194,14 @@ def number_page(m, t, ev):
     else:
         body += '<p class="meta" style="margin-top:14px">The live value, its source and the full list of entries are in the app.</p>'
     body += f'<div class="cta"><a class="btn" href="/app?open={m["id"]}">Follow this number</a><a class="btn ghost" href="{subject_path(sub)}">More about {esc(sub)}</a></div>'
+    if related:
+        body += f'<h2>More about {esc(sub)}</h2><div class="grid">{"".join(tile_link(r) for r in related[:8])}</div>'
     ld = None
     if txt:
         import json
-        ld = json.dumps({"@context": "https://schema.org", "@type": "Dataset", "name": m["title"], "description": desc, "url": SITE + number_path(m),
-                         "creator": {"@type": "Organization", "name": "Tally"}, "variableMeasured": m["title"]}).replace("</", "<\\/")
+        answer = f'{txt}{" " + unit if unit else ""}{", as of " + asof if asof else ""}, according to the source Tally tracks.'
+        ld = json.dumps({"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": m["question"],
+                         "acceptedAnswer": {"@type": "Answer", "text": answer}}]}).replace("</", "<\\/")
     return shell(title, desc, number_path(m), body, ld)
 
 

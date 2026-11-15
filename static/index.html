@@ -222,12 +222,13 @@ async function loadMe(){
   S.me=await (await fetch("/api/me")).json(); const u=S.me.user, a=$("#acct");
   a.innerHTML=u?`${u.plan=="pro"?"":`<button class="pro" id="upg">Upgrade</button>`}<span class="plan ${u.plan}">${u.plan}</span>
       <span class="who" tabindex="0">${u.picture?`<img src="${esc(u.picture)}" alt="" referrerpolicy="no-referrer">`:`<span class="av">${esc((u.name||u.email||"?")[0].toUpperCase())}</span>`}<span>${esc((u.name||u.email).split(" ")[0])}</span>
-        <span class="menu"><div><span class="em">${esc(u.email||"")}</span><button class="ghost" id="setup">Set up my board</button><button class="ghost" id="share">Share my board</button><button class="ghost" id="out">Sign out</button></div></span></span>`
+        <span class="menu"><div><span class="em">${esc(u.email||"")}</span><button class="ghost" id="setup">Set up my board</button><button class="ghost" id="share">Share my board</button><button class="ghost" id="alerts">Alerts to Slack${u.alerts?" · on":""}</button><button class="ghost" id="out">Sign out</button></div></span></span>`
     :`<button id="in">Sign in</button>`;
   if($("#in")) $("#in").onclick=()=>signInModal();
   if($("#upg")) $("#upg").onclick=()=>plansModal();
   if($("#setup")) $("#setup").onclick=()=>starterModal();
   if($("#share")) $("#share").onclick=shareModal;
+  if($("#alerts")) $("#alerts").onclick=alertsModal;
   if($("#out")) $("#out").onclick=async()=>{await api("/api/auth/logout",{}); closePanel(); await loadMe(); refresh()};
   const b=$("#banner");
   if(!u){b.hidden=false;b.innerHTML=`<span>You're browsing the <b>featured board</b>. Everything in the catalog is open to read and search; featured numbers are live, the rest are delayed. Sign in for your own board and to track new companies and numbers.</span><span style="display:flex;gap:8px;flex-wrap:wrap">${S.me.guest_login?'<button id="guest2">Try everything, no sign-up</button>':""}<button id="in2"${S.me.guest_login?' class="ghost"':""}>Sign in with Google</button></span>`;$("#in2").onclick=()=>signInModal(); if($("#guest2")) $("#guest2").onclick=guestIn}
@@ -264,6 +265,15 @@ async function starterModal(){
         try{const r=await api("/api/packs",{company:e.name,pack:e.type,phrase:e.adj,view:e.type=="company"&&view=="investor"?"investor":null,replace_board:got==0,hide_empty:true}); got+=r.tiles.length; if(!r.tiles.length) missed.push(e.name); await loadBoard()}catch(err){missed.push(e.name)} }
       S.pending=null; S.busy=false; await loadMe(); refresh(); toast(`Your board is ready: ${got} numbers.${missed.length?" Nothing found yet for: "+missed.join(", ")+".":""}`,7000)}};
 }
+function alertsModal(){
+  const on=S.me.user&&S.me.user.alerts;
+  modal(`<h2>Alerts to Slack or Discord</h2><p style="color:#475467;margin:6px 0 16px">When a number on your board moves, Tally posts one line to your channel: what changed, and a link to the evidence. ${on?"<b>Alerts are on.</b>":""}</p>
+    <div style="display:flex;gap:8px"><input type="text" id="whurl" placeholder="https://hooks.slack.com/services/…  or a Discord webhook address" style="flex:1"><button id="whsave">Turn on</button></div>
+    <p class="when" style="margin-top:12px">In Slack: Apps → Incoming Webhooks → Add to a channel → copy the address. A test message is sent when you turn alerts on.</p>
+    ${on?'<p style="margin-top:14px"><a href="#" id="whoff" class="when">Turn alerts off</a></p>':""}`);
+  $("#whsave").onclick=async()=>{const v=$("#whurl").value.trim(); if(!v) return toast("Paste the webhook address first."); $("#whsave").disabled=true;
+    try{await api("/api/alerts",{url:v}); closeModal(); toast("Alerts are on. A test message was posted to your channel.",6000); loadMe()}catch(e){toast(e.message,7000); $("#whsave").disabled=false}};
+  if($("#whoff")) $("#whoff").onclick=async ev=>{ev.preventDefault(); await api("/api/alerts",{url:""}); closeModal(); toast("Alerts are off."); loadMe()}}
 async function shareModal(){
   let r; try{r=await api("/api/board/share",{})}catch(e){return toast(e.message,6000)}
   modal(`<h2>Share your board</h2><p style="color:#475467;margin:6px 0 16px">Anyone with this link can read your board, without an account. They see the numbers, not who you are. They can copy it to a board of their own.</p>

@@ -77,7 +77,7 @@ def public_user(u):
     if not u:
         return None
     created = db.one("SELECT COUNT(*) n FROM metrics WHERE created_by=?", (u["id"],))["n"]
-    return {"email": u["id"], "name": u["name"], "picture": u["picture"], "plan": u["plan"], "created": created}
+    return {"email": u["id"], "name": u["name"], "picture": u["picture"], "plan": u["plan"], "created": created, "alerts": bool(u.get("webhook_url"))}
 
 
 class GoogleLogin(BaseModel):
@@ -240,7 +240,9 @@ def public_number(mid: int, slug: str = ""):
         ev = {"entries": db.q("SELECT title,url,date,value FROM entries WHERE metric_id=? AND held_out=0 ORDER BY first_seen_at DESC, id DESC", (mid,))}
     else:
         ev = {"observation": core.latest_obs(mid)}
-    return HTMLResponse(pp.number_page(m, t, ev))
+    sub = pp.subject(m)
+    related = [tile(core.metric(i), None) for i in pp.groups().get(sub, []) if i != mid]
+    return HTMLResponse(pp.number_page(m, t, ev, related))
 
 
 @app.get("/c/{slug}")
@@ -256,6 +258,60 @@ def public_index():
     return HTMLResponse(pp.index_page(sorted(((n, len(ids)) for n, ids in pp.groups().items()), key=lambda x: (-x[1], x[0].lower()))))
 
 
+def _major_changes(ids, limit=80):
+    """Changes that moved a number, newest first, for the given metric ids."""
+    if not ids:
+        return []
+    rows = db.q("SELECT c.id, c.metric_id, c.before, c.after, c.kind, c.note, c.at, m.title, m.kind AS metric_kind, m.unit FROM changes c JOIN metrics m ON m.id=c.metric_id "
+                f"WHERE c.metric_id IN ({','.join('?' * len(ids))}) AND COALESCE(c.status,'accepted')='accepted' ORDER BY c.at DESC, c.id DESC LIMIT 400", tuple(ids))
+    return [c for c in rows if core.is_major(c["kind"], c["before"], c["after"], c["metric_kind"])][:limit]
+
+
+def _public_ids():
+    return sorted(live_ids(None))  # what a signed-out visitor sees live: the featured numbers
+
+
+@app.get("/changes")
+def public_changes():
+    return HTMLResponse(pp.changes_page(_major_changes(_public_ids())))
+
+
+@app.get("/feed.xml")
+def public_feed():
+    return RawResponse(pp.atom(_major_changes(_public_ids(), 50), "Tally: what changed", "/feed.xml"), media_type="application/atom+xml")
+
+
+def _rankings():
+    """Curated recipes with at least three companies that have a value: name, slug, ranked tiles."""
+    names = {t["title"].replace("{company} · ", "").lower(): t["title"].replace("{company} · ", "") for t in TEMPLATES if t.get("pack", "company") == "company"}
+    by = {}
+    for m in db.q("SELECT * FROM metrics WHERE title LIKE '% · %'"):
+        tid = m["title"].split(" · ", 1)[1].strip().lower()  # by what the number is, whether it came from a pack or was asked for
+        if tid in names:
+            t = tile(m, None)
+            if t["value"] is not None:
+                by.setdefault(tid, []).append(t)
+    out = []
+    for tid, ts in by.items():
+        if len(ts) >= 3:
+            ts.sort(key=lambda t: -t["value"])
+            out.append((names[tid], pp.slug(names[tid]), ts))
+    return sorted(out, key=lambda x: -len(x[2]))
+
+
+@app.get("/top")
+def public_top():
+    return HTMLResponse(pp.top_index([(n, sl, len(ts), pp.subject(ts[0])) for n, sl, ts in _rankings()]))
+
+
+@app.get("/top/{slug}")
+def public_top_one(slug: str):
+    for n, sl, ts in _rankings():
+        if sl == slug:
+            return HTMLResponse(pp.top_page(n, sl, ts))
+    raise HTTPException(404, "no such ranking yet")
+
+
 # ---------- a board anyone can open: the owner shares a link, the reader can copy it ----------
 def _shared_ids(token):
     o = db.one("SELECT id FROM users WHERE share_token=?", (token,)) if token and len(token) >= 12 else None
@@ -269,6 +325,37 @@ def shared_board(token: str):
     owner, ids = _shared_ids(token)
     live = set(ids)  # a shared board shows what its owner sees; the evidence behind each number follows the reader's own access
     return HTMLResponse(pp.board_page(token, [tile(core.metric(i), None, live) for i in ids]))
+
+
+@app.get("/b/{token}/changes")
+def shared_changes(token: str):
+    _, ids = _shared_ids(token)
+    return HTMLResponse(pp.changes_page(_major_changes(ids), f"/b/{token}/changes", "What changed on this board", "Numbers on this shared board that moved recently.").replace(
+        '<meta name="twitter:card"', '<meta name="robots" content="noindex"><meta name="twitter:card"', 1))
+
+
+@app.get("/b/{token}/feed.xml")
+def shared_feed(token: str):
+    _, ids = _shared_ids(token)
+    return RawResponse(pp.atom(_major_changes(ids, 50), "Tally: changes on a shared board", f"/b/{token}/feed.xml"), media_type="application/atom+xml")
+
+
+class Alerts(BaseModel):
+    url: str = ""
+
+
+@app.post("/api/alerts")
+def set_alerts(body: Alerts, request: Request):
+    """Send changes on my board to a Slack or Discord channel. An empty url turns alerts off."""
+    u = need_user(request)
+    url = body.url.strip()
+    if url and not url.startswith(core.WEBHOOK_HOSTS):
+        raise HTTPException(400, "Paste a Slack or Discord incoming-webhook address (it starts with https://hooks.slack.com/ or https://discord.com/api/webhooks/).")
+    db.run("UPDATE users SET webhook_url=? WHERE id=?", (url or None, u["id"]))
+    if url and not core.post_webhook(url, f"Tally alerts are on. Changes on your board will be posted here.\n{pp.SITE}/app"):
+        db.run("UPDATE users SET webhook_url=NULL WHERE id=?", (u["id"],))
+        raise HTTPException(400, "That address did not accept a test message, so alerts were not turned on.")
+    return {"on": bool(url)}
 
 
 @app.post("/api/board/share")
@@ -303,7 +390,7 @@ def copy_board(body: CopyBoard, request: Request):
 
 @app.get("/sitemap.xml")
 def sitemap():
-    urls = ["/", "/app", "/numbers"] + [pp.subject_path(n) for n in pp.groups()] + [pp.number_path(m) for m in db.q("SELECT id, title FROM metrics ORDER BY id")]
+    urls = ["/", "/app", "/numbers", "/changes", "/top"] + [f"/top/{sl}" for _, sl, _ in _rankings()] + [pp.subject_path(n) for n in pp.groups()] + [pp.number_path(m) for m in db.q("SELECT id, title FROM metrics ORDER BY id")]
     body = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(f"<url><loc>{pp.SITE}{pp.esc(u)}</loc></url>" for u in urls) + "</urlset>"
     return RawResponse(body, media_type="application/xml")
 
