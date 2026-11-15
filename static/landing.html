@@ -92,7 +92,9 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 // Suggestions as you type: cached names first, then anything already in the catalog. Picking one starts a board.
 let NAMES=[], sel=-1;
 const TYPE={company:"Company",accelerator:"Accelerator",sector:"Sector",investor:"Investor"};
-async function loadNames(){ if(NAMES.length) return;
+let namesP=null;
+function loadNames(){ return namesP||(namesP=loadNames0()) }  // one load, however many keystrokes ask for it
+async function loadNames0(){
   try{ const d=await (await fetch("/static/suggest.json")).json();
     NAMES=[...d.companies.map(x=>({n:x.name,t:"company"})),...d.accelerators.map(x=>({n:x.name,t:"accelerator",a:x.alias})),...d.sectors.map(x=>({n:x.name,t:"sector"})),...(d.investors||[]).map(x=>({n:x.name,t:"investor"}))];
     NAMES.forEach(x=>x.d=1) }catch(e){}
