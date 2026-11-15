@@ -85,7 +85,7 @@ footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);color:v
 def shell(title, desc, path, body, ld=None):
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)}</title><meta name="description" content="{esc(desc)}"><link rel="canonical" href="{SITE}{esc(path)}">
-<link rel="icon" href="/static/img/logo.svg" type="image/svg+xml">
+<link rel="icon" href="/static/img/logo.svg?v=3" type="image/svg+xml"><link rel="icon" type="image/png" sizes="32x32" href="/static/img/favicon-32.png?v=3"><link rel="apple-touch-icon" href="/static/img/favicon-180.png?v=3">
 <meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{esc(desc)}"><meta property="og:type" content="website">
 <meta property="og:url" content="{SITE}{esc(path)}"><meta property="og:image" content="{SITE}/static/img/board.png"><meta name="twitter:card" content="summary_large_image">
 {f'<script type="application/ld+json">{ld}</script>' if ld else ''}<style>{CSS}</style></head><body><div class="wrap">

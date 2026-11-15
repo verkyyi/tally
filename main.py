@@ -460,7 +460,7 @@ def terms():
 
 @app.get("/favicon.ico")
 def favicon():
-    return FileResponse(os.path.join(HERE, "static", "img", "logo.svg"), media_type="image/svg+xml")
+    return FileResponse(os.path.join(HERE, "static", "img", "favicon-32.png"), media_type="image/png")  # the current logo, in a format every browser shows
 
 
 # ---------- catalog and boards ----------
