@@ -122,7 +122,7 @@ def _thin(pts, n=420):
     return pts[::k] + ([pts[-1]] if (len(pts) - 1) % k else [])
 
 
-def chart(pts, unit, w=820, h=280, card=False):
+def chart(pts, unit, w=820, h=280, card=False, versions=()):
     """A real chart: area and line over time, three value gridlines, year marks. pts: [{at, value, origin}], oldest first."""
     pts = _thin([p for p in pts if p.get("value") is not None])
     if len(pts) < 2:
@@ -155,6 +155,14 @@ def chart(pts, unit, w=820, h=280, card=False):
     if y1 == y0:
         marks = (f'<text x="{L}" y="{h - B + 16}" font-size="11" fill="#667085">{_dt.fromtimestamp(t0).strftime("%b %-d, %Y")}</text>'
                  f'<text x="{w - R}" y="{h - B + 16}" text-anchor="end" font-size="11" fill="#667085">{_dt.fromtimestamp(t1).strftime("%b %-d, %Y")}</text>')
+    for at, label in versions:  # a change of method is drawn on the line, so a step in the series can be read for what it is
+        try:
+            x = X(_dt.strptime(at[:10], "%Y-%m-%d").timestamp())
+        except ValueError:
+            continue
+        if L <= x <= w - R:
+            marks += (f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{T}" y2="{h - B}" stroke="#d92d20" stroke-dasharray="3 3"/>'
+                      f'<text x="{x - 4:.1f}" y="{T + 10}" text-anchor="end" font-size="10" fill="#d92d20">{esc(label)}</text>')
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" role="img" aria-label="History chart" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" '
             f'style="width:100%;height:auto;display:block">{marks}{grid}<path d="{area}" fill="#2f5bff" fill-opacity=".09"/>'
             f'<path d="{line}" fill="none" stroke="#2f5bff" stroke-width="2" stroke-linejoin="round"/><circle cx="{X(t1):.1f}" cy="{Y(vs[-1]):.1f}" r="4" fill="#2f5bff"/></svg>')
@@ -243,7 +251,7 @@ def top_index(items):
     return shell("Company rankings: funding, valuation, headcount, open roles | Tally", "Companies ranked by funding, valuation, headcount, open roles and launches, each figure with its source.", "/top", body)
 
 
-def number_page(m, t, ev, related=(), pts=(), rng="all"):
+def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=()):
     """m: metric row, t: the signed-out tile, ev: the signed-out evidence dict (may be locked), pts: the full series."""
     txt, unit = fmt(t["value"], t["unit"])
     sub = subject(m)
@@ -268,7 +276,7 @@ def number_page(m, t, ev, related=(), pts=(), rng="all"):
                 + (" Computed from the entries\' own dates where marked in the download." if any(p["origin"] == "backfill" for p in pts) else ""))
         url = SITE + number_path(m)
         body += (f'<h2 style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><span>History</span><span class="rgs">{tabs}</span></h2>'
-                 f'<div class="card" style="padding:16px 16px 8px">{chart(shown, t["unit"])}</div><p class="meta">{esc(note)}</p>'
+                 f'<div class="card" style="padding:16px 16px 8px">{chart(shown, t["unit"], versions=versions)}</div><p class="meta">{esc(note)}{" Red marks show where the recipe changed." if versions else ""}</p>'
                  f'<div class="cta" style="margin-top:14px"><a class="btn ghost" href="/n/{m["id"]}/history.csv">Download CSV</a>'
                  f'<details class="emb"><summary class="btn ghost">Embed this chart</summary><div class="embbox"><p class="meta" style="margin:0 0 6px">A live image. Paste into a README, a post or a doc.</p>'
                  f'<b>Markdown</b><pre>[![{esc(m["title"])}]({SITE}/n/{m["id"]}/chart.svg)]({url})</pre><b>HTML</b><pre>&lt;a href="{url}"&gt;&lt;img src="{SITE}/n/{m["id"]}/chart.svg" alt="{esc(m["title"])}" width="600"&gt;&lt;/a&gt;</pre>'
@@ -289,6 +297,10 @@ def number_page(m, t, ev, related=(), pts=(), rng="all"):
                 body += f'<h2>The {len(es)} entries behind this number</h2><ul class="rows">{rows}</ul>' + (f'<p class="meta">{len(es) - 40} more in the app.</p>' if len(es) > 40 else "")
     else:
         body += '<p class="meta" style="margin-top:14px">The live value, its source and the full list of entries are in the app.</p>'
+    if recipe:
+        body += (f'<h2>Recipe <span style="font:13px var(--mono);color:#667085;font-weight:400">version {recipe["version"]}</span></h2>'
+                 f'<p class="q" style="margin:0 0 10px">How this number is obtained, in plain words. Anyone can improve it; a change is tried by an agent before it counts.</p>'
+                 f'<div class="cta" style="margin-top:0"><a class="btn ghost" href="/n/{m["id"]}/recipe">Read or improve the recipe</a></div>')
     body += f'<div class="cta"><a class="btn" href="/app?open={m["id"]}">Follow this number</a><a class="btn ghost" href="{subject_path(sub)}">More about {esc(sub)}</a></div>'
     if related:
         body += f'<h2>More about {esc(sub)}</h2><div class="grid">{"".join(tile_link(r) for r in related[:8])}</div>'
@@ -335,6 +347,93 @@ def board_page(token, tiles):
             f'<p class="q">{len(tiles)} numbers, {len(have)} with a value today. Each opens to its evidence and history.</p><div class="grid">{"".join(tile_link(t) for t in tiles)}</div>'
             f'<div class="cta"><a class="btn" href="/app?copy={esc(token)}">Copy this board</a><a class="btn ghost" href="/app?setup=1">Build my own</a></div>')
     return shell(title[:110], desc[:300], f"/b/{token}", body).replace('<meta name="twitter:card"', '<meta name="robots" content="noindex"><meta name="twitter:card"', 1)
+
+
+def render_recipe(body):
+    """A recipe's plain text as HTML: '## Heading' lines, '- ' lists, bare links."""
+    out, in_list = [], False
+    link = lambda t: re.sub(r"(https://[^\s<)\]]+)", r'<a href="\1" rel="nofollow noopener">\1</a>', t)
+    for line in (body or "").splitlines():
+        h = re.match(r"^##\s+(.+)$", line)
+        li = re.match(r"^\s*[-*]\s+(.+)$", line)
+        if in_list and not li:
+            out.append("</ul>")
+            in_list = False
+        if h:
+            out.append(f"<h3>{esc(h.group(1))}</h3>")
+        elif li:
+            if not in_list:
+                out.append("<ul>")
+                in_list = True
+            out.append(f"<li>{link(esc(li.group(1)))}</li>")
+        elif line.strip():
+            out.append(f"<p>{link(esc(line))}</p>")
+    if in_list:
+        out.append("</ul>")
+    return "".join(out)
+
+
+def who(author):
+    import hashlib
+    return "Tally" if author in (None, "tally", "system") else "contributor " + hashlib.sha256(author.encode()).hexdigest()[:4]
+
+
+def recipe_page(m, t, live, hist, editable):
+    txt, unit = fmt(t["value"], t["unit"])
+    rows = ""
+    for r in hist:
+        st = {"live": '<b style="color:#0a8f5b">live</b>', "superseded": "adopted earlier", "rejected": '<span style="color:#d92d20">not adopted</span>'}[r["status"]]
+        restore = f' · <a href="#" class="rv" data-v="{r["version"]}">restore</a>' if r["status"] == "superseded" else ""
+        why = ""
+        if r["status"] == "rejected" and r.get("trial_json"):
+            import json
+            try:
+                bad = [c for c in json.loads(r["trial_json"]).get("checks", []) if not c["ok"]]
+                why = f' <span style="color:#667085">({esc(bad[0]["name"].lower())}: failed)</span>' if bad else ""
+            except ValueError:
+                pass
+        rows += f'<li><span style="font:inherit;color:inherit;white-space:normal"><b>v{r["version"]}</b> · {st}{why} · {esc(r["note"] or "no note")}</span><span>{esc(who(r["author"]))} · {esc(when(r["created_at"]) or "")}{restore}</span></li>'
+    form = (f'<h2>Improve this recipe</h2><p class="q" style="margin:0 0 10px">Edit the text and press the button. An agent follows your version once; if the value it gets can be read in the source and '
+            f'is not an unexplained jump, your version goes live straight away. Otherwise it is kept in the history as not adopted, with the reason.</p>'
+            f'<div id="signin" class="card" hidden><p style="margin:0 0 10px">Sign in to edit a recipe.</p><a class="btn" href="/app">Sign in</a></div>'
+            f'<form id="edit" hidden><textarea id="body" rows="18" spellcheck="false">{esc(live["body"])}</textarea>'
+            f'<input id="note" placeholder="What did you change, and why? (one line)" maxlength="200">'
+            f'<div class="cta" style="margin-top:10px"><button class="btn" id="go">Try it and publish</button><span class="meta" id="left"></span></div></form><div id="result"></div>'
+            ) if editable else ('<h2>Improve this recipe</h2><p class="q">This number is read straight from a public API by a few lines of code, so its recipe is changed in the '
+                                '<a href="https://github.com/verkyyi/tally/blob/main/free_sources.py">source repository</a>, not here.</p>')
+    js = """<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])), MID=%d;
+const num=v=>v==null?"no value":Number(v).toLocaleString("en-US",{maximumFractionDigits:2});
+(async()=>{ if(!$("#edit")) return; const me=await (await fetch("/api/me")).json();
+  if(!me.user){$("#signin").hidden=false; return} $("#edit").hidden=false;
+  const st=await (await fetch("/api/recipes/"+MID)).json(); $("#left").textContent=st.left+" trial"+(st.left==1?"":"s")+" left today";
+  $("#edit").onsubmit=async ev=>{ev.preventDefault(); $("#go").disabled=true; $("#go").textContent="The agent is following your recipe…";
+    $("#result").innerHTML='<p class="meta">This takes up to a minute. Keep the page open.</p>';
+    try{ const r=await fetch("/api/recipes/"+MID,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({body:$("#body").value,note:$("#note").value})}), j=await r.json();
+      if(!r.ok) throw new Error(j.detail||"The trial could not run");
+      $("#result").innerHTML=`<div class="card" style="margin-top:14px"><b style="font-size:18px;color:${j.adopted?"#0a8f5b":"#d92d20"}">${j.adopted?"Adopted: version "+j.version+" is live.":"Not adopted. Your version is saved in the history."}</b>
+        <ul class="rows" style="margin-top:10px">${j.checks.map(c=>`<li><span style="font:inherit;color:inherit;white-space:normal">${c.ok?"✓":"✗"} ${esc(c.name)}${c.detail?` <span style="color:#667085">${esc(c.detail)}</span>`:""}</span></li>`).join("")}</ul>
+        <p class="meta">Before: ${num(j.old.value)} · With your recipe: ${num(j.new.value)}${j.history_points?" · "+j.history_points+" past points added":""}</p>
+        ${j.new.quote?`<blockquote>${esc(j.new.quote)}</blockquote>`:""}${j.new.url?`<p class="meta">Read from <a href="${esc(j.new.url)}" rel="nofollow noopener">${esc(j.new.url)}</a></p>`:""}
+        ${j.notes?`<p class="meta">Agent's note: ${esc(j.notes)}</p>`:""}${j.steps?`<p class="meta">Steps: ${j.steps.map(s=>esc(s.tool+" "+s.arg)).join(" → ")}</p>`:""}
+        ${j.adopted?'<p style="margin:10px 0 0"><a class="btn ghost" href="">Reload the page</a></p>':""}</div>`;
+    }catch(e){ $("#result").innerHTML=`<p class="meta" style="color:#d92d20">${esc(e.message)}</p>` }
+    $("#go").disabled=false; $("#go").textContent="Try it and publish" } })();
+document.addEventListener("click",async ev=>{const a=ev.target.closest(".rv"); if(!a) return; ev.preventDefault();
+  const r=await fetch("/api/recipes/"+MID+"/revert",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({version:+a.dataset.v})}), j=await r.json();
+  if(r.ok) location.reload(); else {const p=document.createElement("p"); p.className="meta"; p.style.color="#d92d20"; p.textContent=j.detail||"Sign in to restore a version."; a.closest("ul").after(p)} });
+</script>""" % m["id"]
+    body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / <a href="{number_path(m)}">{esc(m["title"])}</a> / Recipe</div><h1>Recipe: {esc(m["title"])}</h1>'
+            f'<p class="q">{esc(m["question"])} Today: <b>{esc(txt or "no value yet")}{" " + esc(unit) if unit and txt else ""}</b>. This is version {live["version"]}.</p>'
+            f'<div class="card recipe">{render_recipe(live["body"])}</div>{form}'
+            f'<h2>Versions</h2><ul class="rows">{rows}</ul>'
+            f'<div class="cta"><a class="btn ghost" href="{number_path(m)}">Back to the number</a></div>{js}')
+    css = ("<style>.recipe h3{font-size:13px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:18px 0 4px}.recipe h3:first-child{margin-top:0}"
+           ".recipe p,.recipe li{margin:4px 0;color:#344054}.recipe ul{margin:4px 0;padding-left:20px}"
+           "#body{width:100%;font:13px/1.55 var(--mono);padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:inherit;resize:vertical}"
+           "#note{width:100%;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;background:#fff}button.btn{border:0;cursor:pointer;font:600 16px var(--display)}button.btn:disabled{opacity:.6;cursor:wait}</style>")
+    return shell(f"Recipe for {m['title']}: how the number is obtained | Tally", f"How Tally obtains {m['title']}: the source, how it is read, how its history is rebuilt and what makes a reading invalid. Open to improvement by anyone.",
+                 f"/n/{m['id']}/recipe", css + body)
 
 
 def groups():

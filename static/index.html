@@ -139,7 +139,7 @@ ul.rows li{padding:7px 8px;border-bottom:1px solid var(--line);font-size:13px}
 ul.rows li.new{background:var(--new)}
 .tag{font:10px var(--mono);border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap}
 .tag.new{background:var(--accent);color:#fff}.tag.seeded{border:1px dashed var(--seed);color:var(--seed)}
-.tag.monitor{background:#2f5bff;color:#fff}.tag.run_now{background:var(--ink);color:var(--paper)}.tag.feedback{border:1px solid var(--line);color:var(--mute)}
+.tag.recipe{background:#0a8f5b;color:#fff}.tag.monitor{background:#2f5bff;color:#fff}.tag.run_now{background:var(--ink);color:var(--paper)}.tag.feedback{border:1px solid var(--line);color:var(--mute)}
 .when{font:11px var(--mono);color:var(--mute)}
 table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 td .followbtn{padding:4px 9px;font-size:12px}
@@ -419,7 +419,7 @@ function changeText(c){
   if(c.kind=="source_changed") return `${esc(c.note)}: <a href="${esc(c.after)}" target="_blank">${esc(c.after)}</a>`;
   return esc(c.note||c.after||c.kind)+link;
 }
-const originTag=o=>`<span class="tag ${o}">${{monitor:"Auto-check",run_now:"Check now",feedback:"Feedback"}[o]||o}</span>`;
+const originTag=o=>`<span class="tag ${o}">${{monitor:"Auto-check",run_now:"Check now",feedback:"Feedback",recipe:"New recipe"}[o]||o}</span>`;
 async function loadLog(){
   const since=$("#last24").checked?"?since="+new Date(Date.now()-864e5).toISOString().slice(0,19)+"Z":"";
   const all=(await api("/api/changes"+since)).changes, mk=c=>c.metric_kind||"count", cs=$("#smalled").checked?all:all.filter(c=>isMajor(c,mk(c))), hidden=all.length-cs.length;
@@ -450,7 +450,7 @@ async function openPanel(id){
     <div class="hero"><div class="val${v?"":" none"}">${v?v.text+`<small>${esc(v.unit)}</small>`:"no value yet"}</div><div class="hd">${d}</div><div class="hs">${m.live?spark(m.spark):""}</div></div>
     <div class="pmeta">${m.live?`<span>${ico("clock")}checked ${ago(m.last_checked)}</span>`:`<span>delayed value, as of ${ago(m.as_of)}</span>`}${
       m.live&&m.next_check?`<span>${ico("radar")}${/^in /.test(until(m.next_check))?"next check "+until(m.next_check):"check due"}</span>`:m.monitor?`<span>${ico("radar")}auto-check on</span>`:""}<span>${ico("people")}tracked by ${m.followers}</span></div>
-    ${m.live?`<button class="runp">Check now</button>`:""} <a class="when" href="/n/${m.id}" target="_blank" style="margin-left:10px">Public page ↗</a></div>`;
+    ${m.live?`<button class="runp">Check now</button>`:""} <a class="when" href="/n/${m.id}" target="_blank" style="margin-left:10px">Public page ↗</a> <a class="when" href="/n/${m.id}/recipe" target="_blank" style="margin-left:8px">Recipe ↗</a></div>`;
   if(e.locked){
     h+=`<div class="pbody"><p style="color:#475467;margin-top:0">This metric is delayed for you. The live number, its source and quote, the full list of entries and the change history are part of ${S.me.user?"Pro, or pick it as one of your live catalog metrics":"a signed-in account"}.</p>
       ${S.me.user?`<button class="pro" id="pup">See plans</button>`:`<button id="pin2">Sign in with Google</button>`}

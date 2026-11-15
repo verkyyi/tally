@@ -1,0 +1,178 @@
+"""Recipes as a wiki. Every number has a recipe: a short document anyone signed in can revise. A revision is tried by the
+agent before it counts, and is adopted automatically when the runtime can verify what the trial produced."""
+import json
+import re
+from datetime import datetime, timedelta, timezone
+
+import core
+import db
+import free_sources
+
+SECTIONS = ("Source", "Read", "History", "Update", "Checks")
+TRIALS_PER_DAY = {"free": 3, "pro": 20}
+GLOBAL_TRIALS_PER_DAY = 150
+JUMP = 3.0  # a trial value more than 3x away from the live one is held back, not adopted
+
+
+def baseline(m):
+    """The recipe a number has before anyone edits it, written from how it is produced today."""
+    free = free_sources.is_free(m)
+    skill = core.skill_text(m)
+    read = (re.sub(r"^# .*\n", "", skill).strip() if skill else
+            ("Read the single value that answers the question from the source page, with the sentence that states it." if m["kind"] == "direct" else
+             "List every item that answers the question, one entry per item with its own link and its date when stated. " +
+             {"sum": "Add up the amounts.", "avg": "Average the values.", "max": "Take the largest value."}.get(m.get("reducer") or "", "The number is how many entries there are.")))
+    if free:
+        p = m["skill"].split("|")
+        src = {"gh": f"https://api.github.com/repos/{p[2]}" if len(p) > 2 else "", "npm": f"https://api.npmjs.org/downloads/point/last-week/{p[2]}" if len(p) > 2 else "",
+               "pypi": f"https://pypistats.org/api/packages/{p[2]}/recent" if len(p) > 2 else "", "yc": "https://yc-oss.github.io/api/meta.json"}.get(p[1], m.get("source_url") or "")
+        read = {"gh": f"Read the `{p[3]}` field." if len(p) > 3 else read, "npm": "Read the `downloads` field: downloads over the last 7 days.",
+                "pypi": "Read `data.last_week`: downloads over the last 7 days.", "yc": "Read the company count for the batch, tag or industry named in the title."}.get(p[1], read)
+        hist = {"npm": "Weekly totals from the registry's daily download counts, back to 2015: https://api.npmjs.org/downloads/range/{start}:{end}/{package}",
+                "pypi": "Weekly totals from the last 180 days of daily counts: https://pypistats.org/api/packages/{package}/overall?mirrors=false",
+                "yc": "One point per batch, dated at the start of the batch season, from the same directory file." if "series" in m["skill"] else "Not available: this is a single count. Observed daily from now on.",
+                "gh": "Not available from the API without an access token. Observed daily from now on."}.get(p[1], "Observed from now on.")
+        upd = "Once a day, straight from the API. No search and no model are involved."
+    else:
+        src = (m.get("source_url") or "Found by search on each run.") + (f"\nSearch: {m['search_query']}" if m.get("search_query") else "")
+        hist = ("From the entries' own dates, when at least half of them have one." if m["kind"] != "direct" else "Observed from the first time this number was tracked. No older history is known.")
+        upd = ("An automatic check watches for: " + (m.get("monitor_query") or m["question"]) if m.get("telem_monitor_id") else "When someone presses Check now.")
+    checks = "- The value must be readable in the text of the source.\n- A reading more than three times away from the last one is held until a second source agrees.\n- If the source has no value, the number shows \"no value yet\"."
+    return f"## Source\n{src}\n\n## Read\n{read}\n\n## History\n{hist}\n\n## Update\n{upd}\n\n## Checks\n{checks}\n"
+
+
+def parse(body):
+    """{section: text}. Unknown headings are kept inside the section above them."""
+    out, cur = {}, None
+    for line in (body or "").splitlines():
+        h = re.match(r"^##\s+(.+?)\s*$", line)
+        if h and h.group(1).strip().title() in SECTIONS:
+            cur = h.group(1).strip().title()
+            out[cur] = ""
+        elif cur:
+            out[cur] += line + "\n"
+    return {k: v.strip() for k, v in out.items()}
+
+
+def live(m):
+    """The number's current recipe row, creating the baseline the first time it is asked for."""
+    r = db.one("SELECT * FROM recipes WHERE metric_id=? AND status='live' ORDER BY version DESC LIMIT 1", (m["id"],))
+    if r:
+        return r
+    db.run("INSERT INTO recipes(metric_id,version,body,author,note,status,created_at) VALUES(?,?,?,?,?,?,?)", (m["id"], 1, baseline(m), "tally", "How this number has been produced so far.", "live", db.now()))
+    return live(m)
+
+
+def history(mid):
+    return db.q("SELECT id,version,author,note,status,created_at,trial_json FROM recipes WHERE metric_id=? ORDER BY id DESC LIMIT 40", (mid,))
+
+
+def trials_left(u):
+    day = db.now()[:10]
+    mine = db.one("SELECT COUNT(*) n FROM recipes WHERE author=? AND created_at>=? AND version>1", (u["id"], day))["n"]
+    everyone = db.one("SELECT COUNT(*) n FROM recipes WHERE created_at>=? AND version>1", (day,))["n"]
+    return max(0, min(TRIALS_PER_DAY.get(u["plan"], 3) - mine, GLOBAL_TRIALS_PER_DAY - everyone))
+
+
+def _verify(m, res, pages):
+    """Check what the agent reported against the pages it fetched. Returns (checks, value or None, kept history)."""
+    checks, value, hist = [], None, []
+    if not res or not res.get("found"):
+        checks.append({"name": "The recipe produced a value", "ok": False, "detail": (res or {}).get("notes") or "The agent found no value by following it."})
+        return checks, None, []
+    checks.append({"name": "The recipe produced a value", "ok": True, "detail": ""})
+    checks.append({"name": "It still answers this number's question", "ok": bool(res.get("on_topic", True)), "detail": "" if res.get("on_topic", True) else (res.get("notes") or "The recipe reads something else.")})
+    page = pages.get(res["evidence_url"], "")
+    fetched = bool(page)
+    checks.append({"name": "The evidence page was actually read in this run", "ok": fetched, "detail": "" if fetched else "The reported source was not among the pages fetched."})
+    readable = fetched and core.supported(res["value"], page) and core.supported(res["value"], res["quote"])
+    checks.append({"name": "The value can be read in the source text", "ok": readable, "detail": "" if readable else "The number is not in the page text or in the quote."})
+    old = core.latest_obs(m["id"]) if m["kind"] == "direct" else {"value": core.count_value(m["id"])}
+    ov = (old or {}).get("value")
+    jump = bool(ov) and res["value"] not in (0, None) and not (1 / JUMP <= res["value"] / ov <= JUMP)
+    checks.append({"name": "No unexplained jump from the current value", "ok": not jump, "detail": f"Current {ov:g}, trial {res['value']:g}: more than {JUMP:g}x apart, so it is held for a second source." if jump else ""})
+    if all(c["ok"] for c in checks):
+        value = res["value"]
+    today = db.now()[:10]
+    for h in sorted(res.get("history") or [], key=lambda x: x["date"]):
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], pages.get(h.get("url") or "", "")):
+            hist.append(h)
+    if res.get("history"):
+        checks.append({"name": "Past points can be read in the pages they cite", "ok": len(hist) > 0, "detail": f"{len(hist)} of {len(res['history'])} kept."})
+    return checks, value, hist
+
+
+def revise(u, m, body, note):
+    """Try a revised recipe and adopt it if the trial verifies. Returns the trial report."""
+    import agent
+    body = (body or "").strip()[:8000]
+    secs = parse(body)
+    if not secs.get("Source") or not secs.get("Read"):
+        raise ValueError("A recipe needs at least a Source section and a Read section, each starting with a line like '## Source'.")
+    cur = live(m)
+    if body == cur["body"].strip():
+        raise ValueError("Nothing changed from the current recipe.")
+    old = core.latest_obs(m["id"]) if m["kind"] == "direct" else {"value": core.count_value(m["id"]), "quote": None}
+    report = {"old": {"value": (old or {}).get("value"), "quote": (old or {}).get("quote")}}
+    if m["kind"] == "direct":
+        run = agent.run_recipe(m, body)
+        res = run["result"]
+        checks, value, hist = _verify(m, res, run["pages"])
+        report |= {"new": {"value": (res or {}).get("value"), "quote": (res or {}).get("quote"), "url": (res or {}).get("evidence_url")}, "notes": (res or {}).get("notes"),
+                   "steps": run["steps"], "model": run["model"], "usage": run["usage"], "history_points": len(hist)}
+    else:  # a list-based number: the revised reading instructions are run through the same gather-and-read pipeline
+        trial = dict(m) | {"instructions": secs["Read"], "source_url": _first_url(secs["Source"]) or m.get("source_url"), "search_query": _search_line(secs["Source"]) or m.get("search_query")}
+        entries = core.find_entries(trial)
+        n = len(entries) if (m.get("reducer") or "count") == "count" else core.reduce_rows(m.get("reducer"), [{"value": e.get("value")} for e in entries])
+        ov = report["old"]["value"]
+        jump = bool(ov) and n and not (1 / JUMP <= n / ov <= JUMP)
+        checks = [{"name": "The recipe produced entries", "ok": len(entries) > 0, "detail": f"{len(entries)} entries found."},
+                  {"name": "Every entry has its own link", "ok": bool(entries) and all(e.get("url") for e in entries), "detail": ""},
+                  {"name": "No unexplained jump from the current value", "ok": not jump, "detail": f"Current {ov:g}, trial {n:g}." if jump else ""}]
+        value, hist, res = (n if all(c["ok"] for c in checks) else None), [], None
+        report |= {"new": {"value": n, "quote": "; ".join(e["title"] for e in entries[:5]), "url": trial["source_url"]}, "entries": len(entries), "history_points": 0}
+    report["checks"], report["adopted"] = checks, value is not None
+    ver = db.one("SELECT COALESCE(MAX(version),1) v FROM recipes WHERE metric_id=?", (m["id"],))["v"] + 1
+    rid, _ = db.run("INSERT INTO recipes(metric_id,version,body,author,note,status,created_at,trial_json) VALUES(?,?,?,?,?,?,?,?)",
+                    (m["id"], ver, body, u["id"], (note or "").strip()[:200], "live" if report["adopted"] else "rejected", db.now(), json.dumps(report)))
+    report["version"] = ver
+    if report["adopted"]:
+        db.run("UPDATE recipes SET status='superseded' WHERE metric_id=? AND status='live' AND id!=?", (m["id"], rid))
+        db.run("UPDATE metrics SET instructions=?, source_url=COALESCE(?,source_url), search_query=COALESCE(?,search_query), recipe_version=? WHERE id=?",
+               (secs["Read"], _first_url(secs["Source"]), _search_line(secs["Source"]), ver, m["id"]))
+        fresh = core.metric(m["id"])
+        if m["kind"] == "direct":
+            core.record_direct(fresh, {"value": value, "evidence_url": res["evidence_url"], "quote": res["quote"]}, "recipe")
+            for h in hist:
+                at = h["date"] + "T00:00:00Z"
+                if not db.one("SELECT 1 x FROM observations WHERE metric_id=? AND as_of=?", (m["id"], at)):
+                    db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote) VALUES(?,?,?,?,?,0,?)", (m["id"], h["value"], at, h.get("url"), "source_history", f"recipe v{ver}"))
+        else:
+            core.upsert_entries(fresh, entries, "recipe")
+            core.record_count_obs(m["id"], "recipe")
+        db.run("UPDATE metrics SET last_checked_at=? WHERE id=?", (db.now(), m["id"]))
+    return report
+
+
+def revert(u, m, version):
+    """Make an earlier adopted version live again. Its text is trusted because it already passed a trial (or is the baseline)."""
+    r = db.one("SELECT * FROM recipes WHERE metric_id=? AND version=? AND status IN ('superseded','live')", (m["id"], version))
+    if not r:
+        raise ValueError("That version was never adopted, so it cannot be restored.")
+    ver = db.one("SELECT MAX(version) v FROM recipes WHERE metric_id=?", (m["id"],))["v"] + 1
+    secs = parse(r["body"])
+    db.run("UPDATE recipes SET status='superseded' WHERE metric_id=? AND status='live'", (m["id"],))
+    db.run("INSERT INTO recipes(metric_id,version,body,author,note,status,created_at) VALUES(?,?,?,?,?,?,?)", (m["id"], ver, r["body"], u["id"], f"Restored version {version}.", "live", db.now()))
+    db.run("UPDATE metrics SET instructions=?, source_url=COALESCE(?,source_url), search_query=COALESCE(?,search_query), recipe_version=? WHERE id=?",
+           (secs.get("Read") if version > 1 else None, _first_url(secs.get("Source", "")), _search_line(secs.get("Source", "")), ver, m["id"]))
+    return ver
+
+
+def _first_url(text):
+    u = re.search(r"https://[^\s)>\]]+", text or "")
+    return u.group(0).rstrip(".,") if u else None
+
+
+def _search_line(text):
+    s = re.search(r"(?im)^search:\s*(.+)$", text or "")
+    return s.group(1).strip()[:200] if s else None

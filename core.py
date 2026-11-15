@@ -30,7 +30,9 @@ SKILLS = os.path.join(os.path.dirname(__file__), "skills")
 
 
 def skill_text(m):
-    """The source skill a curated metric was made with, or None for the general method."""
+    """The reading instructions for a number: its live recipe's, else the stock ones for its kind of source, else None (general method)."""
+    if (m or {}).get("instructions"):
+        return m["instructions"]
     name = (m or {}).get("skill")
     path = os.path.join(SKILLS, f"{name}.md") if name and name.replace("_", "").isalnum() else None
     return open(path).read() if path and os.path.exists(path) else None

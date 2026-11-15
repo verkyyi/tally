@@ -67,6 +67,10 @@ MIGRATIONS = [
     "ALTER TABLE users ADD COLUMN share_token TEXT",  # set = the board is readable at /b/<token>
     "ALTER TABLE users ADD COLUMN webhook_url TEXT",  # a Slack or Discord incoming webhook: changes on the board are posted there
     "CREATE TABLE IF NOT EXISTS visits(day TEXT, path TEXT, ref TEXT, n INTEGER DEFAULT 0, PRIMARY KEY(day, path, ref))",  # page views per day; no IPs, no cookies
+    "CREATE TABLE IF NOT EXISTS recipes(id INTEGER PRIMARY KEY, metric_id INTEGER NOT NULL, version INTEGER NOT NULL, body TEXT NOT NULL, author TEXT, note TEXT, "
+    "status TEXT DEFAULT 'live', created_at TEXT, trial_json TEXT)",  # the wiki: every revision of every number's recipe, with the trial that decided it
+    "ALTER TABLE metrics ADD COLUMN instructions TEXT",     # reading instructions from the live recipe; they replace the stock ones
+    "ALTER TABLE metrics ADD COLUMN recipe_version INTEGER DEFAULT 1",
     "CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY, metric_id INTEGER, change_id INTEGER, user TEXT, action TEXT, at TEXT)",
 ]
 

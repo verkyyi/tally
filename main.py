@@ -24,7 +24,9 @@ import core
 import db
 import telem
 import public_pages as pp
+import free_sources
 import logos
+import recipes
 
 HERE = os.path.dirname(__file__)
 app = FastAPI(title="Tally")
@@ -286,6 +288,65 @@ def _public_series(m, t):
     return core.series(m["id"], None if t["live"] else (t.get("as_of") or ""))
 
 
+@app.get("/n/{mid}/recipe")
+def public_recipe(mid: int):
+    m = core.metric(mid)
+    if not m:
+        raise HTTPException(404, "no such number")
+    return HTMLResponse(pp.recipe_page(m, tile(m, None), recipes.live(m), recipes.history(mid), editable=not free_sources.is_free(m)))
+
+
+class Revision(BaseModel):
+    body: str
+    note: str = ""
+
+
+class Revert(BaseModel):
+    version: int
+
+
+@app.get("/api/recipes/{mid}")
+def recipe_state(mid: int, request: Request):
+    m = core.metric(mid)
+    if not m:
+        raise HTTPException(404, "no such number")
+    u = viewer(request)
+    live = recipes.live(m)
+    return {"version": live["version"], "body": live["body"], "left": recipes.trials_left(u) if u else 0, "editable": not free_sources.is_free(m)}
+
+
+@app.post("/api/recipes/{mid}")
+def recipe_revise(mid: int, body: Revision, request: Request):
+    """Try a revised recipe with the agent; it goes live at once if the runtime can verify the result."""
+    u = need_user(request)
+    m = core.metric(mid)
+    if not m:
+        raise HTTPException(404, "no such number")
+    if free_sources.is_free(m):
+        raise HTTPException(400, "This number is read straight from a public API; its recipe is changed in the source repository.")
+    if recipes.trials_left(u) <= 0:
+        raise HTTPException(429, "You have used today's recipe trials. Each one runs an agent, so they are limited; try again tomorrow.")
+    try:
+        return recipes.revise(u, m, body.body, body.note)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        print("recipe trial failed:", mid, type(e).__name__, str(e)[:200])
+        raise HTTPException(502, "The trial could not be completed. Nothing was changed; try again in a minute.")
+
+
+@app.post("/api/recipes/{mid}/revert")
+def recipe_revert(mid: int, body: Revert, request: Request):
+    u = need_user(request)
+    m = core.metric(mid)
+    if not m:
+        raise HTTPException(404, "no such number")
+    try:
+        return {"version": recipes.revert(u, m, body.version)}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @app.get("/n/{mid}/chart.svg")
 def public_chart(mid: int):
     m = core.metric(mid)
@@ -322,7 +383,9 @@ def public_number(mid: int, slug: str = "", range: str = "all"):
         ev = {"observation": core.latest_obs(mid)}
     sub = pp.subject(m)
     related = [tile(core.metric(i), None) for i in pp.groups().get(sub, []) if i != mid]
-    return HTMLResponse(pp.number_page(m, t, ev, related, _public_series(m, t), range if range in ("90d", "1y", "5y", "all") else "all"))
+    live = recipes.live(m)
+    versions = [(r["created_at"], f"v{r['version']}") for r in db.q("SELECT version, created_at FROM recipes WHERE metric_id=? AND version>1 AND status IN ('live','superseded') ORDER BY version", (mid,))]
+    return HTMLResponse(pp.number_page(m, t, ev, related, _public_series(m, t), range if range in ("90d", "1y", "5y", "all") else "all", live, versions))
 
 
 @app.get("/c/{slug}")
