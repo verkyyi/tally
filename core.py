@@ -500,17 +500,37 @@ def sync_metric(m):
     return added
 
 
-def add_pack(user, company, can_create=True):
-    """Every template metric for one company: reuse what the catalog has, create the rest. Returns (metrics, created, skipped)."""
+YC_NAMES = ("yc", "y combinator", "ycombinator")
+
+
+def pack_templates(pack="company", view=None, only=None):
+    ts = [t for t in json.load(open(os.path.join(os.path.dirname(__file__), "templates.json"))) if t.get("pack", "company") == pack]
+    if only:
+        ts = [t for t in ts if t["id"] in only]
+    elif view:
+        ts = [t for t in ts if t.get("view") in (None, view)]
+    return ts
+
+
+def add_pack(user, company, can_create=True, pack="company", view=None, only=None, phrase=None):
+    """Every curated recipe of one pack for one subject (a company, an accelerator, a sector, an investor):
+    reuse what the catalog has, create the rest. Returns (metrics, created, skipped)."""
     from concurrent.futures import ThreadPoolExecutor
     company = " ".join(company.split())[:60]
     if company.islower():
         company = company.title()
-    templates = json.load(open(os.path.join(os.path.dirname(__file__), "templates.json")))
+    if pack == "accelerator" and company.lower() in YC_NAMES:  # YC is read exactly from its open directory: use those numbers
+        ms = db.q("SELECT * FROM metrics WHERE curated=1 AND skill='yc_directory' ORDER BY id")
+        for m in ms:
+            follow(user, m["id"])
+        return ms, 0, 0
+    today = datetime.now(timezone.utc)
+    fill = {"company": company, "phrase": phrase or company, "month": today.strftime("%B %Y"), "mon": today.strftime("%b %Y")}
 
     def one(t):
-        q = t["question"].format(company=company)
-        row = db.one("SELECT id FROM metrics WHERE template_id=? AND lower(company)=?", (t["id"], company.lower()))
+        tid = t["id"] + ("@" + today.strftime("%Y-%m") if t.get("monthly") else "")  # a monthly recipe is a new number each month
+        q = t["question"].format(**fill)
+        row = db.one("SELECT id FROM metrics WHERE template_id=? AND lower(company)=?", (tid, company.lower()))
         mid = row["id"] if row else match_metric(q)
         if mid:
             follow(user, mid)
@@ -518,8 +538,8 @@ def add_pack(user, company, can_create=True):
         if not can_create:
             return None, False
         try:
-            m, _ = create_metric(user, q, {"title": t["title"].format(company=company), "kind": t["kind"], "unit": t["unit"],
-                                           "skill": t["skill"], "template_id": t["id"], "company": company, "curated": 1,
+            m, _ = create_metric(user, q, {"title": t["title"].format(**fill), "kind": t["kind"], "unit": t["unit"], "reducer": t.get("reducer"), "field": t.get("field"),
+                                           "skill": t["skill"], "template_id": tid, "company": company, "curated": 1,
                                            "no_monitor": True}, skip_match=True)
             return m, True
         except Exception as e:  # one failed tile must not lose the pack
@@ -527,7 +547,7 @@ def add_pack(user, company, can_create=True):
             return None, False
 
     with ThreadPoolExecutor(6) as ex:
-        res = list(ex.map(one, templates))
+        res = list(ex.map(one, pack_templates(pack, view, only)))
     return [m for m, _ in res if m], sum(1 for _, c in res if c), sum(1 for m, _ in res if not m)
 
 

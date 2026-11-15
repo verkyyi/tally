@@ -29,6 +29,8 @@ form{flex:1;display:flex;gap:8px;min-width:280px;position:relative}
 .spack{display:flex;gap:8px;flex-wrap:wrap;padding:4px 14px 8px}
 .spack span,.spack .chip{font:12px var(--mono);border:1px solid var(--line);border-radius:14px;padding:3px 10px;text-decoration:none;background:#fff}
 .spack .chip{border-color:var(--ink)}
+.spack .chip.on{background:var(--ink);color:var(--paper)}
+#starter .shead{padding:14px 0 6px}#starter .spack{padding:0}
 input[type=text],input[type=search]{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--card);font:inherit;color:inherit}
 input:focus{outline:2px solid var(--ink);outline-offset:-1px}
 button{font:inherit;padding:8px 13px;border:1px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--paper);cursor:pointer;white-space:nowrap}
@@ -207,10 +209,11 @@ async function loadMe(){
   S.me=await (await fetch("/api/me")).json(); const u=S.me.user, a=$("#acct");
   a.innerHTML=u?`${u.plan=="pro"?"":`<button class="pro" id="upg">Upgrade</button>`}<span class="plan ${u.plan}">${u.plan}</span>
       <span class="who" tabindex="0">${u.picture?`<img src="${esc(u.picture)}" alt="" referrerpolicy="no-referrer">`:`<span class="av">${esc((u.name||u.email||"?")[0].toUpperCase())}</span>`}<span>${esc((u.name||u.email).split(" ")[0])}</span>
-        <span class="menu"><div><span class="em">${esc(u.email||"")}</span><button class="ghost" id="out">Sign out</button></div></span></span>`
+        <span class="menu"><div><span class="em">${esc(u.email||"")}</span><button class="ghost" id="setup">Set up my board</button><button class="ghost" id="out">Sign out</button></div></span></span>`
     :`<button id="in">Sign in</button>`;
   if($("#in")) $("#in").onclick=()=>signInModal();
   if($("#upg")) $("#upg").onclick=()=>plansModal();
+  if($("#setup")) $("#setup").onclick=()=>starterModal();
   if($("#out")) $("#out").onclick=async()=>{await api("/api/auth/logout",{}); closePanel(); await loadMe(); refresh()};
   const b=$("#banner");
   if(!u){b.hidden=false;b.innerHTML=`<span>You're browsing the <b>featured board</b>. Everything in the catalog is open to read and search; featured numbers are live, the rest are delayed. Sign in for your own board and to track new companies and numbers.</span><span style="display:flex;gap:8px;flex-wrap:wrap">${S.me.guest_login?'<button id="guest2">Try everything, no sign-up</button>':""}<button id="in2"${S.me.guest_login?' class="ghost"':""}>Sign in with Google</button></span>`;$("#in2").onclick=()=>signInModal(); if($("#guest2")) $("#guest2").onclick=guestIn}
@@ -220,7 +223,33 @@ async function loadMe(){
 function modal(html){$("#modal").innerHTML=`<button class="ghost x">×</button>`+html; $("#veil").hidden=false}
 function closeModal(){$("#veil").hidden=true}
 $("#veil").onclick=ev=>{if(ev.target.id=="veil"||ev.target.closest(".x")) closeModal()};
-async function afterSignIn(u){closeModal(); toast("Signed in as "+(u.name||u.email)); await loadMe(); refresh()}
+async function afterSignIn(u){closeModal(); toast("Signed in as "+(u.name||u.email)); await loadMe(); await refresh(); if(u.new) starterModal()}
+// First-run setup: pick a role and a few names; the board is built from curated recipes. Nothing to compose.
+async function starterModal(){
+  await loadDir(); if(!CAT.length) await loadCat();
+  const pro=S.me.user&&S.me.user.plan=="pro", by={}; CAT.filter(m=>m.curated).forEach(m=>{const k=m.title.split(" · ")[0]; by[k]=(by[k]||0)+1});
+  const known=entities(), find=n=>known.find(e=>e.name.toLowerCase()==n.toLowerCase()||(e.alias||"").toLowerCase()==n.toLowerCase());
+  const ready=Object.keys(by).filter(k=>by[k]>=3).map(k=>find(k)||{name:k,type:"company"}).filter((e,i,a)=>a.findIndex(x=>x.name==e.name)==i);
+  const rest=t=>known.filter(e=>e.type==t&&!ready.some(r=>r.name==e.name));
+  const chips=(es,n)=>`<div class="spack">${es.slice(0,n).map(e=>`<a href="#" class="chip pick" data-e="${esc(JSON.stringify({name:e.name,type:e.type,adj:e.adj||null}))}">${esc(e.name)}</a>`).join("")}</div>`;
+  modal(`<div id="starter"><h2>Set up your board</h2><p style="color:#4a463c;margin:6px 0 0">Pick what you watch. Tally builds the board from curated numbers, each with its evidence. You can change it any time.</p>
+    <div class="shead">I am</div><div class="spack">${[["investor","An angel or scout"],["investor","A pre-seed fund"],["all","A founder"]].map((r,i)=>`<a href="#" class="chip role${i?"":" on"}" data-view="${r[0]}">${r[1]}</a>`).join("")}</div>
+    <div class="shead">Ready now · already in the catalog, added at once</div>${chips(ready,24)}
+    ${pro?`<div class="shead">Companies · built when you pick them</div>${chips(rest("company"),24)}
+      <div class="shead">Accelerators</div>${chips(rest("accelerator"),10)}<div class="shead">Sectors</div>${chips(rest("sector"),10)}<div class="shead">Investors</div>${chips(rest("investor"),10)}`
+      :`<p class="when" style="margin-top:14px">More companies, accelerators, sectors and investors are built on request with Pro.</p>`}
+    <p style="margin:20px 0 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button id="stgo" disabled>Build my board</button><button class="ghost" id="stskip">Keep the featured board</button><span class="when" id="stn">Pick up to 5.</span></p></div>`);
+  const picks=()=>[...document.querySelectorAll("#starter .pick.on")];
+  $("#starter").onclick=async ev=>{
+    const r=ev.target.closest(".role"); if(r){ev.preventDefault(); document.querySelectorAll("#starter .role").forEach(x=>x.classList.toggle("on",x==r)); return}
+    const c=ev.target.closest(".pick"); if(c){ev.preventDefault(); if(!c.classList.contains("on")&&picks().length>=5) return toast("Five to start with. You can add more from the search box later.");
+      c.classList.toggle("on"); const n=picks().length; $("#stgo").disabled=!n; $("#stn").textContent=n?`${n} of 5 picked.`:"Pick up to 5."; return}
+    if(ev.target.closest("#stskip")) return closeModal();
+    if(ev.target.closest("#stgo")){ const es=picks().map(x=>JSON.parse(x.dataset.e)), view=document.querySelector("#starter .role.on").dataset.view; closeModal(); S.busy=true; setTab("board"); let got=0, missed=[];
+      for(const [i,e] of es.entries()){ S.pending=`Building your board, ${i+1} of ${es.length}: ${e.name}…`; renderBoard();
+        try{const r=await api("/api/packs",{company:e.name,pack:e.type,phrase:e.adj,view:e.type=="company"&&view=="investor"?"investor":null,replace_board:got==0,hide_empty:true}); got+=r.tiles.length; if(!r.tiles.length) missed.push(e.name); await loadBoard()}catch(err){missed.push(e.name)} }
+      S.pending=null; S.busy=false; await loadMe(); refresh(); toast(`Your board is ready: ${got} numbers.${missed.length?" Nothing found yet for: "+missed.join(", ")+".":""}`,7000)}};
+}
 async function guestIn(){
   try{const r=await fetch("/api/auth/guest",{method:"POST"}), j=await r.json(); if(!r.ok) return toast(j.detail||"Guest access is off");
     closeModal(); await loadMe(); refresh(); toast("You have a guest account with everything unlocked: your own board, Check now, new numbers.",6000)}
@@ -439,14 +468,21 @@ async function showEmpty(){
     ${chipRow("Pick a company · then choose what to track",bay.slice(0,14))}
     ${chipRow("Or an accelerator",DIR.accelerators.slice(0,8).map(x=>x.name))}
     ${chipRow("Or a sector",DIR.sectors.slice(0,8).map(x=>x.name))}
+    ${chipRow("Or an investor",(DIR.investors||[]).slice(0,8).map(x=>x.name))}
     <div class="shead">Or type any question</div><div class="spack">${["Total funding announced by AI agent startups this month","How many open engineering roles does Cursor have?"].map(x=>`<a href="#" class="chip" data-fill="${esc(x)}">${esc(x)}</a>`).join("")}</div>`;
   $("#sugg").hidden=false;
 }
 // A cached directory of names and metric dimensions, so nobody has to compose a question. No Telem call until a row is picked.
-let DIR={companies:[],accelerators:[],sectors:[],dims:{company:[],accelerator:[],sector:[]}}, dirLoaded=false;
-async function loadDir(){ if(dirLoaded) return; dirLoaded=true; try{DIR=await (await fetch("/static/suggest.json")).json()}catch(e){} }
-function entities(){return [...DIR.companies.map(x=>({...x,type:"company"})),...DIR.accelerators.map(x=>({...x,type:"accelerator"})),...DIR.sectors.map(x=>({...x,type:"sector"}))]}
-const entLabel=e=>({company:"Company",accelerator:"Accelerator",sector:"Sector"}[e.type])+(e.tags?" · "+e.tags.join(" · "):"");
+let DIR={companies:[],accelerators:[],sectors:[],investors:[]}, dirLoaded=false;
+let TPL=[];  // the curated recipes, from the server
+function loadDir(){ return dirLoaded||(dirLoaded=(async()=>{  // one shared load: a second caller waits for the first
+  try{DIR={...DIR,...await (await fetch("/static/suggest.json")).json()}}catch(e){}
+  try{TPL=(await (await fetch("/api/templates")).json()).templates}catch(e){} })()) }
+const MON=()=>new Date().toLocaleString("en-US",{month:"long",year:"numeric"});
+const tplQ=(t,e)=>t.question.replace("{company}",e.name).replace("{phrase}",e.adj||e.name).replace("{month}",MON());
+const packArg=(e,extra)=>JSON.stringify({company:e.name,pack:e.type,phrase:e.adj||null,...extra});
+function entities(){return [...DIR.companies.map(x=>({...x,type:"company"})),...DIR.accelerators.map(x=>({...x,type:"accelerator"})),...DIR.sectors.map(x=>({...x,type:"sector"})),...(DIR.investors||[]).map(x=>({...x,type:"investor"}))]}
+const entLabel=e=>({company:"Company",accelerator:"Accelerator",sector:"Sector",investor:"Investor"}[e.type])+(e.tags?" · "+e.tags.join(" · "):"");
 function findEntity(q){const l=q.toLowerCase(); return entities().find(e=>e.name.toLowerCase()==l||(e.alias||"").toLowerCase()==l)}
 // Suggestions are computed in the browser from the cached catalog, so they appear as you type.
 let CAT=[], COMPANIES=[], sel=0;
@@ -475,11 +511,14 @@ async function showResults(){
   let names=[];
   if(!ent&&q.length>=2){const l=q.toLowerCase(); names=entities().filter(e=>e.name.toLowerCase().startsWith(l)||(e.alias||"").toLowerCase().startsWith(l)||e.name.toLowerCase().split(/\s+/).some(w=>w.startsWith(l))).slice(0,5);
     if(names.length) h+=`<div class="shead">Did you mean</div>`+names.map(e=>sugRow("fill",e.name,hl(e.name,[q]),entLabel(e),"Choose")).join("")}
-  if(ent){const titles=new Set(CAT.map(m=>m.title.toLowerCase())), x=ent.adj||ent.alias||ent.name,
-      ds=(DIR.dims[ent.type]||[]).filter(d=>!(d.tpl&&titles.has((ent.name+" · "+d.tpl).toLowerCase()))).slice(0,ent.type=="company"?6:4);
-    if(ds.length) h+=`<div class="shead">Track about ${esc(ent.name)} · pick one, no typing needed</div>`+ds.map(d=>sugRow("create",d.q.replace("{x}",x),`${esc(ent.name)} · ${esc(d.label)}`,esc(d.q.replace("{x}",x)),"Track")).join("")}
-  if(isCompany(q)&&!(ent&&ent.type!="company")&&!(names.length&&q.length<4)){const have=CAT.filter(m=>m.curated&&m.title.toLowerCase().startsWith(q.toLowerCase()+" ·")).length;
-    h+=`<div class="shead">${ent?"Or the whole starter pack":`Starter pack, if “${esc(q)}” is a company`}</div>`+sugRow("pack",shown,`Track ${esc(shown)} as a company: 6 metrics`,have?`${have} already in the catalog, reused at once`:"entry plan price, engineering roles, GitHub stars, launches, App Store rating, funding","Track")}
+  if(ent){const titles=new Set(CAT.map(m=>m.title.toLowerCase())), all=TPL.filter(t=>t.pack==ent.type), isYC=ent.type=="accelerator"&&(ent.alias||"").toLowerCase()=="yc",
+      ts=isYC?[]:all.filter(t=>!titles.has((ent.name+" · "+t.name).toLowerCase())).sort((x,y)=>(x.view=="product")-(y.view=="product")).slice(0,6);
+    if(all.length) h+=`<div class="shead">Curated for ${esc(ent.name)} · no typing needed</div>`+
+      sugRow("pack",packArg(ent,ent.type=="company"?{view:"investor"}:{}),`Track ${esc(ent.name)}: ${isYC?"the exact YC numbers":(ent.type=="company"?all.filter(t=>t.view!="product").length:all.length)+" curated numbers"}`,
+        isYC?"read from the open YC directory":esc(all.filter(t=>ent.type!="company"||t.view!="product").map(t=>t.name).join(", ")),"Track all")+
+      ts.map(t=>sugRow("pack",packArg(ent,{only:[t.id]}),`${esc(ent.name)} · ${esc(t.name)}`,esc(tplQ(t,ent)),"Track")).join("")}
+  else if(isCompany(q)&&!(names.length&&q.length<4)){const have=CAT.filter(m=>m.curated&&m.title.toLowerCase().startsWith(q.toLowerCase()+" ·")).length, n=TPL.filter(t=>t.pack=="company").length||11;
+    h+=`<div class="shead">Starter pack, if “${esc(q)}” is a company</div>`+sugRow("pack",shown,`Track ${esc(shown)} as a company: ${n} curated numbers`,have?`${have} already in the catalog, reused at once`:"funding, latest round, valuation, headcount, open roles, launches, price, rating, stars","Track")}
   h+=`<div class="shead">Or ask it your own way</div>`+sugRow("create",q,`Create a new metric: “${esc(q)}”`,"Tally finds the source; the catalog is checked first","Create");
   $("#sugg").innerHTML=h; $("#sugg").hidden=false; setSel(0);
 }
@@ -492,10 +531,11 @@ async function doCreate(q){
       :(r.metric.value!=null?"New number added: source found.":"New metric created — no value found yet."),5000)}
   catch(e){toast(e.message,6000)}
   S.pending=null; S.busy=false; await loadMe(); refresh()}
-async function doPack(c){
-  if(!S.me.user) return signInModal("Sign in to track a company. Whatever the catalog already tracks arrives at once.");
-  S.busy=true; S.pending=`Building the ${c} company pack: matching the catalog, then looking up what is new…`; setTab("board");
-  try{const r=await api("/api/packs",{company:c}); $("#q").value="";
+async function doPack(arg){
+  if(!S.me.user) return signInModal("Sign in to track this. Whatever the catalog already tracks arrives at once.");
+  const body=arg.trim().startsWith("{")?JSON.parse(arg):{company:arg}, c=body.company;
+  S.busy=true; S.pending=`Building ${c}: matching the catalog, then looking up what is new…`; setTab("board");
+  try{const r=await api("/api/packs",body); $("#q").value="";
     toast(`${r.company}: ${r.tiles.length} tiles. ${r.matched} reused from the catalog, ${r.created} new${r.skipped?", "+r.skipped+" not available":""}.`,6000)}
   catch(e){toast(e.message,6000)}
   S.pending=null; S.busy=false; await loadMe(); refresh()}

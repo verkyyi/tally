@@ -1,14 +1,192 @@
 [
-  {"id": "lowest_plan_price", "title": "{company} · entry plan price", "kind": "direct", "unit": "USD/mo", "skill": "pricing_page",
-   "question": "What is the listed monthly price of {company}'s lowest-priced paid plan?"},
-  {"id": "eng_roles", "title": "{company} · open engineering roles", "kind": "count", "unit": "roles", "skill": "job_board",
-   "question": "How many open engineering roles does {company} have?"},
-  {"id": "github_stars", "title": "{company} · GitHub stars", "kind": "direct", "unit": "stars", "skill": "github_stars",
-   "question": "How many GitHub stars does {company}'s main open-source repository have?"},
-  {"id": "launches", "title": "{company} · launches this quarter", "kind": "count", "unit": "launches", "skill": null,
-   "question": "How many product launches or major feature releases has {company} announced this quarter (since October 1, 2026)?"},
-  {"id": "app_rating", "title": "{company} · App Store rating", "kind": "direct", "unit": "rating /5", "skill": "rating",
-   "question": "What is the App Store rating of the {company} iOS app?"},
-  {"id": "funding", "title": "{company} · total funding raised", "kind": "direct", "unit": "USD", "skill": null,
-   "question": "How much total funding has {company} raised?"}
+ {
+  "id": "funding",
+  "title": "{company} \u00b7 total funding raised",
+  "kind": "direct",
+  "unit": "USD",
+  "skill": null,
+  "question": "How much total funding has {company} raised?",
+  "pack": "company",
+  "view": "investor"
+ },
+ {
+  "id": "eng_roles",
+  "title": "{company} \u00b7 open engineering roles",
+  "kind": "count",
+  "unit": "roles",
+  "skill": "job_board",
+  "question": "How many open engineering roles does {company} have?",
+  "pack": "company",
+  "view": "investor"
+ },
+ {
+  "id": "launches",
+  "title": "{company} \u00b7 launches this quarter",
+  "kind": "count",
+  "unit": "launches",
+  "skill": null,
+  "question": "How many product launches or major feature releases has {company} announced this quarter (since October 1, 2026)?",
+  "pack": "company",
+  "view": "investor"
+ },
+ {
+  "id": "lowest_plan_price",
+  "title": "{company} \u00b7 entry plan price",
+  "kind": "direct",
+  "unit": "USD/mo",
+  "skill": "pricing_page",
+  "question": "What is the listed monthly price of {company}'s lowest-priced paid plan?",
+  "pack": "company",
+  "view": "product"
+ },
+ {
+  "id": "github_stars",
+  "title": "{company} \u00b7 GitHub stars",
+  "kind": "direct",
+  "unit": "stars",
+  "skill": "github_stars",
+  "question": "How many GitHub stars does {company}'s main open-source repository have?",
+  "pack": "company",
+  "view": "product"
+ },
+ {
+  "id": "app_rating",
+  "title": "{company} \u00b7 App Store rating",
+  "kind": "direct",
+  "unit": "rating /5",
+  "skill": "rating",
+  "question": "What is the App Store rating of the {company} iOS app?",
+  "pack": "company",
+  "view": "product"
+ },
+ {
+  "id": "latest_round",
+  "pack": "company",
+  "view": "investor",
+  "title": "{company} \u00b7 latest round size",
+  "kind": "direct",
+  "unit": "USD",
+  "skill": "funding_round",
+  "question": "How large was {company}'s most recent funding round?"
+ },
+ {
+  "id": "valuation",
+  "pack": "company",
+  "view": "investor",
+  "title": "{company} \u00b7 latest valuation",
+  "kind": "direct",
+  "unit": "USD",
+  "skill": "valuation",
+  "question": "What is {company}'s latest reported valuation?"
+ },
+ {
+  "id": "headcount",
+  "pack": "company",
+  "view": "investor",
+  "title": "{company} \u00b7 headcount",
+  "kind": "direct",
+  "unit": "employees",
+  "skill": "headcount",
+  "question": "How many employees does {company} have?"
+ },
+ {
+  "id": "all_roles",
+  "pack": "company",
+  "view": "investor",
+  "title": "{company} \u00b7 open roles, all teams",
+  "kind": "count",
+  "unit": "roles",
+  "skill": "job_board",
+  "question": "How many open roles does {company} have across all teams?"
+ },
+ {
+  "id": "sales_roles",
+  "pack": "company",
+  "view": "investor",
+  "title": "{company} \u00b7 open sales roles",
+  "kind": "count",
+  "unit": "roles",
+  "skill": "job_board",
+  "question": "How many open sales and go-to-market roles does {company} have?"
+ },
+ {
+  "id": "acc_batch",
+  "pack": "accelerator",
+  "title": "{company} \u00b7 companies in the current batch",
+  "kind": "direct",
+  "unit": "companies",
+  "skill": "accelerator_batch",
+  "question": "How many companies are in the current {company} batch?"
+ },
+ {
+  "id": "acc_batch_ai",
+  "pack": "accelerator",
+  "title": "{company} \u00b7 AI companies in the current batch",
+  "kind": "direct",
+  "unit": "companies",
+  "skill": "accelerator_batch",
+  "question": "How many AI companies are in the current {company} batch?"
+ },
+ {
+  "id": "acc_funded",
+  "pack": "accelerator",
+  "title": "{company} \u00b7 companies funded, all time",
+  "kind": "direct",
+  "unit": "companies",
+  "skill": "accelerator_batch",
+  "question": "How many companies has {company} funded in total?"
+ },
+ {
+  "id": "sector_funding",
+  "pack": "sector",
+  "monthly": true,
+  "title": "{company} \u00b7 {mon} funding",
+  "kind": "count",
+  "reducer": "sum",
+  "field": "round amount in USD",
+  "unit": "USD",
+  "skill": "funding_rounds",
+  "question": "What is the total funding announced by {phrase} startups in {month}?"
+ },
+ {
+  "id": "sector_largest",
+  "pack": "sector",
+  "monthly": true,
+  "title": "{company} \u00b7 largest round, {mon}",
+  "kind": "count",
+  "reducer": "max",
+  "field": "round amount in USD",
+  "unit": "USD",
+  "skill": "funding_rounds",
+  "question": "What is the largest funding round announced by any {phrase} startup in {month}?"
+ },
+ {
+  "id": "sector_rounds",
+  "pack": "sector",
+  "monthly": true,
+  "title": "{company} \u00b7 funding rounds, {mon}",
+  "kind": "count",
+  "unit": "rounds",
+  "skill": "funding_rounds",
+  "question": "How many funding rounds have {phrase} startups announced in {month}?"
+ },
+ {
+  "id": "inv_deals",
+  "pack": "investor",
+  "monthly": true,
+  "title": "{company} \u00b7 new investments, {mon}",
+  "kind": "count",
+  "unit": "deals",
+  "skill": "investor_deals",
+  "question": "How many new investments has {company} announced in {month}?"
+ },
+ {
+  "id": "inv_fund",
+  "pack": "investor",
+  "title": "{company} \u00b7 latest fund size",
+  "kind": "direct",
+  "unit": "USD",
+  "skill": "fund_size",
+  "question": "How large is {company}'s most recently announced fund?"
+ }
 ]

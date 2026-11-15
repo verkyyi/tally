@@ -69,7 +69,7 @@ def start_session(request: Request, response: Response, uid, name=None, picture=
     db.run("INSERT INTO sessions(token,user_id,created_at) VALUES(?,?,?)", (tok, uid, db.now()))
     https = request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
     response.set_cookie(COOKIE, tok, max_age=30 * 86400, httponly=True, samesite="lax", secure=https)
-    return public_user(db.one("SELECT * FROM users WHERE id=?", (uid,)))
+    return public_user(db.one("SELECT * FROM users WHERE id=?", (uid,))) | {"new": new}
 
 
 def public_user(u):
@@ -266,7 +266,7 @@ def search(request: Request, q: str = ""):
     pack = None
     if text and looks_like_company(text):
         have = db.one("SELECT COUNT(*) n FROM metrics WHERE lower(company)=? AND template_id IS NOT NULL", (text.lower(),))["n"]
-        pack = {"company": text, "metrics": len(TEMPLATES), "in_catalog": have}
+        pack = {"company": text, "metrics": len([t for t in TEMPLATES if t.get("pack", "company") == "company"]), "in_catalog": have}
     return {"q": text, "catalog": found[:8], "catalog_total": len(found), "pack": pack, "create": {"text": text} if text else None}
 
 
@@ -275,7 +275,8 @@ TEMPLATES = json.load(open(os.path.join(HERE, "templates.json")))
 
 @app.get("/api/templates")
 def templates():
-    return {"templates": [{"id": t["id"], "name": t["title"].replace("{company} · ", ""), "kind": t["kind"]} for t in TEMPLATES]}
+    return {"templates": [{"id": t["id"], "name": t["title"].replace("{company} · ", "").replace(", {mon}", ", this month").replace("{mon} ", "this month's "), "kind": t["kind"],
+                           "pack": t.get("pack", "company"), "view": t.get("view"), "question": t["question"]} for t in TEMPLATES]}
 
 
 @app.get("/api/catalog")
@@ -330,6 +331,12 @@ def add_metric(body: AddMetric, request: Request):
 
 class Pack(BaseModel):
     company: str
+    pack: str = "company"          # company | accelerator | sector | investor
+    view: str | None = None        # company packs: investor | product; None = everything
+    only: list[str] | None = None  # a subset of recipe ids, for tracking one number
+    phrase: str | None = None      # how the subject reads inside a sentence ("AI agent" for the sector "AI agents")
+    replace_board: bool = False    # start the board over with this pack (first-run setup)
+    hide_empty: bool = False       # leave numbers with no value yet in the catalog, off the board
 
 
 @app.post("/api/packs")
@@ -339,11 +346,21 @@ def add_pack(body: Pack, request: Request):
     company = body.company.strip()
     if not company:
         raise HTTPException(400, "company is empty")
-    ms, created, skipped = core.add_pack(u["id"], company, can_create=u["plan"] == "pro" and not (is_guest(u) and guest_cap_reached()))
+    if body.pack not in ("company", "accelerator", "sector", "investor"):
+        raise HTTPException(400, "unknown pack")
+    if body.replace_board:
+        db.run("DELETE FROM board_items WHERE user=?", (u["id"],))
+    ms, created, skipped = core.add_pack(u["id"], company, can_create=u["plan"] == "pro" and not (is_guest(u) and guest_cap_reached()),
+                                         pack=body.pack, view=body.view, only=body.only, phrase=(body.phrase or "").strip()[:60] or None)
     if not ms and u["plan"] != "pro":
-        raise HTTPException(402, "The catalog doesn't track this company yet. Creating a competitor pack is part of Pro.")
+        raise HTTPException(402, "The catalog doesn't track this yet. Building new curated numbers is part of Pro.")
     ids = live_ids(u)
-    return {"company": company, "tiles": [tile(m, u, ids) for m in ms], "created": created, "matched": len(ms) - created, "skipped": skipped}
+    tiles = [tile(m, u, ids) for m in ms]
+    empty = [t for t in tiles if t["value"] is None] if body.hide_empty else []
+    for t in empty:
+        db.run("DELETE FROM board_items WHERE user=? AND metric_id=?", (u["id"], t["id"]))
+    tiles = [t for t in tiles if t not in empty]
+    return {"company": company, "tiles": tiles, "created": created, "matched": len(ms) - created, "skipped": skipped, "empty": len(empty)}
 
 
 @app.post("/api/changes/{cid}/reject")

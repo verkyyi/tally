@@ -660,94 +660,66 @@
    "adj": "climate tech"
   }
  ],
- "dims": {
-  "company": [
-   {
-    "label": "total funding raised",
-    "q": "How much total funding has {x} raised?",
-    "tpl": "total funding raised"
-   },
-   {
-    "label": "open engineering roles",
-    "q": "How many open engineering roles does {x} have?",
-    "tpl": "open engineering roles"
-   },
-   {
-    "label": "launches this quarter",
-    "q": "How many product launches or major feature releases has {x} announced this quarter?",
-    "tpl": "launches this quarter"
-   },
-   {
-    "label": "latest valuation",
-    "q": "What is {x}'s latest reported valuation?"
-   },
-   {
-    "label": "latest funding round size",
-    "q": "How large was {x}'s most recent funding round?"
-   },
-   {
-    "label": "headcount",
-    "q": "How many employees does {x} have?"
-   },
-   {
-    "label": "open roles, all teams",
-    "q": "How many open roles does {x} have in total?"
-   },
-   {
-    "label": "open sales roles",
-    "q": "How many open sales and go-to-market roles does {x} have?"
-   },
-   {
-    "label": "GitHub stars",
-    "q": "How many GitHub stars does {x}'s main open-source repository have?",
-    "tpl": "GitHub stars"
-   },
-   {
-    "label": "entry plan price",
-    "q": "What is the listed monthly price of {x}'s lowest-priced paid plan?",
-    "tpl": "entry plan price"
-   },
-   {
-    "label": "App Store rating",
-    "q": "What is the App Store rating of the {x} iOS app?",
-    "tpl": "App Store rating"
-   }
-  ],
-  "accelerator": [
-   {
-    "label": "companies in the current batch",
-    "q": "How many companies are in the current {x} batch?"
-   },
-   {
-    "label": "AI companies in the current batch",
-    "q": "How many AI companies are in the current {x} batch?"
-   },
-   {
-    "label": "portfolio companies hiring now",
-    "q": "How many {x} portfolio companies are hiring now?"
-   },
-   {
-    "label": "companies funded, all time",
-    "q": "How many companies has {x} funded in total?"
-   }
-  ],
-  "sector": [
-   {
-    "label": "funding announced this month",
-    "q": "Total funding announced by {x} startups this month"
-   },
-   {
-    "label": "largest round this month",
-    "q": "Largest funding round announced this month by any {x} startup"
-   },
-   {
-    "label": "funding rounds this month",
-    "q": "How many funding rounds have {x} startups announced this month?"
-   },
-   {
-    "label": "launches this month",
-    "q": "How many {x} products have launched this month?"
-   }
-  ]
- }
+ "investors": [
+  {
+   "name": "Andreessen Horowitz"
+  },
+  {
+   "name": "Sequoia Capital"
+  },
+  {
+   "name": "Founders Fund"
+  },
+  {
+   "name": "Benchmark"
+  },
+  {
+   "name": "Accel"
+  },
+  {
+   "name": "Lightspeed"
+  },
+  {
+   "name": "General Catalyst"
+  },
+  {
+   "name": "Khosla Ventures"
+  },
+  {
+   "name": "Index Ventures"
+  },
+  {
+   "name": "Greylock"
+  },
+  {
+   "name": "Kleiner Perkins"
+  },
+  {
+   "name": "First Round Capital"
+  },
+  {
+   "name": "Initialized Capital"
+  },
+  {
+   "name": "Conviction"
+  },
+  {
+   "name": "Felicis"
+  },
+  {
+   "name": "NFX"
+  },
+  {
+   "name": "Pear VC"
+  },
+  {
+   "name": "Floodgate"
+  },
+  {
+   "name": "SV Angel"
+  },
+  {
+   "name": "Thrive Capital"
+  }
+ ]
 }
