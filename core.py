@@ -583,6 +583,9 @@ def add_pack(user, company, can_create=True, pack="company", view=None, only=Non
         company = company.title()
     if pack == "accelerator" and company.lower() in YC_NAMES:  # YC is read exactly from its open directory: use those numbers
         ms = db.q("SELECT * FROM metrics WHERE curated=1 AND skill='yc_directory' ORDER BY id")
+        have = {m["title"].lower() for m in ms}
+        ms += [m for m in db.q("SELECT * FROM metrics WHERE skill LIKE 'free|yc|batches|%' ORDER BY id LIMIT 4") + db.q("SELECT * FROM metrics WHERE skill LIKE 'free|yc|tags|%' ORDER BY id LIMIT 3")
+               if m["title"].lower() not in have]
         for m in ms:
             follow(user, m["id"])
         return ms, 0, 0
@@ -610,7 +613,13 @@ def add_pack(user, company, can_create=True, pack="company", view=None, only=Non
 
     with ThreadPoolExecutor(6) as ex:
         res = list(ex.map(one, pack_templates(pack, view, only)))
-    return [m for m, _ in res if m], sum(1 for _, c in res if c), sum(1 for m, _ in res if not m)
+    ms = [m for m, _ in res if m]
+    if pack == "company" and not only:  # numbers read from free public sources about the same name come along: stars, downloads
+        for m in db.q("SELECT * FROM metrics WHERE skill LIKE 'free|%' AND lower(company)=?", (company.lower(),)):
+            if m["id"] not in {x["id"] for x in ms}:
+                follow(user, m["id"])
+                ms.append(m)
+    return ms, sum(1 for _, c in res if c), sum(1 for m, _ in res if not m)
 
 
 def create_free(title, question, unit, spec, company, template_id):
