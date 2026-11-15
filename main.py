@@ -448,7 +448,7 @@ def feedback(mid: int, body: Feedback, request: Request):
 def changes(request: Request, since: str | None = None):
     u = viewer(request)
     ids = live_ids(u)
-    sql = ("SELECT c.*, m.title, m.kind, m.unit FROM changes c JOIN metrics m ON m.id=c.metric_id "
+    sql = ("SELECT c.*, m.title, m.kind AS metric_kind, m.unit FROM changes c JOIN metrics m ON m.id=c.metric_id "
            "JOIN board_items b ON b.metric_id=m.id AND b.user=? AND b.muted=0 ")
     args = [u["id"] if u else FEATURED]
     sql += "WHERE COALESCE(c.status,'accepted')='accepted' "

@@ -109,6 +109,7 @@ ul.rows.one .r{font:12px var(--mono);color:var(--mute);white-space:nowrap}
 .steps .st span{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--accent);display:block;margin-bottom:3px}
 .steps .ar{align-self:center;color:var(--mute)}
 dl.kv{display:grid;grid-template-columns:76px 1fr;gap:6px 12px;margin:0;font-size:13px}dl.kv dt{color:var(--mute)}dl.kv dd{margin:0}
+.bigspark{margin:0 0 12px}.bigspark .spark{width:100%;height:110px;display:block}
 .fold pre{white-space:pre-wrap;font:12px/1.5 var(--mono);background:#fff;border:1px solid var(--line);border-radius:6px;padding:10px;margin:8px 0 0;color:var(--ink)}
 #panel .tstat{grid-template-columns:repeat(4,1fr);margin:0 0 12px}
 table.calls{width:100%;border-collapse:collapse;font:12px var(--mono)}table.calls td{padding:6px 4px;border-bottom:1px solid var(--line)}table.calls td:last-child{text-align:right;color:var(--mute);white-space:nowrap}
@@ -170,8 +171,8 @@ th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var
   <div id="acct"></div>
 </header>
 <div id="banner" hidden></div>
-<nav><a data-tab="board" class="on">Board</a><a data-tab="log">Change log</a><a data-tab="catalog">Shared catalog</a><a data-tab="trace">Telem trace</a>
-  <label id="f24"><input type="checkbox" id="last24"> last 24h</label></nav>
+<nav><a data-tab="board" class="on">Board</a><a data-tab="log">Activity</a><a data-tab="catalog">Explore</a>
+  <label id="f24"><input type="checkbox" id="last24"> last 24h &nbsp; <input type="checkbox" id="smalled"> small edits</label></nav>
 <main><div id="board" class="grid"></div><div id="log" hidden></div>
   <div id="tracetab" hidden><div id="trace"></div><div id="tracecalls"></div></div>
   <div id="catalog" hidden><div class="cathead"><input type="search" id="cq" placeholder="Search the catalog: a company, “stars”, “price”, “funding”…"><span class="when" id="ccount"></span></div><div id="ctable"></div></div></main>
@@ -246,7 +247,7 @@ function plansModal(why){
     <div class="pcard"><b>Visitor</b><div class="price">$0</div><ul><li>Read and search the whole catalog</li><li>Featured metrics live</li><li>Everything else delayed</li></ul>${u?"":'<span class="when">You are here</span>'}</div>
     <div class="pcard"><b>Free account</b><div class="price">$0 <small>with Google</small></div><ul><li>Your own board</li><li>Live on featured metrics, what you create, and ${S.me.free_live} catalog picks</li><li>Create ${S.me.free_create} new metrics</li><li>Run now and change log</li></ul>
       ${u?(p=="free"?'<span class="when">You are here</span>':""):'<button id="pin">Sign in with Google</button>'}</div>
-    <div class="pcard hot"><b>Pro</b><div class="price">$${S.me.price_usd} <small>/ month</small></div><ul><li>Every metric live, with evidence</li><li>Unlimited new metrics</li><li>Run now on anything</li><li>Hourly Telem monitor on each metric you create</li></ul>
+    <div class="pcard hot"><b>Pro</b><div class="price">$${S.me.price_usd} <small>/ month</small></div><ul><li>Every metric live, with evidence</li><li>Unlimited new metrics</li><li>Check now on anything</li><li>Automatic checks on the numbers you follow</li></ul>
       ${p=="pro"?'<span class="when">You are here. Thank you.</span>':`<button class="pro" id="buy">${S.me.billing?"Upgrade with Stripe":"Billing opens soon"}</button>`}</div>
   </div>`);
   if($("#pin")) $("#pin").onclick=()=>signInModal();
@@ -281,8 +282,8 @@ function tileHTML(t){
     ${v?`<div class="val">${v.text}<small>${esc(v.unit)}</small></div>`:`<div class="val none">no value yet</div>`}
     <div class="delta">${d}</div>${spark(t.spark)}
     <div class="foot"><span class="chips">${t.live&&t.last_checked?`<span class="chip-i" title="Checked ${ago(t.last_checked)}">${ico("clock")}${short(ago(t.last_checked))}</span>`:""}${
-      t.live&&t.next_check?`<span class="chip-i" title="Next check ${until(t.next_check)}, by a Telem monitor">${ico("radar")}${short(until(t.next_check))}</span>`:t.monitor?`<span class="chip-i" title="Watched by a Telem monitor">${ico("radar")}</span>`:""}<span class="chip-i" title="Tracked by ${t.followers}">${ico("people")}${t.followers}</span>${
-      t.curated?`<span class="chip-i acc" title="Curated recipe">${ico("seal")}</span>`:""}</span>
+      t.live&&t.next_check?`<span class="chip-i" title="Next automatic check ${until(t.next_check)}">${ico("radar")}${short(until(t.next_check))}</span>`:t.monitor?`<span class="chip-i" title="Checked automatically">${ico("radar")}</span>`:""}<span class="chip-i" title="Tracked by ${t.followers}">${ico("people")}${t.followers}</span>${
+      t.curated?`<span class="chip-i acc" title="Verified method">${ico("seal")}</span>`:""}</span>
     ${t.live?"":`<button class="ghost golive" data-id="${t.id}">Go live</button>`}</div></div>`;
 }
 function renderBoard(){
@@ -321,21 +322,28 @@ async function loadTrace(){
     <p class="when" style="margin-top:10px">Open any tile to see the Telem trace for that one number. Search cost is estimated from provider list prices.</p>`;
 }
 
+const pj=x=>{if(x==null) return "(none)"; let o=x; try{if(typeof x=="string"&&/^[\[{]/.test(x.trim())) o=JSON.parse(x)}catch(_){}
+  if(o&&typeof o=="object"){const y=o.value??o.new_value??o.number; return y==null?"(none)":String(y)} return String(o)};
+const attrOf=c=>{for(const x of [c.before,c.after]){try{const o=JSON.parse(x); if(o&&o.attribute) return o.attribute}catch(_){}} return null};
+// A change that moved the number, as opposed to a small edit to one entry. kind = the metric's kind.
+const isMajor=(c,kind)=>(c.kind=="entity_added"&&c.before!=null)||c.kind=="source_changed"||(c.kind=="value_changed"&&kind=="direct"&&!attrOf(c));
+const smallText=c=>c.kind=="value_changed"?`${esc(c.note||"Entry")} · ${esc(attrOf(c)||"status")}: ${esc(pj(c.before))} → ${esc(pj(c.after))}`:changeText(c);
 function changeText(c){
   const link=c.url?` <a href="${esc(c.url)}" target="_blank">↗</a>`:"";
   if(c.kind=="entity_added"&&c.before!=null) return `<b>${esc(c.before)} → ${esc(c.after)}</b> · new entry: ${esc(c.note)}${link}`;
-  if(c.kind=="entity_added") return `Telem now tracks: ${esc(c.note||c.after)}${link}`;
-  if(c.kind=="value_changed") return `<b>${esc(c.before??"—")} → ${esc(c.after)}</b>${c.note?" · "+esc(c.note):""}${link}`;
+  if(c.kind=="entity_added") return `Now watching: ${esc(c.note||c.after)}${link}`;
+  if(c.kind=="value_changed") return `<b>${esc(pj(c.before))} → ${esc(pj(c.after))}</b>${c.note?" · "+esc(c.note):""}${link}`;
   if(c.kind=="source_changed") return `${esc(c.note)}: <a href="${esc(c.after)}" target="_blank">${esc(c.after)}</a>`;
   return esc(c.note||c.after||c.kind)+link;
 }
-const originTag=o=>`<span class="tag ${o}">${{monitor:"Telem monitor",run_now:"Run now",feedback:"Feedback"}[o]||o}</span>`;
+const originTag=o=>`<span class="tag ${o}">${{monitor:"Auto-check",run_now:"Check now",feedback:"Feedback"}[o]||o}</span>`;
 async function loadLog(){
   const since=$("#last24").checked?"?since="+new Date(Date.now()-864e5).toISOString().slice(0,19)+"Z":"";
-  const cs=(await api("/api/changes"+since)).changes;
-  $("#log").innerHTML=cs.length?`<table><tr><th>When</th><th>Metric</th><th>Change</th><th>Found by</th></tr>${cs.map(c=>
-    `<tr><td class="when">${ago(c.at)}</td><td>${esc(c.title)}</td><td>${changeText(c)}</td><td>${originTag(c.origin)}</td></tr>`).join("")}</table>`
-    :'<div class="empty">No changes yet. Tally only surfaces what moved.</div>';
+  const all=(await api("/api/changes"+since)).changes, mk=c=>c.metric_kind||"count", cs=$("#smalled").checked?all:all.filter(c=>isMajor(c,mk(c))), hidden=all.length-cs.length;
+  $("#log").innerHTML=(cs.length?`<table><tr><th>When</th><th>Number</th><th>What changed</th><th>Found by</th></tr>${cs.map(c=>
+    `<tr><td class="when">${ago(c.at)}</td><td>${esc(c.title)}</td><td>${isMajor(c,mk(c))?changeText(c):smallText(c)}</td><td>${originTag(c.origin)}</td></tr>`).join("")}</table>`
+    :'<div class="empty">Nothing on your board has moved yet. Tally only surfaces what changed.</div>')
+    +(hidden?`<p class="when" style="margin-top:10px">${hidden} small ${hidden==1?"edit":"edits"} to individual entries hidden. Tick “small edits” to see them.</p>`:"");
 }
 async function loadCatalog(){
   const r=await api("/api/catalog?q="+encodeURIComponent($("#cq").value.trim())), ms=r.metrics;
@@ -358,10 +366,10 @@ async function openPanel(id){
   let h=`<div class="ph"><button class="ghost x">×</button><h2>${esc(m.title)}</h2><div class="q">${esc(m.question)}</div>
     <div class="hero"><div class="val${v?"":" none"}">${v?v.text+`<small>${esc(v.unit)}</small>`:"no value yet"}</div><div class="hd">${d}</div><div class="hs">${m.live?spark(m.spark):""}</div></div>
     <div class="pmeta">${m.live?`<span>${ico("clock")}checked ${ago(m.last_checked)}</span>`:`<span>delayed value, as of ${ago(m.as_of)}</span>`}${
-      m.live&&m.next_check?`<span>${ico("radar")}next check ${until(m.next_check)}</span>`:m.monitor?`<span>${ico("radar")}Telem monitor</span>`:""}<span>${ico("people")}tracked by ${m.followers}</span></div>
+      m.live&&m.next_check?`<span>${ico("radar")}${/^in /.test(until(m.next_check))?"next check "+until(m.next_check):"check due"}</span>`:m.monitor?`<span>${ico("radar")}auto-check on</span>`:""}<span>${ico("people")}tracked by ${m.followers}</span></div>
     ${m.live?`<button class="runp">Check now</button>`:""}</div>`;
   if(e.locked){
-    h+=`<div class="pbody"><p style="color:#4a463c;margin-top:0">This metric is delayed for you. The live number, its source and quote, the full ledger and the change history are part of ${S.me.user?"Pro, or pick it as one of your live catalog metrics":"a signed-in account"}.</p>
+    h+=`<div class="pbody"><p style="color:#4a463c;margin-top:0">This metric is delayed for you. The live number, its source and quote, the full list of entries and the change history are part of ${S.me.user?"Pro, or pick it as one of your live catalog metrics":"a signed-in account"}.</p>
       ${S.me.user?`<button class="pro" id="pup">See plans</button>`:`<button id="pin2">Sign in with Google</button>`}
       ${S.me.user&&!m.on_board?` <button class="ghost fol" data-id="${m.id}">Add to board</button>`:""}</div>`;
   } else {
@@ -370,43 +378,39 @@ async function openPanel(id){
     if(m.kind=="direct"){
       const o=e.observation; ev=o?`${o.quote?`<q>${esc(o.quote)}</q>`:""}
         <dl class="kv" style="margin-top:10px"><dt>Source</dt><dd><a href="${esc(o.evidence_url||m.source_url)}" target="_blank">${esc(o.evidence_url||m.source_url)}</a>${o.seeded?'<span class="tag seeded">seeded</span>':""}</dd>
-        <dt>Read</dt><dd>${ago(o.as_of)}, via Telem Fetch</dd></dl>`:"<p class='psub'>No value found on any source yet. Tally never guesses.</p>";
+        <dt>Read</dt><dd>${ago(o.as_of)}</dd></dl>`:"<p class='psub'>No value found on any source yet. Tally never guesses.</p>";
     } else {
       const es=[...e.entries].sort((x,y)=>(y.is_new?1:0)-(x.is_new?1:0)), red={sum:"summed",avg:"averaged",max:"the largest is taken"}[e.reducer];
-      ev=`<p class="psub">Ledger of ${es.length} ${es.length==1?"entry":"entries"}, each stored once by its link${red?", "+red:""}.</p><ul class="rows one">${es.map(x=>`<li class="${x.is_new?"new":""}">
+      ev=`<p class="psub">${es.length} ${es.length==1?"entry":"entries"}, each stored once by its link${red?", "+red:""}.</p><ul class="rows one">${es.map(x=>`<li class="${x.is_new?"new":""}">
         <span>${x.url?`<a href="${esc(x.url)}" target="_blank">${esc(x.title)}</a>`:esc(x.title)}${x.is_new?'<span class="tag new">NEW</span>':""}${x.seeded?'<span class="tag seeded">seeded</span>':""}</span>
         <span class="r" title="first seen ${ago(x.first_seen_at)}${x.found_via?" · via "+x.found_via:""}${x.date?" · dated "+esc(x.date):""}">${x.value!=null?"<b>"+((val(x.value,m.unit)||{}).text||x.value)+"</b> · ":""}${x.date?esc(x.date):short(ago(x.first_seen_at))}</span></li>`).join("")||"<li class='when'>No entries yet.</li>"}</ul>`;
     }
-    // --- Changes: what moved the number first; small edits to an entry folded away
-    const pj=x=>{if(x==null) return "(none)"; let o=x; try{if(typeof x=="string"&&/^[\[{]/.test(x.trim())) o=JSON.parse(x)}catch(_){}
-      if(o&&typeof o=="object"){const y=o.value??o.new_value??o.number; return y==null?"(none)":String(y)} return String(o)};
-    const attr=c=>{for(const x of [c.before,c.after]){try{const o=JSON.parse(x); if(o&&o.attribute) return o.attribute}catch(_){}} return null};
-    const major=c=>(c.kind=="entity_added"&&c.before!=null)||c.kind=="source_changed"||(c.kind=="value_changed"&&m.kind=="direct"&&!attr(c));
+    // --- History: the chart, then what moved the number; small edits to an entry folded away
+    const major=c=>isMajor(c,m.kind);
     const when=c=>`<div class="w">${ago(c.at)} · <a href="#" class="nac" data-c="${c.id}">not a change</a></div>`;
     const big=e.changes.filter(major), small=e.changes.filter(c=>!major(c));
     const bigRow=c=>`<div class="chg">${c.kind=="value_changed"?`<b>${esc(pj(c.before))} → ${esc(pj(c.after))}</b>${c.url?` <a href="${esc(c.url)}" target="_blank">↗</a>`:""}`:changeText(c)} ${originTag(c.origin)}${when(c)}</div>`;
-    const smallRow=c=>`<div class="chg">${c.kind=="value_changed"?`${esc(c.note||"Entry")} · ${esc(attr(c)||"status")}: ${esc(pj(c.before))} → ${esc(pj(c.after))}`:changeText(c)} ${originTag(c.origin)}${when(c)}</div>`;
-    const ch=(big.map(bigRow).join("")||`<p class="psub">${small.length?"Nothing has moved the number yet.":"No changes recorded."}</p>`)+
+    const smallRow=c=>`<div class="chg">${smallText(c)} ${originTag(c.origin)}${when(c)}</div>`;
+    const ch=(m.spark.length>1?`<div class="bigspark">${spark(m.spark)}</div>`:`<p class="psub">The chart appears once this number has been checked more than once.</p>`)+(big.map(bigRow).join("")||`<p class="psub">${small.length?"Nothing has moved the number yet.":"No changes recorded."}</p>`)+
       (small.length?`<details class="fold"${big.length?"":" open"}><summary>${small.length} smaller ${small.length==1?"edit":"edits"} to existing entries</summary>${small.map(smallRow).join("")}</details>`:"");
     // --- How it's made
-    const reduce={count:"Count the ledger",sum:"Add up the ledger",avg:"Average the ledger",max:"Take the largest"}[e.reducer]||"Count the ledger";
+    const reduce={count:"Count the entries",sum:"Add up the entries",avg:"Average the entries",max:"Take the largest"}[e.reducer]||"Count the entries";
+    const ts=e.trace_summary;
     const how=`<div class="steps"><div class="st"><span>1 · Gather</span>${m.kind=="count"?"Search, then read the listing pages":"Find and read one source"}</div><div class="ar">→</div>
         <div class="st"><span>2 · Read</span>${m.kind=="count"?"Title, link, date"+(e.field&&e.reducer!="count"?", "+esc(e.field):"")+" of each entry":"One value, with its quote"}</div><div class="ar">→</div>
         <div class="st"><span>3 · Reduce</span>${m.kind=="count"?reduce:"The value itself"}</div></div>
       <dl class="kv"><dt>Source</dt><dd>${e.source_url?`<a href="${esc(e.source_url)}" target="_blank">${esc(e.source_url)}</a>`:"found by search on each run"}</dd>
-        <dt>Recipe</dt><dd>${m.curated?"Curated template":"Free-form question"}${m.spark.some(o=>o.origin=="backfill")?". The last 7 days of history are computed from the entries' own dates.":""}</dd>
-        <dt>Monitor</dt><dd>${e.telem_monitor_id?"Telem monitor · “"+esc(e.monitor_query)+"”":"None yet. Updated by Check now."}</dd>
-        <dt>Search</dt><dd>${esc(e.search_query)}</dd><dt>Skill</dt><dd>${e.skill?esc(e.skill)+".md":"General method"}</dd></dl>
-      ${e.skill_text?`<details class="fold"><summary>Show the skill text</summary><pre>${esc(e.skill_text)}</pre></details>`:""}`;
-    // --- Telem trace
-    const ts=e.trace_summary, tr=`<div class="tstat"><div><b>${ts.calls}</b><span>calls</span></div><div><b>${ts.avg_latency_ms!=null?(ts.avg_latency_ms/1000).toFixed(1)+"s":"—"}</b><span>avg latency</span></div>
-        <div><b>$${ts.est_search_cost.toFixed(2)}</b><span>est. cost</span></div><div><b>${ts.saved_by_sharing}</b><span>saved by sharing</span></div></div>
-      <p class="psub">Providers that answered: ${Object.entries(ts.by_provider).sort((a,b)=>b[1]-a[1]).map(([k,v])=>esc(k)+" "+v).join(" · ")||"—"}</p>
-      <p class="psub">By endpoint: ${Object.entries(ts.by_endpoint).map(([k,v])=>esc(k)+" "+v).join(" · ")||"—"}</p>
-      <table class="calls">${e.trace.map(t=>`<tr><td>${esc(t.endpoint)}</td><td>${provs(t.providers_json)}</td><td>${(t.latency_ms/1000).toFixed(1)}s${t.est_cost?" · $"+t.est_cost.toFixed(3):""}</td><td>${ago(t.at)}</td></tr>`).join("")||"<tr><td>No Telem calls recorded for this metric.</td></tr>"}</table>`;
+        <dt>Method</dt><dd>${m.curated?"Verified method":"Free-form question"}${m.spark.some(o=>o.origin=="backfill")?". The last 7 days of history are computed from the entries' own dates.":""}</dd>
+        <dt>Auto-check</dt><dd>${e.telem_monitor_id?"On · watching for: “"+esc(e.monitor_query)+"”":"Off. Updated when someone presses Check now."}</dd></dl>
+      <details class="fold"><summary>Under the hood</summary>
+        <dl class="kv" style="margin-top:8px"><dt>Search</dt><dd>${esc(e.search_query)}</dd><dt>Calls</dt><dd>${ts.calls} so far · ${ts.saved_by_sharing} saved by sharing · est. cost $${ts.est_search_cost.toFixed(2)}</dd>
+          <dt>Providers</dt><dd>${Object.entries(ts.by_provider).sort((a,b)=>b[1]-a[1]).map(([k,v])=>esc(k)+" "+v).join(" · ")||"—"}</dd></dl>
+        <table class="calls" style="margin-top:8px">${e.trace.map(t=>`<tr><td>${esc(t.endpoint)}</td><td>${provs(t.providers_json)}</td><td>${(t.latency_ms/1000).toFixed(1)}s${t.est_cost?" · $"+t.est_cost.toFixed(3):""}</td><td>${ago(t.at)}</td></tr>`).join("")||"<tr><td>No calls recorded for this number.</td></tr>"}</table>
+        ${e.skill_text?`<p class="psub" style="margin-top:12px">Reading instructions used for this source:</p><pre>${esc(e.skill_text)}</pre>`:""}
+        <p class="psub" style="margin-top:10px">Search and page reading by Telem.</p></details>`;
     const n=m.kind=="count"?e.entries.length:"";
-    h+=`<div class="ptabs"><a data-pt="ev">Evidence${n!==""?`<i>${n}</i>`:""}</a><a data-pt="ch">Changes${e.changes.length?`<i>${e.changes.length}</i>`:""}</a><a data-pt="how">How it's made</a><a data-pt="tr">Telem trace</a></div>
-      <div class="pbody"><div data-p="ev">${ev}</div><div data-p="ch">${ch}</div><div data-p="how">${how}</div><div data-p="tr">${tr}</div></div>
+    h+=`<div class="ptabs"><a data-pt="ev">Evidence${n!==""?`<i>${n}</i>`:""}</a><a data-pt="ch">History${big.length?`<i>${big.length}</i>`:""}</a><a data-pt="how">Method</a></div>
+      <div class="pbody"><div data-p="ev">${ev}</div><div data-p="ch">${ch}</div><div data-p="how">${how}</div></div>
       ${S.me.user?`<div class="pfoot">${m.on_board?`<button class="ghost fb" data-a="mute">Mute / unmute</button><button class="ghost unf">Remove from board</button>`:`<button class="ghost fol" data-id="${m.id}">Add to board</button>`}${m.kind=="direct"?`<button class="ghost fb" data-a="wrong_source">Wrong source</button>`:""}</div>`:""}`;
   }
   const p=$("#panel"); p.innerHTML=h; p.classList.add("open"); showPtab();
@@ -414,7 +418,7 @@ async function openPanel(id){
 function showPtab(){const t=S.ptab||"ev"; document.querySelectorAll("#panel [data-pt]").forEach(x=>x.classList.toggle("on",x.dataset.pt==t)); document.querySelectorAll("#panel [data-p]").forEach(x=>x.classList.toggle("on",x.dataset.p==t))}
 function closePanel(){$("#panel").classList.remove("open");S.open=null}
 async function refresh(){await Promise.all([loadCat(),loadBoard(),loadTrace(),S.tab=="log"?loadLog():S.tab=="catalog"?loadCatalog():0]); if(S.open) openPanel(S.open)}
-async function followMetric(id){ await api(`/api/metrics/${id}/follow`,{}); toast("Added to your board with its full history. No new Telem calls."); await loadMe(); refresh() }
+async function followMetric(id){ await api(`/api/metrics/${id}/follow`,{}); toast("Added to your board with its full history. Nothing had to be looked up again."); await loadMe(); refresh() }
 
 /* ---------- one search box ---------- */
 let tplNames=null, sugT=null;
@@ -467,7 +471,7 @@ async function showResults(){
   let h="";
   if(found.length) h+=`<div class="shead">In the catalog${found.length>7?" · "+found.length+" matches":""}</div>`+found.slice(0,7).map(m=>{const v=val(m.value,m.unit);
     return sugRow(m.on_board?"open":"follow",m.id,hl(m.title,words),`${v?v.text+" "+esc(v.unit):"no value yet"} · tracked by ${m.followers}${m.live?"":" · delayed"}`,m.on_board?"On your board":"Follow")}).join("");
-  if(found.filter(m=>!m.on_board).length>1&&isCompany(q)) h+=sugRow("followall",found.filter(m=>!m.on_board).slice(0,8).map(m=>m.id).join(","),`Follow all ${Math.min(found.filter(m=>!m.on_board).length,8)} for “${esc(q)}”`,"already tracked in the catalog: arrives at once, no new Telem calls","Follow all");
+  if(found.filter(m=>!m.on_board).length>1&&isCompany(q)) h+=sugRow("followall",found.filter(m=>!m.on_board).slice(0,8).map(m=>m.id).join(","),`Follow all ${Math.min(found.filter(m=>!m.on_board).length,8)} for “${esc(q)}”`,"already tracked in the catalog: arrives at once, nothing to look up again","Follow all");
   let names=[];
   if(!ent&&q.length>=2){const l=q.toLowerCase(); names=entities().filter(e=>e.name.toLowerCase().startsWith(l)||(e.alias||"").toLowerCase().startsWith(l)||e.name.toLowerCase().split(/\s+/).some(w=>w.startsWith(l))).slice(0,5);
     if(names.length) h+=`<div class="shead">Did you mean</div>`+names.map(e=>sugRow("fill",e.name,hl(e.name,[q]),entLabel(e),"Choose")).join("")}
@@ -476,21 +480,21 @@ async function showResults(){
     if(ds.length) h+=`<div class="shead">Track about ${esc(ent.name)} · pick one, no typing needed</div>`+ds.map(d=>sugRow("create",d.q.replace("{x}",x),`${esc(ent.name)} · ${esc(d.label)}`,esc(d.q.replace("{x}",x)),"Track")).join("")}
   if(isCompany(q)&&!(ent&&ent.type!="company")&&!(names.length&&q.length<4)){const have=CAT.filter(m=>m.curated&&m.title.toLowerCase().startsWith(q.toLowerCase()+" ·")).length;
     h+=`<div class="shead">${ent?"Or the whole starter pack":`Starter pack, if “${esc(q)}” is a company`}</div>`+sugRow("pack",shown,`Track ${esc(shown)} as a company: 6 metrics`,have?`${have} already in the catalog, reused at once`:"entry plan price, engineering roles, GitHub stars, launches, App Store rating, funding","Track")}
-  h+=`<div class="shead">Or ask it your own way</div>`+sugRow("create",q,`Create a new metric: “${esc(q)}”`,"Telem finds the source; the catalog is checked first","Create");
+  h+=`<div class="shead">Or ask it your own way</div>`+sugRow("create",q,`Create a new metric: “${esc(q)}”`,"Tally finds the source; the catalog is checked first","Create");
   $("#sugg").innerHTML=h; $("#sugg").hidden=false; setSel(0);
 }
 function hideSugg(){$("#sugg").hidden=true}
 async function doCreate(q){
   if(!S.me.user) return signInModal("Sign in to ask for a number. If the catalog already tracks it, you get it at once.");
-  S.busy=true; S.pending="Checking the shared catalog, then asking Telem…"; setTab("board");
+  S.busy=true; S.pending="Checking the shared catalog, then finding the source…"; setTab("board");
   try{const r=await api("/api/metrics",{question:q}); $("#q").value=""; S.flash=r.metric.id;
-    toast(r.matched?`Already in the catalog — reused with its history. Tracked by ${r.metric.followers}. No new Telem calls.`
-      :(r.metric.value!=null?"New metric: Telem found the source.":"New metric created — no value found yet."),5000)}
+    toast(r.matched?`Already in the catalog — reused with its history. Tracked by ${r.metric.followers}. Nothing had to be looked up again.`
+      :(r.metric.value!=null?"New number added: source found.":"New metric created — no value found yet."),5000)}
   catch(e){toast(e.message,6000)}
   S.pending=null; S.busy=false; await loadMe(); refresh()}
 async function doPack(c){
   if(!S.me.user) return signInModal("Sign in to track a company. Whatever the catalog already tracks arrives at once.");
-  S.busy=true; S.pending=`Building the ${c} company pack: matching the catalog, then asking Telem for what is new…`; setTab("board");
+  S.busy=true; S.pending=`Building the ${c} company pack: matching the catalog, then looking up what is new…`; setTab("board");
   try{const r=await api("/api/packs",{company:c}); $("#q").value="";
     toast(`${r.company}: ${r.tiles.length} tiles. ${r.matched} reused from the catalog, ${r.created} new${r.skipped?", "+r.skipped+" not available":""}.`,6000)}
   catch(e){toast(e.message,6000)}
@@ -502,7 +506,7 @@ async function pick(row){
   if(act=="open") return openPanel(+arg);
   if(act=="follow"){ if(!S.me.user) return signInModal("Sign in to follow catalog metrics on your own board."); $("#q").value=""; try{await followMetric(arg); S.flash=+arg; setTab("board")}catch(e){} return }
   if(act=="followall"){ if(!S.me.user) return signInModal("Sign in to follow catalog metrics on your own board."); $("#q").value="";
-    try{for(const id of arg.split(",")) await api(`/api/metrics/${id}/follow`,{}); toast("Added to your board with their history. No new Telem calls."); setTab("board"); await loadMe(); refresh()}catch(e){} return }
+    try{for(const id of arg.split(",")) await api(`/api/metrics/${id}/follow`,{}); toast("Added to your board with their history. Nothing had to be looked up again."); setTab("board"); await loadMe(); refresh()}catch(e){} return }
   if(act=="pack") return doPack(arg);
   if(act=="create") return doCreate(arg);
 }
@@ -548,7 +552,7 @@ $("#panel").onclick=async ev=>{
 function setTab(tab){S.tab=tab; document.querySelectorAll("nav a").forEach(x=>x.classList.toggle("on",x.dataset.tab==tab));
   $("#board").hidden=tab!="board"; $("#log").hidden=tab!="log"; $("#catalog").hidden=tab!="catalog"; $("#tracetab").hidden=tab!="trace"; $("#f24").style.display=tab=="log"?"flex":"none"; refresh()}
 document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>setTab(a.dataset.tab));
-$("#last24").onchange=loadLog;
+$("#last24").onchange=loadLog; $("#smalled").onchange=loadLog;
 let cqT; $("#cq").oninput=()=>{clearTimeout(cqT); cqT=setTimeout(loadCatalog,180)};
 $("#ctable").onclick=async ev=>{const b=ev.target.closest(".followbtn"), row=ev.target.closest("tr[data-id]");
   if(b){ if(!S.me.user) return signInModal("Sign in to add catalog metrics to your own board."); b.disabled=true; try{await followMetric(b.dataset.id)}catch(e){} }

@@ -77,7 +77,7 @@ footer{padding:28px 0 48px;color:var(--mute);font-size:13px;border-top:1px solid
     <div class="eyebrow">For angels, pre-seed funds and founders</div>
     <h1>Your pipeline and portfolio, as <em>live numbers</em>.</h1>
     <p class="lede">Tally keeps a running tally of the outside world: who is hiring, who shipped, who raised, how big the new YC batch is, how much a sector raised this month. Ask once. Every number stays current, shows its evidence, and lives in a shared catalog, so what one person tracks is there for everyone.</p>
-    <div class="cta"><a class="btn" href="/app">Open the live board</a><a class="btn ghost" href="#video">Watch the demo</a></div>
+    <div class="cta"><a class="btn" href="/app">Open the live board</a><a class="btn ghost" href="#pricing">See pricing</a></div>
   </div>
   <div class="ask">
     <div class="q">How much have AI agent startups raised this month?</div>
@@ -87,13 +87,6 @@ footer{padding:28px 0 48px;color:var(--mute);font-size:13px;border-top:1px solid
   </div>
 </div>
 
-<section id="video">
-  <div class="eyebrow">20-second demo</div>
-  <h2>Watch a question become a tracked number.</h2>
-  <video controls preload="metadata" poster="/static/img/board.png" style="width:100%;border:1px solid var(--ink);border-radius:12px;box-shadow:6px 6px 0 var(--ink);background:#000;display:block">
-    <source src="/static/tally-30s.mp4" type="video/mp4"></video>
-  <p style="margin:14px 0 0;color:var(--mute);font-size:14px">Want the details? <a href="/static/tally-demo.mp4">Watch the full two-minute walkthrough</a>.</p>
-</section>
 
 <section>
   <div class="eyebrow">Who it is for</div>
@@ -108,7 +101,7 @@ footer{padding:28px 0 48px;color:var(--mute);font-size:13px;border-top:1px solid
 <section>
   <div class="eyebrow">Live from the catalog</div>
   <h2><span id="ctotal">98</span> numbers tracked so far. Search them, no account needed.</h2>
-  <p class="intro">Read from the running app. Each one is backed by a source page or a ledger of entries.</p>
+  <p class="intro">Read from the running app. Each one is backed by a source page or a list of entries you can open.</p>
   <form action="/app" method="get" style="display:flex;gap:10px;margin:0 0 22px;max-width:640px">
     <input name="q" placeholder="Search the catalog: Linear, stars, funding, price…" style="flex:1;padding:12px 14px;border:1px solid var(--ink);border-radius:7px;background:#fff;font:15px var(--mono)">
     <button class="btn" style="cursor:pointer;font:inherit;font-weight:600">Search</button></form>
@@ -121,22 +114,22 @@ footer{padding:28px 0 48px;color:var(--mute);font-size:13px;border-top:1px solid
   <div class="grid3">
     <div class="step"><span class="n">01</span><b>Ask</b><p>Type a company, an accelerator or a question, the way you'd ask a colleague. No setup, no scraper to maintain.</p></div>
     <div class="step"><span class="n">02</span><b>Match or create</b><p>If the catalog already tracks it, you get the tile with its full history at once. If not, Tally finds the source and starts.</p></div>
-    <div class="step"><span class="n">03</span><b>Watch</b><p>A monitor re-checks every metric in the background. You only hear about what moved.</p></div>
+    <div class="step"><span class="n">03</span><b>Watch</b><p>Tally re-checks every number in the background. You only hear about what moved.</p></div>
     <div class="step"><span class="n">04</span><b>Open the evidence</b><p>Every value links to the page and the quote it came from. If a value isn't on the page, the tile says “no value yet”. Tally never guesses.</p></div>
   </div>
 </section>
 
 <section>
-  <div class="eyebrow">Every number is a recipe</div>
-  <h2>Read one value, count a ledger, or add up a whole sector.</h2>
-  <p class="intro">Search results change from run to run, so the size of one result list is not a count. Tally keeps a ledger of entries, each stored once by its link, and reduces it to one number.</p>
+  <div class="eyebrow">How a number is made</div>
+  <h2>Read one value, count a list, or add up a whole sector.</h2>
+  <p class="intro">Search results change from run to run, so the size of one result list is not a count. Tally keeps a list of entries, each stored once by its link, and reduces it to one number.</p>
   <div class="grid3">
-    <div class="step"><span class="n">read one value</span><b>YC companies in the current batch</b><p>Read from the open YC directory by a curated skill, so it is exact and needs no cold start.</p>
+    <div class="step"><span class="n">read one value</span><b>YC companies in the current batch</b><p>Read straight from the open YC directory, so it is exact.</p>
       <div class="val" style="margin-top:14px" data-m="YC · companies in the current batch">—</div><div class="sub">one source, stored with the quote</div></div>
-    <div class="step"><span class="n">count a ledger</span><b>Open engineering roles at Cursor</b><p>One entry per posting. A new posting is a change you can see and open.</p>
+    <div class="step"><span class="n">count a list</span><b>Open engineering roles at Cursor</b><p>One entry per posting. A new posting is a change you can see and open.</p>
       <div class="val" style="margin-top:14px" data-m="Cursor · open engineering roles">—</div><div class="sub">hiring pace, from the job board itself</div></div>
     <div class="step"><span class="n">add up across entries</span><b>AI agent startup funding this month</b><p>Each announced round is an entry with its amount and its link. The tile is their sum.</p>
-      <div class="val" style="margin-top:14px" data-m="AI agent startups · Nov funding">—</div><div class="sub">sum, average or largest across the ledger</div></div>
+      <div class="val" style="margin-top:14px" data-m="AI agent startups · Nov funding">—</div><div class="sub">sum, average or largest across the list</div></div>
   </div>
 </section>
 
@@ -157,20 +150,13 @@ footer{padding:28px 0 48px;color:var(--mute);font-size:13px;border-top:1px solid
   <div class="grid3">
     <div class="step"><span class="n">Visitor</span><b>$0</b><p>Read and search the whole catalog. Featured metrics are live; the rest show a delayed value.</p></div>
     <div class="step"><span class="n">Free account</span><b>$0 with Google</b><p>Your own board. Live on featured metrics, the ones you create, and five catalog picks. Create three new metrics.</p></div>
-    <div class="step" style="border:2px solid var(--accent)"><span class="n">Pro</span><b>$<span id="price">19</span> / month</b><p>Every metric live, with its evidence. Unlimited new metrics, each with an hourly Telem monitor.</p>
+    <div class="step" style="border:2px solid var(--accent)"><span class="n">Pro</span><b>$<span id="price">19</span> / month</b><p>Every metric live, with its evidence. Unlimited new numbers, checked automatically.</p>
       <p style="margin-top:12px"><a class="btn" href="/app?plans=1" style="background:var(--accent);border-color:var(--accent)">Get Pro</a></p></div>
   </div>
 </section>
 
-<section>
-  <div class="eyebrow">Built on Telem AI</div>
-  <h2>Telem is the engine, and the trace panel shows it.</h2>
-  <p class="intro">Search finds sources and entries across providers, with Tavily pinned for entry-finding. Fetch reads the pages. Monitors re-check on a schedule and feed the change log. Every call, provider and latency is logged and shown in the app.</p>
-  <div class="stack"><span class="chip">Telem Search</span><span class="chip">Telem Fetch</span><span class="chip">Telem Monitors</span><span class="chip">Tavily</span><span class="chip">Claude</span><span class="chip">FastAPI + SQLite</span></div>
-  <p style="margin-top:28px"><a class="btn" href="/app">Open the live board</a></p>
-</section>
 
-<footer>Tally · built for SearchHack, November 2026 · <a href="https://github.com/verkyyi/tally">source</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · Sparkline history before today is seeded and marked as such in the app.</footer>
+<footer>Tally · <a href="https://github.com/verkyyi/tally">source</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · Search and page reading by Telem and Tavily · Sparkline history before today is seeded and marked as such in the app.</footer>
 </div>
 <script>
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
