@@ -70,7 +70,6 @@ svg.i{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .chips{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .chip-i{display:inline-flex;gap:4px;align-items:center;font:12px var(--mono);white-space:nowrap}
 .chip-i.acc{color:var(--accent)}
-.livedot{width:8px;height:8px;border-radius:50%;background:var(--up);box-shadow:0 0 0 3px #15703b22;flex:none;margin:5px 2px 0 0}
 .foot button{padding:4px 9px;font-size:12px}
 .badge{position:absolute;top:-8px;right:12px;background:var(--accent);color:#fff;font:600 10px var(--mono);padding:2px 7px;border-radius:9px}
 .pending{border-style:dashed;color:var(--mute);display:flex;align-items:center;justify-content:center;min-height:190px;font:italic 15px var(--serif);text-align:center;cursor:default}
@@ -231,7 +230,7 @@ function tileHTML(t){
   if(!t.live) d=`<span class="flat">delayed · as of ${ago(t.as_of)}</span>`;
   return `<div class="tile${t.muted?" muted":""}${t.live?"":" delayed"}${S.flash==t.id?" flash":""}" data-id="${t.id}">
     ${t.new_entries?`<span class="badge">${t.new_entries} NEW</span>`:""}
-    <h3><span>${esc(t.title)}</span>${t.live?'<span class="livedot" title="Live"></span>':'<span class="kind late">delayed</span>'}</h3>
+    <h3><span>${esc(t.title)}</span>${t.live?"":'<span class="kind late">delayed</span>'}</h3>
     ${v?`<div class="val">${v.text}<small>${esc(v.unit)}</small></div>`:`<div class="val none">no value yet</div>`}
     <div class="delta">${d}</div>${spark(t.spark)}
     <div class="foot"><span class="chips">${t.live&&t.last_checked?`<span class="chip-i" title="Checked ${ago(t.last_checked)}">${ico("clock")}${short(ago(t.last_checked))}</span>`:""}${
