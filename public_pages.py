@@ -98,6 +98,7 @@ ul.rows li span{font:13px var(--mono);color:var(--mute);white-space:nowrap}
 .num .v{font-size:30px;font-weight:700;letter-spacing:-.035em;line-height:1.1;font-variant-numeric:tabular-nums}.num .v small{font:12px var(--mono);font-weight:400;color:var(--mute);letter-spacing:0;margin-left:6px}
 .num .m{font:12px var(--mono);color:var(--mute);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:auto}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+ol.steps{margin:0;padding-left:22px;font-size:14px;color:#344054}ol.steps li{padding:2px 0;word-break:break-word}ol.steps li.chk{list-style:none;margin-left:-22px;color:var(--ink)}
 .usebox pre{white-space:pre-wrap;word-break:break-word;font:13px/1.5 var(--mono);background:var(--paper);border-radius:8px;padding:10px 12px;margin:0 0 10px}
 table.pts{border-collapse:collapse;width:100%;font-size:15px}table.pts td,table.pts th{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
 table.pts th{font:12px var(--mono);color:var(--mute);font-weight:400;text-transform:uppercase;letter-spacing:.06em}table.pts td:nth-child(2){font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -188,7 +189,7 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 <div class="sbox"><input type="search" data-suggest autocomplete="off" placeholder="Search a number" aria-label="Search a number"></div>
 <nav style="display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end;font-size:15px"><a href="/changes" style="text-decoration:none">What changed</a><a href="/numbers" style="text-decoration:none">All numbers</a><a href="/app" style="text-decoration:none;font-weight:600">Your board</a></nav></header>
 {body}
-<script src="/static/pub.js?v=6" defer></script>
+<script src="/static/pub.js?v=7" defer></script>
 <footer>Data on Tally is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
 <a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
@@ -528,7 +529,7 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     if recipe:
         body += (f'<h2>Recipe <span style="font:13px var(--mono);color:#667085;font-weight:400">version {recipe["version"]}</span></h2>'
                  f'<p class="q" style="margin:0 0 10px">How this number is obtained, in plain words, with every earlier version. Anyone signed in can improve it; a change counts only if an agent can verify it.</p>'
-                 f'<div class="cta" style="margin-top:0"><a class="btn ghost" href="/n/{m["id"]}/recipe">Read or improve the recipe</a></div>')
+                 f'<div class="cta" style="margin-top:0"><a class="btn ghost" href="/n/{m["id"]}/recipe">Read or improve the recipe</a><a class="btn ghost" href="/n/{m["id"]}/recipe#how">See how it was produced</a></div>')
     body += f'<div class="cta"><a class="btn ghost" href="{subject_path(sub)}">More about {esc(sub)}</a><a class="btn ghost" href="/track">Create a number that is not here</a></div>'
     if related:
         body += f'<h2>More about {esc(sub)}</h2><div class="grid">{"".join(tile_link(r) for r in related[:8])}</div>'
@@ -650,6 +651,27 @@ def who(author):
     return "Tally" if author in (None, "tally", "system") else "contributor " + hashlib.sha256(author.encode()).hexdigest()[:4]
 
 
+def made_by(row):
+    """How a recipe version came to be: every search and page the agent used, and each check the result had to pass."""
+    import json
+    try:
+        t = json.loads(row.get("trial_json") or "{}")
+    except ValueError:
+        return ""
+    steps = [s for s in t.get("steps") or [] if s.get("tool") in ("search", "fetch", "get_json")]
+    if not steps and not t.get("checks"):
+        return ""
+    def line(s):
+        if s["tool"] == "search":
+            return f'Searched the web: “{esc(s["arg"])}”'
+        host = re.sub(r"^https?://(www\.)?", "", s["arg"])[:70]
+        return f'{"Read data from" if s["tool"] == "get_json" else "Read"} <a href="{esc(s["arg"])}" rel="nofollow noopener">{esc(host)}</a>'
+    checks = "".join(f'<li class="chk">{"✓" if c["ok"] else "✗"} {esc(c["name"])}{" · " + esc(c["detail"]) if c.get("detail") else ""}</li>' for c in t.get("checks") or [])
+    return (f'<details class="card" style="margin-top:12px" id="how" {"open" if t.get("created") else ""}><summary style="cursor:pointer;font-weight:600">How this version was produced: '
+            f'{len(steps)} steps by an agent, {len(t.get("checks") or [])} checks</summary><ol class="steps" style="margin-top:10px">{"".join(f"<li>{line(s)}</li>" for s in steps)}{checks}</ol>'
+            + (f'<p class="meta">Agent\'s note: {esc(t["notes"])}</p>' if t.get("notes") else "") + (f'<p class="meta">Model: {esc(t["model"])}</p>' if t.get("model") else "") + "</details>")
+
+
 def recipe_page(m, t, live, hist, editable):
     txt, unit = fmt(t["value"], t["unit"])
     rows = ""
@@ -697,7 +719,7 @@ document.addEventListener("click",async ev=>{const a=ev.target.closest(".rv"); i
 </script>""" % m["id"]
     body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / <a href="{number_path(m)}">{esc(m["title"])}</a> / Recipe</div><h1>Recipe: {esc(m["title"])}</h1>'
             f'<p class="q">{esc(m["question"])} Today: <b>{esc(txt or "no value yet")}{" " + esc(unit) if unit and txt else ""}</b>. This is version {live["version"]}.</p>'
-            f'<div class="card recipe">{render_recipe(live["body"])}</div>{form}'
+            f'<div class="card recipe">{render_recipe(live["body"])}</div>{made_by(live)}{form}'
             f'<h2>Versions</h2><ul class="rows">{rows}</ul>'
             f'<div class="cta"><a class="btn ghost" href="{number_path(m)}">Back to the number</a></div>{js}')
     css = ("<style>.recipe h3{font-size:13px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:18px 0 4px}.recipe h3:first-child{margin-top:0}"

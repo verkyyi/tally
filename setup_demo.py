@@ -334,6 +334,17 @@ def add_popular():
         print(name, "|", len(rows), "numbers |", sum(r[3] for r in rows), "past points", flush=True)
 
 
+def scout():
+    """Survey the open web for the numbers about a company worth recording, and save the list (nothing is created). Usage: scout "Anthropic" [out.json]"""
+    import agent
+    name = sys.argv[2]
+    r = agent.scout(name)
+    out = sys.argv[3] if len(sys.argv) > 3 else f"scout-{name.lower().replace(' ', '-')}.json"
+    json.dump(r, open(out, "w"), indent=1, ensure_ascii=False)
+    res = r["result"] or {}
+    print(len(res.get("numbers", [])), "numbers |", len(r["steps"]), "steps |", r["usage"], "| saved to", out)
+
+
 def periods():
     """Turn the numbers that were made for one month ("AI agents · Nov 2026 funding") into lasting numbers counted per period. Safe to run again."""
     import re
@@ -389,4 +400,4 @@ def period_history():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()

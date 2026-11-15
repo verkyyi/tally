@@ -149,7 +149,7 @@ def round_kind(m):
 
 def stepped(m):
     """True for a number that holds its value until an event changes it (a round, a price change): drawn as steps, not slopes."""
-    return bool(round_kind(m)) or (m.get("title") or "").lower().endswith("plan price")
+    return bool(round_kind(m)) or (m.get("title") or "").lower().endswith("plan price") or bool(update_plan(m).get("holds"))
 
 
 def latest_obs(mid):
@@ -241,10 +241,37 @@ def supported(value, text):
     return False
 
 
+def update_plan(m):
+    """The machine-readable plan the creating agent left for keeping this number current, or {}."""
+    try:
+        p = json.loads((m or {}).get("update_json") or "{}")
+        return p if isinstance(p, dict) else {}
+    except ValueError:
+        return {}
+
+
+def read_json_path(url, path):
+    """Read one value from a public JSON API by a dotted path with [index] steps ("data.items[0].count"). None when it is not there."""
+    import httpx
+    try:
+        r = httpx.get(url, timeout=20, headers={"User-Agent": "tally-catalog", "Accept": "application/json"}, follow_redirects=True)
+        v = r.json() if r.status_code == 200 else None
+        for part in re.findall(r"[^.\[\]]+", path):
+            v = v[int(part)] if isinstance(v, list) else v[part]
+    except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
+        return None
+    return {"value": float(v), "evidence_url": url, "quote": f"{path}: {v}"} if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
 def resolve_direct(m, exclude_domain=None, fresh=False):
     """Search, fetch the top pages, extract. Returns the extraction dict or None."""
     if free_sources.is_free(m):  # read straight from a free public API: no search, no model
         return free_sources.read(m["skill"])
+    plan = update_plan(m)
+    if plan.get("method") == "json" and plan.get("url") and plan.get("json_path"):  # the creating agent found an API that states it: no search, no model
+        ex = read_json_path(plan["url"], plan["json_path"])
+        if ex:
+            return ex
     urls, results = [], None
     if m.get("source_url") and domain(m["source_url"]) != exclude_domain:
         urls.append(m["source_url"])
@@ -553,8 +580,14 @@ def refresh_searched(limit=2, older_than_hours=22):
     covers only a few). Without this they keep one value for ever and never grow a history. A few per round, oldest first."""
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=older_than_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
     n = 0
-    for m in db.q("SELECT id, title FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%' AND telem_monitor_id IS NULL AND (last_checked_at IS NULL OR last_checked_at<?) "
-                  "ORDER BY last_checked_at LIMIT ?", (cutoff, limit)):
+    now = datetime.now(timezone.utc)
+    for m in db.q("SELECT id, title, update_json, last_checked_at FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%' AND telem_monitor_id IS NULL AND (last_checked_at IS NULL OR last_checked_at<?) "
+                  "ORDER BY last_checked_at LIMIT ?", (cutoff, limit * 20)):
+        days = {"week": 7, "month": 30}.get(update_plan(m).get("every"), 0)  # the number's own plan says how often it can change
+        if days and m["last_checked_at"] and (now - datetime.strptime(m["last_checked_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)).days < days:
+            continue
+        if n >= limit:
+            break
         try:
             run_now(m["id"])
             n += 1

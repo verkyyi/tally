@@ -94,37 +94,56 @@
     });
   }
 
-  // ---- create a number: find it, show what was found, publish on confirmation
+  // ---- create a number: the agent's research is shown step by step as it happens; nothing is published until the person confirms
+  const host = u => { try { const x = new URL(u); return x.hostname.replace(/^www\./, "") + (x.pathname.length > 1 ? x.pathname.slice(0, 48) : ""); } catch (e) { return u; } };
+  const stepLine = s => s.tool === "search" ? `Searched the web: “${esc(s.arg)}”`
+    : s.tool === "fetch" ? `Read <a href="${esc(s.arg)}" rel="nofollow noopener" target="_blank">${esc(host(s.arg))}</a>`
+    : s.tool === "get_json" ? `Read data from <a href="${esc(s.arg)}" rel="nofollow noopener" target="_blank">${esc(host(s.arg))}</a>`
+    : s.tool === "check" ? `${s.ok ? "✓" : "✗"} Checked: ${esc(s.arg)}` : esc(s.arg);
   const tb = document.querySelector("[data-track]");
   if (tb) {
     const holder = document.getElementById("signin"), note = document.getElementById("tracknote"), pv = document.getElementById("preview");
+    const stepsBox = steps => `<p class="meta" style="margin:14px 0 4px">What the agent is doing</p><ol class="steps">${steps.map(s => `<li${s.tool === "check" ? ' class="chk"' : ""}>${stepLine(s)}</li>`).join("")}</ol>`;
+    const done = j => {
+      const steps = stepsBox(j.steps || []);
+      if (j.status === "matched") { note.innerHTML = `The record already has this: <a href="${esc(j.path)}">${esc(j.title)}</a>.`; pv.innerHTML = steps; return; }
+      if (j.status === "failed") {
+        note.textContent = "No page could be quoted for this number, so nothing was created.";
+        pv.innerHTML = steps + `<ul class="rows" style="margin-top:10px">${(j.reasons || []).map(r => `<li><span style="font:inherit;color:inherit;white-space:normal">✗ ${esc(r)}</span></li>`).join("")}</ul>`
+          + (j.notes ? `<p class="meta">Agent's note: ${esc(j.notes)}</p>` : "") + '<p class="meta">It is on the <a href="/wanted">wanted list</a>. Try other words, or name the page that states it.</p>';
+        return;
+      }
+      note.textContent = "Found. Check it, then publish.";
+      const hist = (j.history || []).map(h => `<tr><td>${esc(h.date)}</td><td>${esc(h.value)}</td><td>${h.url ? `<a href="${esc(h.url)}" rel="nofollow noopener" target="_blank">${esc(host(h.url).split("/")[0])}</a>` : ""}</td></tr>`).join("");
+      const plan = j.plan || {}, every = { day: "every day", week: "every week", month: "every month" }[plan.every] || "every day";
+      const how = plan.method === "json" ? "straight from a public API, with no search and no model" : plan.method === "page" ? "by reading that one page again" : "by searching again, since the value moves between pages";
+      pv.innerHTML = `<div class="card" style="margin-top:14px;background:var(--paper)"><b style="font-size:18px">${esc(j.title)}</b><p class="q" style="margin:2px 0 10px">${esc(j.question)}</p>`
+        + `<div class="val" style="font-size:44px">${esc(j.value)}</div>` + (j.quote ? `<blockquote style="margin-top:10px">${esc(j.quote)}</blockquote>` : "")
+        + `<p class="meta">Read from <a href="${esc(j.url)}" rel="nofollow noopener" target="_blank">${esc(j.url)}</a></p>`
+        + (hist ? `<p class="meta" style="margin-top:12px">${j.history.length} past values, each from a dated source</p><table class="pts"><tr><th>When</th><th>Value</th><th>Source</th></tr>${hist}</table>`
+                : '<p class="meta">No dated past values were found. Its history starts today and grows with every reading.</p>')
+        + `<p class="meta" style="margin-top:12px">Kept current ${every}, ${how}.</p>` + (j.notes ? `<p class="meta">Agent's note: ${esc(j.notes)}</p>` : "")
+        + `<details style="margin-top:10px"><summary class="meta" style="cursor:pointer">The recipe the agent wrote for this number</summary><pre style="white-space:pre-wrap;font:13px/1.5 var(--mono);margin:8px 0 0">${esc(j.recipe || "")}</pre></details>`
+        + `<div class="cta" style="margin-top:14px"><button class="follow" type="button" id="pub">Publish this number</button></div><p class="meta" id="pubnote">Publishing makes the page public and puts it on your board.</p></div>` + steps;
+      document.getElementById("pub").addEventListener("click", async ev => {
+        ev.target.disabled = true;
+        try { const r = await post("/api/numbers/publish", { draft: j.draft }); location.href = r.path; }
+        catch (e) { ev.target.disabled = false; document.getElementById("pubnote").textContent = e.message; }
+      });
+    };
     tb.addEventListener("click", async () => {
       const q = document.getElementById("trackq").value.trim();
       if (!q) { note.textContent = "Type the number you want, for example “Stripe latest valuation”."; return; }
       const m = await me();
       if (!m.user && !(await signIn(holder, "Sign in to create a number. It is yours to follow, and a free account can create one a day."))) return;
-      tb.disabled = true; pv.innerHTML = ""; note.textContent = "Searching, reading the source and rebuilding the past. This takes a minute or two; keep the page open.";
+      tb.disabled = true; pv.innerHTML = ""; note.textContent = "An agent is researching it. Every step shows below as it happens; this takes a minute or two.";
       try {
-        const j = await post("/api/numbers/draft", { question: q });
-        if (j.status === "matched") { note.innerHTML = `The record already has this: <a href="${esc(j.path)}">${esc(j.title)}</a>.`; }
-        else if (j.status === "failed") {
-          note.textContent = "No page could be quoted for this number, so nothing was created.";
-          pv.innerHTML = `<ul class="rows" style="margin-top:10px">${j.reasons.map(r => `<li><span style="font:inherit;color:inherit;white-space:normal">✗ ${esc(r)}</span></li>`).join("")}</ul>`
-            + (j.notes ? `<p class="meta">Agent's note: ${esc(j.notes)}</p>` : "") + '<p class="meta">It is on the <a href="/wanted">wanted list</a>. Try other words, or name the page that states it.</p>';
-        } else {
-          note.textContent = "Found. Check it, then publish.";
-          const hist = (j.history || []).map(h => `<tr><td>${esc(h.date)}</td><td>${esc(h.value)}</td><td>${h.url ? `<a href="${esc(h.url)}" rel="nofollow noopener">${esc(h.url.split("/")[2] || "")}</a>` : ""}</td></tr>`).join("");
-          pv.innerHTML = `<div class="card" style="margin-top:14px;background:var(--paper)"><b style="font-size:18px">${esc(j.title)}</b><p class="q" style="margin:2px 0 10px">${esc(j.question)}</p>`
-            + (j.status === "list" ? `<p>${esc(j.note)}</p>` : `<div class="val" style="font-size:44px">${esc(j.value)}</div>`
-              + (j.quote ? `<blockquote style="margin-top:10px">${esc(j.quote)}</blockquote>` : "") + `<p class="meta">Read from <a href="${esc(j.url)}" rel="nofollow noopener">${esc(j.url)}</a></p>`
-              + (hist ? `<p class="meta" style="margin-top:12px">${j.history.length} past values, each from a dated source</p><table class="pts"><tr><th>When</th><th>Value</th><th>Source</th></tr>${hist}</table>`
-                      : '<p class="meta">No dated past values were found. Its history starts today and grows with a reading every day.</p>'))
-            + `<div class="cta" style="margin-top:14px"><button class="follow" type="button" id="pub">Publish this number</button></div><p class="meta" id="pubnote">Publishing makes the page public and puts it on your board.</p></div>`;
-          document.getElementById("pub").addEventListener("click", async ev => {
-            ev.target.disabled = true;
-            try { const r = await post("/api/numbers/publish", { draft: j.draft }); location.href = r.path; }
-            catch (e) { ev.target.disabled = false; document.getElementById("pubnote").textContent = e.message; }
-          });
+        const d = await post("/api/numbers/draft", { question: q });
+        for (;;) {
+          await new Promise(r => setTimeout(r, 2000));
+          const j = await fetch("/api/numbers/draft/" + d.draft).then(r => r.json());
+          if (j.status === "working") { pv.innerHTML = stepsBox(j.steps || []); continue; }
+          done(j); break;
         }
       } catch (e) { note.innerHTML = esc(e.message) + (e.status === 402 ? ' <a href="/app?plans=1">See the plans</a>' : ""); }
       tb.disabled = false;

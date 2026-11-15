@@ -967,13 +967,13 @@ def add_metric(body: AddMetric, request: Request):
     """Ask for a number from inside the app: the same lifecycle as the public page, published as soon as it is proven."""
     u = need_user(request)
     try:
-        r = lifecycle.draft(u, body.question)
+        r = lifecycle.state(u, lifecycle.start(u, body.question, wait=True))
         if r["status"] == "matched":
             mid = int(r["path"].split("/")[2])
             core.follow(u["id"], mid)
             return {"metric": tile(core.metric(mid), u), "matched": True, "path": r["path"]}
-        if r["status"] == "failed":
-            raise HTTPException(422, "No source could be quoted for this number, so it was not added. It is on the wanted list: " + "; ".join(r["reasons"])[:300])
+        if r["status"] != "ready":
+            raise HTTPException(422, "No source could be quoted for this number, so it was not added. It is on the wanted list: " + "; ".join(r.get("reasons", []))[:300])
         m = lifecycle.publish(u, r["draft"])
     except lifecycle.Refused as e:
         raise HTTPException(402, str(e))
@@ -990,15 +990,21 @@ class Publish(BaseModel):
 
 @app.post("/api/numbers/draft")
 def number_draft(body: Draft, request: Request):
-    """Step one of creating a number: find it and show what was found. Nothing is public yet."""
+    """Start creating a number. The research runs in the background; read its steps and its result from the address below."""
     u = need_user(request)
     try:
-        return lifecycle.draft(u, body.question) | {"left": lifecycle.left_today(u)}
+        return {"draft": lifecycle.start(u, body.question), "left": lifecycle.left_today(u)}
     except lifecycle.Refused as e:
         raise HTTPException(402, str(e))
-    except Exception as e:
-        print("draft failed:", type(e).__name__, str(e)[:200])
-        raise HTTPException(502, "The search could not be completed. Nothing was created; try again in a minute.")
+
+
+@app.get("/api/numbers/draft/{did}")
+def number_draft_state(did: int, request: Request):
+    u = need_user(request)
+    try:
+        return lifecycle.state(u, did)
+    except lifecycle.Refused as e:
+        raise HTTPException(404, str(e))
 
 
 @app.post("/api/numbers/publish")

@@ -15,7 +15,6 @@ import re
 
 import core
 import db
-import llm
 import recipes
 
 PER_DAY = {"free": 1, "pro": 20}   # attempts per person per day: each one runs a search and an agent, whether or not it works
@@ -38,93 +37,115 @@ def left_today(u):
     return max(0, min(PER_DAY.get(u["plan"], 1) - mine, SITE_PER_DAY - everyone))
 
 
-def first_recipe(d, m):
-    """The recipe a new number starts with, written from its definition. The agent's first run fills in the page it found."""
-    read = (core.skill_text(m) or "").strip()
-    read = re.sub(r"^# .*\n", "", read).strip() or "Read the single value that answers the question from the source page, with the sentence that states it."
-    src = (d.get("source_url") + "\n" if d.get("source_url") else "Found by search on the first run; the page that states the value becomes the source.\n") + f"Search: {d.get('search_query') or m['question']}"
-    hist = recipes.history_instruction(m) or GENERIC_HISTORY
-    return f"## Source\n{src}\n\n## Read\n{read}\n\n## History\n{hist}\n\n## Update\nOnce a day.\n\n## Checks\n{CHECKS}\n"
+def _set(did, status=None, **payload):
+    row = db.one("SELECT payload FROM drafts WHERE id=?", (did,))
+    p = json.loads(row["payload"] or "{}") | payload
+    if status:
+        db.run("UPDATE drafts SET status=?, payload=? WHERE id=?", (status, json.dumps(p), did))
+    else:
+        db.run("UPDATE drafts SET payload=? WHERE id=?", (json.dumps(p), did))
+    return p
 
 
-def draft(u, question):
-    """Turn a request into a proven draft. Returns what the person is shown before anything is published:
-    {"status": "matched", "path"} | {"status": "ready", "draft", ...preview} | {"status": "failed", "reasons"} | {"status": "list", "draft", ...}."""
-    import agent
-    import public_pages as pp
+def start(u, question, wait=False):
+    """Begin creating a number. The research runs on its own thread and writes every step it takes to the draft, so the
+    person can watch it; `state` reads it back. Returns the draft id."""
+    import threading
     q = " ".join((question or "").split())[:240]
     if len(q) < 6:
         raise Refused("Say which number and whose, for example “Stripe latest valuation”.")
-    mid = core.match_metric(q)
-    if mid:
-        return {"status": "matched", "path": pp.number_path(core.metric(mid)), "title": core.metric(mid)["title"]}
     if left_today(u) <= 0:
         raise Refused("That is today's allowance of new numbers" + (" for a free account (one a day); Pro has twenty." if u["plan"] != "pro" else ".") + " Each one runs a search and an agent, so they are limited.")
-    d = llm.define(q) or {}
-    if d.get("acceptable") is False:
-        _save(u, q, d, "refused", {"reasons": [d.get("why_not") or "This is not a number Tally keeps."]})
-        raise Refused(d.get("why_not") or "Tally keeps numbers about companies, products, projects and markets that a public page states. This does not look like one.")
-    d["kind"] = "count" if d.get("kind") == "count" else "direct"
-    title = (d.get("title") or q[:40]).strip()
-    clash = db.one("SELECT * FROM metrics WHERE lower(title)=?", (title.lower(),))
-    if clash:
-        return {"status": "matched", "path": pp.number_path(clash), "title": clash["title"]}
-    m = {"id": None, "title": title, "question": q, "unit": d.get("unit") or "", "kind": d["kind"], "source_url": d.get("source_url")} | core.route_skill(q)
-    if d["kind"] == "count":  # a number counted from a list of items: the list is gathered when it is published
-        did = _save(u, q, d, "list", {})
-        return {"status": "list", "draft": did, "title": title, "question": q, "unit": m["unit"],
-                "note": "This number is counted from a list of items (each with its own link). Tally gathers the list when you publish it."}
-    body = first_recipe(d, m)
-    run = agent.run_recipe(m, body)
-    res = run["result"]
-    checks, value, hist = recipes._verify(m, res, run["pages"])
-    running = bool(hist) and bool(re.search(r"running total", body, re.I))
-    if value is not None and running:
-        hist, ok, _ = recipes.running_total(hist, value)
-        hist = hist if ok else []  # rounds that do not add up to the total are not shown as its past; the number itself still stands
-    report = {"checks": checks, "notes": (res or {}).get("notes"), "steps": run["steps"], "model": run["model"], "usage": run["usage"]}
-    if value is None:
-        reasons = [c["name"] + (": " + c["detail"] if c["detail"] else "") for c in checks if not c["ok"]]
-        _save(u, q, d, "failed", report | {"reasons": reasons})
-        return {"status": "failed", "title": title, "reasons": reasons, "notes": report["notes"]}
-    found = {"value": value, "quote": res["quote"], "url": res["evidence_url"], "history": hist, "running": running,
-             "body": re.sub(r"(?s)^## Source\n.*?\n\n## Read", f"## Source\n{res['evidence_url']}\nSearch: {d.get('search_query') or q}\n\n## Read", body, count=1)}
-    did = _save(u, q, d, "ready", report | found)
-    txt, unit = pp.fmt(value, m["unit"])
-    return {"status": "ready", "draft": did, "title": title, "question": q, "value": txt + (" " + unit if unit else ""), "quote": res["quote"], "url": res["evidence_url"],
-            "history": [{"date": h["date"], "value": " ".join(x for x in pp.fmt(h["value"], m["unit"]) if x), "url": h.get("url")} for h in hist], "notes": report["notes"]}
-
-
-def _save(u, q, d, status, payload):
-    did, _ = db.run("INSERT INTO drafts(user,question,title,status,payload,created_at) VALUES(?,?,?,?,?,?)",
-                    (u["id"], q, (d.get("title") or q[:40]).strip(), status, json.dumps({"define": d} | payload), db.now()))
+    did, _ = db.run("INSERT INTO drafts(user,question,title,status,payload,created_at) VALUES(?,?,?,?,?,?)", (u["id"], q, q[:60], "working", json.dumps({"steps": []}), db.now()))
+    if wait:
+        _work(did, q)
+    else:
+        threading.Thread(target=_work, args=(did, q), daemon=True).start()
     return did
 
 
-def publish(u, did):
-    """Make a proven draft a number in the record: its row, its recipe, its first reading and its past. Returns the metric."""
+def _work(did, q):
+    """The creation itself. The agent decides how to research the number and writes the recipe that keeps it alive;
+    this function only checks what it hands back against the pages it read."""
+    import agent
+    import public_pages as pp
+    try:
+        steps = [{"tool": "look", "arg": "Looking in the record for a number that already answers this"}]
+        _set(did, steps=steps)
+        mid = core.match_metric(q)
+        if mid:
+            m = core.metric(mid)
+            _set(did, "matched", path=pp.number_path(m), found_title=m["title"])
+            return
+        run = agent.create(q, on_step=lambda st: _set(did, steps=steps + st))
+        res = run["result"]
+        steps = steps + run["steps"]
+        m = {"id": None, "title": (res or {}).get("title") or q[:60], "question": q, "unit": (res or {}).get("unit") or "", "kind": "direct"}
+        checks, value, hist = recipes._verify(m, res, run["pages"])
+        plan = (res or {}).get("plan") or {}
+        if value is not None and hist and plan.get("running_total"):
+            hist, ok, total = recipes.running_total(hist, value)
+            checks.append({"name": "The rounds add up to the total", "ok": ok, "detail": f"{len(hist)} dated rounds add up to {total:g}; the total read is {value:g}."})
+            hist = hist if ok else []  # rounds that do not add up are not shown as its past; the number itself still stands
+        steps += [{"tool": "check", "arg": c["name"] + (": " + c["detail"] if c["detail"] else ""), "ok": c["ok"]} for c in checks]
+        report = {"steps": steps, "checks": checks, "notes": (res or {}).get("notes"), "model": run["model"], "usage": run["usage"]}
+        if value is None:
+            reasons = [c["name"] + (": " + c["detail"] if c["detail"] else "") for c in checks if not c["ok"]]
+            db.run("UPDATE drafts SET title=? WHERE id=?", (m["title"], did))
+            _set(did, "failed", reasons=reasons, **report)
+            return
+        clash = db.one("SELECT * FROM metrics WHERE lower(title)=?", (m["title"].lower(),))
+        if clash:
+            _set(did, "matched", path=pp.number_path(clash), found_title=clash["title"], **report)
+            return
+        r = res["recipe"]
+        body = (f"## Source\n{res['evidence_url']}\n{r['Source']}\n\n## Read\n{r['Read'] or 'Read the single value that answers the question from the source page, with the sentence that states it.'}\n\n"
+                f"## History\n{r['History'] or 'Observed from the day this number was created.'}\n\n## Update\n{r['Update'] or 'Once a day.'}\n\n## Checks\n{r['Checks'] or CHECKS}\n")
+        db.run("UPDATE drafts SET title=? WHERE id=?", (m["title"], did))
+        _set(did, "ready", value=value, unit=m["unit"], quote=res["quote"], url=res["evidence_url"], history=hist, running=bool(plan.get("running_total")), plan=plan, body=body, **report)
+    except Exception as e:
+        print("creation failed:", did, type(e).__name__, str(e)[:200])
+        _set(did, "failed", reasons=["The research could not be completed. Nothing was created; try again in a minute."])
+
+
+def state(u, did):
+    """What the person watching a creation sees: the steps so far, and the result once there is one."""
+    import public_pages as pp
     row = db.one("SELECT * FROM drafts WHERE id=? AND user=?", (did, u["id"]))
-    if not row or row["status"] not in ("ready", "list"):
+    if not row:
+        raise Refused("No such draft.")
+    p = json.loads(row["payload"] or "{}")
+    out = {"draft": did, "status": row["status"], "title": row["title"], "question": row["question"], "steps": p.get("steps", []), "notes": p.get("notes")}
+    if row["status"] == "matched":
+        out |= {"path": p.get("path"), "title": p.get("found_title")}
+    elif row["status"] == "failed":
+        out |= {"reasons": p.get("reasons", [])}
+    elif row["status"] == "ready":
+        txt, unit = pp.fmt(p["value"], p.get("unit"))
+        out |= {"value": txt + (" " + unit if unit else ""), "quote": p["quote"], "url": p["url"], "recipe": p["body"], "plan": p.get("plan"),
+                "history": [{"date": h["date"], "value": " ".join(x for x in pp.fmt(h["value"], p.get("unit")) if x), "url": h.get("url")} for h in p.get("history") or []]}
+    return out
+
+
+def publish(u, did):
+    """Make a proven draft a number in the record: its row, the agent's recipe and update plan, its first reading and its past."""
+    row = db.one("SELECT * FROM drafts WHERE id=? AND user=?", (did, u["id"]))
+    if not row or row["status"] != "ready":
         raise Refused("That draft is not waiting to be published.")
     p = json.loads(row["payload"])
-    d = p["define"]
     clash = db.one("SELECT * FROM metrics WHERE lower(title)=?", (row["title"].lower(),))
     if clash:
         core.follow(u["id"], clash["id"])
         db.run("UPDATE drafts SET status='published', metric_id=? WHERE id=?", (clash["id"], did))
         return clash
-    if row["status"] == "list":
-        m, _ = core.create_metric(u["id"], row["question"], {"no_monitor": True}, skip_match=True)
-        recipes.live(m)
-        db.run("UPDATE drafts SET status='published', metric_id=? WHERE id=?", (m["id"], did))
-        return m
-    extra = core.route_skill(row["question"])
-    mid, _ = db.run("INSERT INTO metrics(question,title,kind,unit,source_url,search_query,monitor_query,created_by,created_at,last_checked_at,recipe_version) VALUES(?,?,?,?,?,?,?,?,?,?,1)",
-                    (row["question"], row["title"], "direct", d.get("unit"), p["url"], d.get("search_query") or row["question"], d.get("monitor_query") or row["question"], u["id"], db.now(), db.now()))
-    if extra.get("skill"):
-        db.run("UPDATE metrics SET skill=? WHERE id=?", (extra["skill"], mid))
+    plan = p.get("plan") or {}
+    secs = recipes.parse(p["body"])
+    mid, _ = db.run("INSERT INTO metrics(question,title,kind,unit,source_url,search_query,monitor_query,created_by,created_at,last_checked_at,recipe_version,instructions,update_json) VALUES(?,?,?,?,?,?,?,?,?,?,1,?,?)",
+                    (row["question"], row["title"], "direct", p.get("unit"), p["url"], recipes._search_line(secs.get("Source", "")) or row["question"], row["question"], u["id"], db.now(), db.now(),
+                     secs.get("Read"), json.dumps(plan)))
     db.run("INSERT INTO recipes(metric_id,version,body,author,note,status,created_at,trial_json) VALUES(?,?,?,?,?,?,?,?)",
-           (mid, 1, p["body"], u["id"], "The recipe this number was created with.", "live", db.now(), json.dumps({k: p.get(k) for k in ("checks", "notes", "steps", "model", "usage")})))
+           (mid, 1, p["body"], u["id"], "Written by the agent that created this number, from the research it did.", "live", db.now(),
+            json.dumps({k: p.get(k) for k in ("checks", "notes", "steps", "model", "usage")} | {"adopted": True, "created": True})))
     m = core.metric(mid)
     core.record_direct(m, {"value": p["value"], "evidence_url": p["url"], "quote": p["quote"]}, "created")
     today = db.now()[:10]

@@ -90,6 +90,18 @@ def trials_left(u):
     return max(0, min(TRIALS_PER_DAY.get(u["plan"], 3) - mine, GLOBAL_TRIALS_PER_DAY - everyone))
 
 
+def _page_for(url, pages):
+    """The text fetched for a cited address. An archived copy is often cited by a slightly different address than the one
+    fetched (the archive redirects to its nearest copy), so the same page in the same month counts as the same copy."""
+    if not url:
+        return ""
+    if url in pages:
+        return pages[url]
+    norm = lambda u: re.sub(r"/web/(\d{6})\d*(id_)?/", r"/web/\1/", u).rstrip("/")
+    want = norm(url)
+    return next((t for u, t in pages.items() if norm(u) == want), "")
+
+
 def _verify(m, res, pages):
     """Check what the agent reported against the pages it fetched. Returns (checks, value or None, kept history)."""
     checks, value, hist = [], None, []
@@ -98,7 +110,7 @@ def _verify(m, res, pages):
         return checks, None, []
     checks.append({"name": "The recipe produced a value", "ok": True, "detail": ""})
     checks.append({"name": "It still answers this number's question", "ok": bool(res.get("on_topic", True)), "detail": "" if res.get("on_topic", True) else (res.get("notes") or "The recipe reads something else.")})
-    page = pages.get(res["evidence_url"], "")
+    page = _page_for(res["evidence_url"], pages)
     fetched = bool(page)
     checks.append({"name": "The evidence page was actually read in this run", "ok": fetched, "detail": "" if fetched else "The reported source was not among the pages fetched."})
     readable = fetched and core.supported(res["value"], page) and core.supported(res["value"], res["quote"])
@@ -111,7 +123,7 @@ def _verify(m, res, pages):
         value = res["value"]
     today = db.now()[:10]
     for h in sorted(res.get("history") or [], key=lambda x: x["date"]):
-        if re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], pages.get(h.get("url") or "", "")):
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], _page_for(h.get("url"), pages)):
             hist.append(h)
     if res.get("history"):
         checks.append({"name": "Past points can be read in the pages they cite", "ok": len(hist) > 0, "detail": f"{len(hist)} of {len(res['history'])} kept."})
