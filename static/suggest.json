@@ -716,11 +716,11 @@
   "accelerator": [
    {
     "label": "companies in the current batch",
-    "q": "How many companies are in {x}'s current batch?"
+    "q": "How many companies are in the current {x} batch?"
    },
    {
     "label": "AI companies in the current batch",
-    "q": "How many AI companies are in {x}'s current batch?"
+    "q": "How many AI companies are in the current {x} batch?"
    },
    {
     "label": "portfolio companies hiring now",
