@@ -869,11 +869,52 @@ def copy_board(body: CopyBoard, request: Request):
     return {"added": len(ids)}
 
 
+_pairs_cache = {"at": 0.0, "rows": []}
+
+
+def _pairs(per=2):
+    """Comparison pages worth listing: each subject with the few others that share most of its kinds of number.
+    One address per pair, names in alphabetical order. Kept for an hour."""
+    if time.time() - _pairs_cache["at"] < 3600 and _pairs_cache["rows"]:
+        return _pairs_cache["rows"]
+    kinds = {n: {pp.what(core.metric(i)).lower() for i in ids} for n, ids in pp.groups().items()}
+    out = set()
+    for a, mine in kinds.items():
+        score = {b: len(mine & theirs) for b, theirs in kinds.items() if b != a and len(mine & theirs) >= 3}
+        for b in sorted(score, key=lambda k: (-score[k], k))[:per]:
+            out.add(tuple(sorted((a, b), key=pp.slug)))
+    _pairs_cache.update(at=time.time(), rows=sorted(out))
+    return _pairs_cache["rows"]
+
+
+def _changed():
+    """{number id: the day it last took a new value}: what the site map tells crawlers, so a re-read that found nothing new is not news."""
+    out = {r["id"]: (r["created_at"] or "")[:10] for r in db.q("SELECT id, created_at FROM metrics")}
+    for r in db.q("SELECT metric_id, MAX(at) at FROM changes WHERE COALESCE(status,'accepted')='accepted' GROUP BY metric_id"):
+        if r["at"] and r["at"][:10] > out.get(r["metric_id"], ""):
+            out[r["metric_id"]] = r["at"][:10]
+    return out
+
+
 @app.get("/sitemap.xml")
 def sitemap():
-    urls = ["/", "/app", "/numbers", "/changes", "/top"] + [f"/top/{sl}" for _, sl, _ in _rankings()] + [pp.subject_path(n) for n in pp.groups()] + [pp.number_path(m) for m in db.q(f"SELECT id, title FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id")]
-    body = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(f"<url><loc>{pp.SITE}{pp.esc(u)}</loc></url>" for u in urls) + "</urlset>"
-    return RawResponse(body, media_type="application/xml")
+    changed = _changed()
+    groups = pp.groups()
+    of = lambda name: max((changed.get(i, "") for i in groups.get(name, [])), default="")
+    today = db.now()[:10]
+    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
+    urls += [(pp.subject_path(n), of(n)) for n in groups]
+    urls += [(pp.versus_path(a, b), max(of(a), of(b))) for a, b in _pairs()]
+    urls += [(pp.number_path(m), changed.get(m["id"], "")) for m in db.q(f"SELECT id, title FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id")]
+    body = ('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+            + "".join(f"<url><loc>{pp.SITE}{pp.esc(u)}</loc>{f'<lastmod>{d}</lastmod>' if d else ''}</url>" for u, d in urls) + "</urlset>")
+    return RawResponse(body, media_type="application/xml", headers={"Cache-Control": "public, max-age=900"})
+
+
+@app.get("/indexnow.txt")
+def indexnow_key():
+    import indexnow
+    return PlainTextResponse(indexnow.key())
 
 
 @app.get("/robots.txt")
@@ -1280,6 +1321,10 @@ def _autosync():
                     core.refresh_searched()
                 lifecycle.retire_stale()
                 lifecycle.repair_due()
+                import indexnow
+                pinged = indexnow.flush()
+                if pinged:
+                    print("indexnow, addresses sent:", pinged)
                 n = alerts.flush()
                 if n:
                     print("alert emails sent:", n)

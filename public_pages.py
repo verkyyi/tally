@@ -38,7 +38,8 @@ def fmt(v, unit):
         t = f"{v / 1e6:.2f}".rstrip("0").rstrip(".") + "M"
     else:
         t = f"{v:,.2f}".rstrip("0").rstrip(".") if v != int(v) else f"{int(v):,}"
-    return (CUR[mt.group(1).lower()] if mt else "") + t, ((unit or "")[mt.end():] if mt else (unit or ""))
+    cur = CUR[mt.group(1).lower()] if mt else ""
+    return ("-" + cur + t[1:] if cur and t.startswith("-") else cur + t), ((unit or "")[mt.end():] if mt else (unit or ""))
 
 
 def when(iso):
@@ -70,7 +71,7 @@ a{color:inherit;text-decoration-color:var(--accent);text-underline-offset:3px}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
 .crumb{font:13px var(--mono);color:var(--mute);margin:18px 0 6px}.crumb a{text-decoration:none}
 h1{font-size:clamp(28px,4.4vw,40px);line-height:1.1;letter-spacing:-.03em;margin:0 0 6px}h2{font-size:21px;letter-spacing:-.02em;margin:34px 0 10px}
-.q{color:var(--mute);margin:0 0 18px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;box-shadow:0 1px 2px rgba(14,19,32,.04)}
+.q{color:var(--mute);margin:0 0 18px}.lede{font:500 17px/1.5 var(--display);color:var(--ink);margin:-6px 0 18px;max-width:68ch}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;box-shadow:0 1px 2px rgba(14,19,32,.04)}
 .val{font-size:clamp(44px,8vw,68px);font-weight:700;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
 .val small{font:15px var(--mono);font-weight:400;color:var(--mute);letter-spacing:0;margin-left:8px}
 .meta{font:13px var(--mono);color:var(--mute);margin:10px 0 0}.none{font-size:22px;color:var(--mute);font-weight:500}
@@ -483,7 +484,9 @@ def top_page(name, sl, rows):
     desc = f"{subject(lead)} leads with {fmt(lead['value'], lead['unit'])[0]}. {len(rows)} companies ranked by {name}, each number with its source, kept current on Tally."
     body = (f'<div class="crumb"><a href="/top">Rankings</a> / {esc(name)}</div><h1>Ranked by {esc(name)}</h1><p class="q">{len(rows)} tracked on Tally. Each number opens to its evidence.</p>'
             f'<ul class="rows">{lis}</ul><div class="cta"><a class="btn" href="/app?setup=1">Track the companies you watch</a><a class="btn ghost" href="/top">More rankings</a></div>')
-    return shell(f"Companies ranked by {name} | Tally", desc[:300], f"/top/{sl}", body)
+    ld = ld_json(item_list(f"Companies ranked by {name}", [(f"{subject(t)}: {' '.join(x for x in fmt(t['value'], t['unit']) if x)}", number_path(t)) for t in rows]),
+                 crumbs(("Rankings", "/top"), (name, f"/top/{sl}")))
+    return shell(f"Companies ranked by {name} | Tally", desc[:300], f"/top/{sl}", body, ld)
 
 
 def top_index(items):
@@ -492,15 +495,80 @@ def top_index(items):
     return shell("Company rankings: funding, valuation, headcount, open roles | Tally", "Companies ranked by funding, valuation, headcount, open roles and launches, each figure with its source.", "/top", body)
 
 
+def plain_name(m):
+    """A number's name as people type it: 'OpenAI · latest valuation' -> 'OpenAI valuation'."""
+    who, _, kind = (m.get("title") or "").rpartition(" · ")
+    kind = re.sub(r"^(.*), (weekly|monthly|daily|quarterly|annual)$", r"\2 \1", kind)  # 'npm downloads, weekly' -> 'weekly npm downloads'
+    return re.sub(r"\s+", " ", re.sub(r"\blatest\b ?", "", f"{who} {kind}".replace(" · ", " "), flags=re.I)).strip()
+
+
+def story(m, pts):
+    """One plain sentence on how a number moved over its recorded history: the line a person or an answer engine quotes.
+    Empty when the history is shorter than a month."""
+    pts = [p for p in pts if p.get("value") is not None]
+    if m.get("period") and len(pts) >= 3:
+        pts = pts[:-1]  # the period still running is not comparable with finished ones
+    if len(pts) < 2:
+        return ""
+    day = lambda p: datetime.strptime(p["at"][:10], "%Y-%m-%d")
+    first, last = pts[0], pts[-1]
+    if (day(last) - day(first)).days < 30:
+        return ""
+    f = lambda v: re.sub(r"^(1 \w+)s$", r"\1", " ".join(x for x in fmt(v, m.get("unit")) if x))  # '1 downloads' -> '1 download'
+    mon = lambda p: day(p).strftime("%B %Y")
+    a, b = first["value"], last["value"]
+    name = plain_name(m)
+    if all(p["value"] == a for p in pts):
+        return f"{name} has been {f(a)} since {mon(first)}, the earliest Tally has on record."
+    if a == b:
+        move = "the same at both ends"
+    elif a > 0 and b > 0:
+        r = b / a
+        move = ("" if r >= 1000 or r <= 0.001 else f"{r:,.0f} times higher" if r >= 10 else f"{r:.1f} times higher".replace(".0 times", " times") if r >= 2
+                else f"up {(r - 1) * 100:.0f}%" if r > 1 else f"down {(1 - r) * 100:.0f}%")
+    else:
+        move = ""
+    periodic = core.by_period(m, pts)
+    out = (f"{name} was {f(a)} in {mon(first)} and {f(b)} in {mon(last)}" if periodic else f"{name} went from {f(a)} in {mon(first)} to {f(b)} in {mon(last)}") + (f", {move}" if move else "")
+    top = max(pts, key=lambda p: p["value"])
+    if top is not last and top is not first and b > 0 and top["value"] > b * 1.15 and mon(top) != mon(last):
+        out += f"; the highest on record is {f(top['value'])} in {mon(top)}"
+    moves = sum(1 for x, y in zip(pts, pts[1:]) if x["value"] != y["value"])
+    if not periodic and 2 <= moves <= 24 and core.stepped(m):
+        out += f", across {moves} recorded changes"
+    return out + "."
+
+
+def crumbs(*steps):
+    """Breadcrumb structured data: steps are (name, path)."""
+    return {"@context": "https://schema.org", "@type": "BreadcrumbList",
+            "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": n, "item": SITE + p} for i, (n, p) in enumerate(steps)]}
+
+
+def item_list(name, items):
+    """An ordered list as structured data: items are (text, path)."""
+    return {"@context": "https://schema.org", "@type": "ItemList", "name": name, "numberOfItems": len(items),
+            "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": n, "url": SITE + p} for i, (n, p) in enumerate(items)]}
+
+
+def ld_json(*things):
+    import json
+    return json.dumps(list(things)).replace("</", "<\\/")
+
+
 def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(), compare=(), per=None, rank=None):
     """m: metric row, t: the signed-out tile, ev: the signed-out evidence dict (may be locked), pts: the full series."""
     txt, unit = fmt(per["value"] if per and not per["current"] else t["value"], t["unit"])
     sub = subject(m)
     asof = when(t.get("as_of") or t.get("last_checked"))
-    title = f'{m["title"]}: {txt + (" " + unit if unit else "") if txt else "no value yet"} | Tally'
-    desc = (f'{m["question"]} {txt}{" " + unit if unit else ""}{", as of " + asof if asof else ""}. Tracked on Tally with its source and history.' if txt
+    told = story(m, pts) if txt and not (per and not per["current"]) else ""
+    val = txt + (" " + unit if unit else "") if txt else "no value yet"
+    title = (f'{plain_name(m)} history: {val} ({datetime.strptime((t.get("as_of") or t.get("last_checked"))[:10], "%Y-%m-%d").strftime("%b %Y")}) | Tally' if told and asof
+             else f'{m["title"]}: {val} | Tally')
+    desc = (f'{m["question"]} {txt}{" " + unit if unit else ""}{", as of " + asof if asof else ""}. {told or "Tracked on Tally with its source and history."}'[:300] if txt
             else f'{m["question"]} Tally is tracking this and will show the value with its source as soon as one is found.')
-    body = f'<div class="crumb"><a href="/numbers">Numbers</a> / <a href="{subject_path(sub)}">{esc(sub)}</a></div><h1>{esc(m["title"])}</h1><p class="q">{esc(m["question"])}</p><div class="card">'
+    lede = f'<p class="lede">{esc(told)}</p>' if told else ""
+    body = f'<div class="crumb"><a href="/numbers">Numbers</a> / <a href="{subject_path(sub)}">{esc(sub)}</a></div><h1>{esc(m["title"])}</h1><p class="q">{esc(m["question"])}</p>{lede}<div class="card">'
     body += ('<div class="valrow">' + (f'<div class="val">{esc(txt)}<small>{esc(unit)}</small></div>' if txt else '<div class="none">No value yet. Tally does not guess.</div>')
              + f'<button class="follow" type="button" data-follow="{m["id"]}" aria-pressed="false">Follow</button></div>')
     if per:
@@ -533,7 +601,7 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
         note = (f'{len(pts):,} points since {when(pts[0]["at"])}. ' + (f'{hist:,} come from the source\'s own records; the rest were observed by Tally.' if hist else "All observed by Tally.")
                 + (" Computed from the entries\' own dates where marked in the download." if any(p["origin"] == "backfill" for p in pts) else ""))
         url = SITE + number_path(m)
-        body += (f'<h2 style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><span>History</span><span class="rgs">{tabs}</span></h2>'
+        body += (f'<h2 style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><span>{esc(plain_name(m))} history</span><span class="rgs">{tabs}</span></h2>'
                  f'<div class="card" style="padding:16px 16px 8px">{chart(shown, t["unit"], versions=() if core.by_period(m, shown) else versions, step=core.stepped(m), bars=core.by_period(m, shown))}</div><p class="meta">{esc(note)}{" Red marks show where the recipe changed." if versions else ""}</p>'
                  f'<div class="cta" style="margin-top:14px"><a class="btn ghost" href="/n/{m["id"]}/history.csv">Download CSV</a>'
                  f'<details class="emb"><summary class="btn ghost">Embed this chart</summary><div class="embbox"><p class="meta" style="margin:0 0 6px">A live image. Paste into a README, a post or a doc.</p>'
@@ -577,9 +645,25 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
                                  {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": f"{SITE}/n/{m['id']}.json"}]}
         if len(pts) >= 2:
             data["temporalCoverage"] = f'{pts[0]["at"][:10]}/{pts[-1]["at"][:10]}'
-        ld = json.dumps([{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": m["question"],
-                          "acceptedAnswer": {"@type": "Answer", "text": answer}}]}, data]).replace("</", "<\\/")
+            data["dateModified"] = changed_on(pts)
+        asked = [{"@type": "Question", "name": m["question"], "acceptedAnswer": {"@type": "Answer", "text": answer}}]
+        if told:
+            asked.append({"@type": "Question", "name": f"How has {plain_name(m)} changed over time?", "acceptedAnswer": {"@type": "Answer", "text": told}})
+        ld = ld_json({"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": asked}, data, crumbs(("Numbers", "/numbers"), (sub, subject_path(sub)), (m["title"], number_path(m))))
     return shell(title, desc, number_path(m), body, ld, image=f"/n/{m['id']}/card.png")
+
+
+def changed_on(pts):
+    """The day a number last took a new value (not the day it was last re-read and found the same)."""
+    pts = [p for p in pts if p.get("value") is not None]
+    if not pts:
+        return None
+    at = pts[-1]["at"]
+    for p in reversed(pts):
+        if p["value"] != pts[-1]["value"]:
+            break
+        at = p["at"]
+    return at[:10]
 
 
 def points_table(m, pts, limit=40):
@@ -598,13 +682,14 @@ def points_table(m, pts, limit=40):
     for r in reversed(runs[-limit:]):
         p = r["p"]
         day = lambda iso: datetime.strptime(iso[:10], "%Y-%m-%d").strftime("%b %-d, %Y")
-        span = day(r["from"]) if r["from"][:10] == r["to"][:10] else f'{day(r["from"])} to {day(r["to"])}'
+        tm = lambda iso: f'<time datetime="{iso[:10]}">{day(iso)}</time>'
+        span = tm(r["from"]) if r["from"][:10] == r["to"][:10] else f'{tm(r["from"])} to {tm(r["to"])}'
         url = p.get("url") or (m.get("source_url") if p["origin"] != "source_history" else "")
         host = re.sub(r"^www\.", "", url.split("/")[2]) if url and url.count("/") >= 2 else ""
         src = f'<a href="{esc(url)}" rel="nofollow noopener">{esc("web.archive.org copy" if host == "web.archive.org" else host)}</a>' if host else ("the entries below" if m["kind"] == "count" else "")
         note = p.get("note") if p["origin"] == "source_history" and p.get("note") and not str(p.get("note")).startswith("recipe v") else ""
         note = (str(p["note"]).split(": ", 1)[1][:140] if str(p.get("note") or "").startswith("recipe v") and ": " in str(p["note"]) and "running total" not in str(p["note"]) else note)
-        rows += (f'<tr><td>{esc(span)}</td><td>{esc(" ".join(x for x in fmt(p["value"], m.get("unit")) if x))}</td>'
+        rows += (f'<tr><td>{span}</td><td>{esc(" ".join(x for x in fmt(p["value"], m.get("unit")) if x))}</td>'
                  f'<td>{src}<span style="color:#667085"> · {esc(note or kinds.get(p["origin"], "read by Tally"))}</span></td></tr>')
     more = f'<p class="meta">{len(runs) - limit} earlier rows are in the <a href="/n/{m["id"]}/history.csv">CSV</a>, each with its source.</p>' if len(runs) > limit else ""
     return f'<h2>Where each point comes from</h2><div style="overflow-x:auto"><table class="pts"><tr><th>When</th><th>Value</th><th>Source</th></tr>{rows}</table></div>{more}'
@@ -732,7 +817,14 @@ def versus_page(a, b, rows_a, rows_b):
            ".vv{display:block;text-decoration:none;margin-bottom:8px}.vv:last-child{margin-bottom:0}.vv b{font:600 16px var(--display);font-variant-numeric:tabular-nums;color:var(--ink)}.vv span{color:var(--mute);font-size:13px}"
            ".vv i{display:block;height:8px;margin-top:5px;background:transparent;border-left:1px solid #c9ced8}.vv u{display:block;height:8px;border-radius:0 4px 4px 0;text-decoration:none}"
            ".vv:hover b{color:var(--accent)}.gap{display:block;font:13px var(--display);color:var(--mute);margin-bottom:5px}.gap b{color:var(--ink);font-weight:600}</style>")
-    return shell(f"{a} vs {b}: revenue, valuation, prices, people, side by side | Tally", f"{a} and {b} compared number by number: {len(both)} figures tracked for both, each with its history and its source.", versus_path(a, b), css + body)
+    one = lambda rows: " ".join(x for x in fmt(rows[0][1]["value"], rows[0][1]["unit"]) if x) or "no value yet"
+    listed = [(f"{by_a[k][0][0]['title'].split(' · ')[-1]}: {a} {one(by_a[k])}, {b} {one(by_b[k])}", number_path(by_a[k][0][0])) for g in GROUPS if g in groups for k in sorted(groups[g])]
+    lead = "; ".join(x for x, _ in listed[:2])
+    x, y = sorted((a, b), key=slug)
+    ld = ld_json(item_list(f"{a} vs {b} in numbers", listed), crumbs(("Numbers", "/numbers"), (a, subject_path(a)), (f"{a} vs {b}", versus_path(x, y)))) if listed else None
+    kinds = ", ".join(plain_name({"title": x.split(":")[0]}) for x, _ in listed[:4]) or "side by side"
+    return shell(f"{a} vs {b}: {kinds} | Tally"[:110],
+                 f"{a} and {b} compared number by number. {lead + '. ' if lead else ''}{len(both)} figures tracked for both, each with its history and its source."[:300], versus_path(x, y), css + body, ld)
 
 
 def subject_page(name, tiles, metrics=None, series=None, rivals=(), ticker=None):
@@ -764,7 +856,9 @@ def subject_page(name, tiles, metrics=None, series=None, rivals=(), ticker=None)
             f''
             f'<div class="cards" style="margin-top:18px">{cards}</div>'
             f'<div class="cta"><a class="btn" href="/app?q={esc(name)}">Follow these on your board</a><a class="btn ghost" href="/numbers">The whole catalog</a></div>')
-    return shell(title[:110], desc[:300], subject_path(name), body, image=f"/c/{slug(name)}/card.png")
+    ld = ld_json(item_list(f"{name} in numbers", [(f"{t['title']}: {' '.join(x for x in fmt(t['value'], t['unit']) if x)}", number_path(t)) for t in have]),
+                 crumbs(("Numbers", "/numbers"), (name, subject_path(name)))) if have else None
+    return shell(title[:110], desc[:300], subject_path(name), body, ld, image=f"/c/{slug(name)}/card.png")
 
 
 def index_page(groups):
