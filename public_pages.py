@@ -355,7 +355,8 @@ def compare_path(a, b):
 def compare_page(a, b, ta, tb, pa, pb, others=()):
     """Two numbers on one chart. a, b: metric rows; ta, tb: signed-out tiles; pa, pb: their public series; others: [(metric, label)] to swap in for b."""
     same = (ta["unit"] or "") == (tb["unit"] or "")
-    svg = chart(pa, ta["unit"], step=core.stepped(a), other=(pb, tb["unit"], core.stepped(b)))
+    svg = chart(pa, ta["unit"], step=core.stepped(a), other=(pb, tb["unit"], core.stepped(b))) if same else ""
+    twin = "" if same else (chart(pa, ta["unit"], h=200, step=core.stepped(a)), chart(pb, tb["unit"], h=200, step=core.stepped(b)).replace("#2f5bff", C2))
     def key(m, t, pts, colour):
         txt, unit = fmt(t["value"], t["unit"])
         return (f'<a class="t" href="{number_path(m)}"><b><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:{colour};margin-right:7px"></span>{esc(m["title"])}</b>'
@@ -368,9 +369,10 @@ def compare_page(a, b, ta, tb, pa, pb, others=()):
             f'<p class="q">{esc(a["title"].split(" · ")[-1] if a["title"].split(" · ")[-1] == b["title"].split(" · ")[-1] else a["title"] + " and " + b["title"])}, on one chart.</p>'
             f'<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">{key(a, ta, pa, "#2f5bff")}{key(b, tb, pb, C2)}</div>')
     if svg:
-        body += (f'<div class="card" style="padding:16px 16px 8px;margin-top:12px">{svg}</div><p class="meta">'
-                 + ("Both on the same scale." if same else "Each line has its own scale: left for the blue one, right for the orange one.")
-                 + " Every point links back to a source on the number's own page.</p>")
+        body += (f'<div class="card" style="padding:16px 16px 8px;margin-top:12px">{svg}</div><p class="meta">Both on one value axis. Every point links back to a source on the number\'s own page.</p>')
+    elif twin and twin[0] and twin[1]:
+        body += (f'<div class="card" style="padding:16px 16px 8px;margin-top:12px">{twin[0]}</div><div class="card" style="padding:16px 16px 8px;margin-top:10px">{twin[1]}</div>'
+                 '<p class="meta">These two are measured in different units, so each has its own chart rather than sharing one with two scales.</p>')
     else:
         body += '<p class="meta" style="margin-top:14px">A chart needs at least two readings of each number; one of these has fewer so far.</p>'
     body += f'<div class="cta"><a class="btn ghost" href="{esc(compare_path(b, a))}">Swap</a><a class="btn ghost" href="/n/{a["id"]}/history.csv">CSV: {esc(subject(a))}</a><a class="btn ghost" href="/n/{b["id"]}/history.csv">CSV: {esc(subject(b))}</a></div>'
@@ -605,12 +607,53 @@ def versus_path(a, b):
     return f"/vs/{slug(a)}/{slug(b)}"
 
 
+def _pair_spark(pa, pb, step_a=False, step_b=False, w=132, h=34):
+    """Two histories on one small chart, sharing one value axis from zero, so the gap between the lines is the real gap."""
+    from datetime import datetime as _dt
+    stamp = lambda ps: [_dt.strptime(p["at"][:10], "%Y-%m-%d").timestamp() for p in ps]
+    pa, pb = _thin([p for p in pa if p.get("value") is not None], 80), _thin([p for p in pb if p.get("value") is not None], 80)
+    if len(pa) < 2 or len(pb) < 2:
+        return ""
+    ta, tb, va, vb = stamp(pa), stamp(pb), [p["value"] for p in pa], [p["value"] for p in pb]
+    t0, t1, hi = min(ta[0], tb[0]), max(ta[-1], tb[-1]), max(va + vb) or 1
+    t1 = t1 if t1 > t0 else t0 + 1
+    X = lambda t: 4 + (t - t0) / (t1 - t0) * (w - 8)
+    Y = lambda v: 4 + (1 - max(v, 0) / hi) * (h - 8)
+    out = ""
+    for ts, vs, col, st in ((ta, va, "#2f5bff", step_a), (tb, vb, C2, step_b)):
+        out += (f'<path d="{_line(ts, vs, X, Y, st)}" fill="none" stroke="{col}" stroke-width="1.75" stroke-linejoin="round"/>'
+                f'<circle cx="{X(ts[-1]):.1f}" cy="{Y(vs[-1]):.1f}" r="2.6" fill="{col}" stroke="#fff" stroke-width="1"/>')
+    return f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}" aria-hidden="true" style="display:block"><line x1="4" x2="{w - 4}" y1="{h - 4}" y2="{h - 4}" stroke="#e1e4ea"/>{out}</svg>'
+
+
 def versus_page(a, b, rows_a, rows_b):
-    """Two companies side by side: every kind of number both have, each side's values, and a link to the two on one chart.
-    rows_*: [(metric, tile, number of history points)]."""
-    def cell(rows):
-        return "<br>".join(f'<a href="{number_path(m)}" style="text-decoration:none"><b style="font-variant-numeric:tabular-nums">{esc(" ".join(x for x in fmt(t["value"], t["unit"]) if x) or "no value yet")}</b></a>'
-                           + (f' <span style="color:#667085;font-size:13px">{esc(m["title"].split(" · ")[0])}</span>' if m["title"].split(" · ")[0] not in (a, b) else "") for m, t, n in rows)
+    """Two companies side by side: every kind of number both have, each side's values drawn as bars on one scale per row,
+    how far apart they are in words, and the two histories on one small chart. rows_*: [(metric, tile, number of history points)]."""
+    def cell(rows, top, colour):
+        out = ""
+        for m, t, n in rows:
+            v = t["value"]
+            txt = " ".join(x for x in fmt(v, t["unit"]) if x) or "no value yet"
+            width = 0 if not v or not top else max(2, round(abs(v) / top * 100))
+            line = m["title"].split(" · ")[0]
+            tip = f'{m["title"]}: {txt}' + (f', as of {when(t.get("as_of") or t.get("last_checked"))}' if (t.get("as_of") or t.get("last_checked")) else "")
+            out += (f'<a class="vv" href="{number_path(m)}" title="{esc(tip)}"><b>{esc(txt)}</b>'
+                    + (f' <span>{esc(line)}</span>' if line not in (a, b) else "")
+                    + f'<i><u style="width:{width}%;background:{colour}"></u></i></a>')
+        return out
+
+    def gap(ra, rb):
+        """How far apart the two are, in words, when each side has exactly one value."""
+        if len(ra) != 1 or len(rb) != 1:
+            return ""
+        x, y = ra[0][1]["value"], rb[0][1]["value"]
+        if x is None or y is None or x <= 0 or y <= 0:
+            return ""
+        hi_name, r = (a, x / y) if x >= y else (b, y / x)
+        if r < 1.02:
+            return '<span class="gap">level</span>'
+        return f'<span class="gap"><b>{esc(hi_name)}</b> {f"{r:.1f}×".replace(".0×", "×") if r >= 2 else f"+{(r - 1) * 100:.0f}%"}</span>'
+
     by_a, by_b = {}, {}
     for r in rows_a:
         by_a.setdefault(what(r[0]).lower(), []).append(r)
@@ -621,7 +664,7 @@ def versus_page(a, b, rows_a, rows_b):
     for k in both:
         groups.setdefault(category(by_a[k][0][0]), []).append(k)
     body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / Compare</div><h1>{esc(a)} vs {esc(b)}</h1>'
-            f'<p class="q">{len(both)} kinds of number tracked for both, side by side. Each value opens its own page with its history and source; “chart” puts the two on one chart.</p>'
+            f'<p class="q">{len(both)} kinds of number tracked for both. In each row the two bars share one scale, so their lengths compare directly; the small chart shows both histories on one axis and opens the full comparison.</p>'
             f'{share_bar(versus_path(a, b), f"{a} vs {b} in numbers, each with its history and source")}')
     trs = ""  # one table for every group, so the two companies' values sit in the same two columns all the way down
     for g in GROUPS:
@@ -630,21 +673,29 @@ def versus_page(a, b, rows_a, rows_b):
         trs += f'<tr class="grp"><td colspan="4">{g}</td></tr>'
         for k in sorted(groups[g]):
             ra, rb = by_a[k], by_b[k]
+            top = max([abs(t["value"]) for _, t, _ in ra + rb if t["value"] is not None] or [0])
             pa, pb = next((r for r in ra if r[2] >= 2), None), next((r for r in rb if r[2] >= 2), None)
-            chart = f'<a href="{esc(compare_path(pa[0], pb[0]))}">chart</a>' if pa and pb and len(ra) == 1 and len(rb) == 1 else ""
-            trs += f'<tr><td>{esc(what(ra[0][0]))}</td><td>{cell(ra)}</td><td>{cell(rb)}</td><td>{chart}</td></tr>'
+            spark = ""
+            if pa and pb and len(ra) == 1 and len(rb) == 1:
+                svg = _pair_spark(core.series(pa[0]["id"]), core.series(pb[0]["id"]), core.stepped(pa[0]), core.stepped(pb[0]))
+                spark = f'<a href="{esc(compare_path(pa[0], pb[0]))}" title="Both histories on one chart" aria-label="{esc(what(ra[0][0]))}: both histories on one chart">{svg}</a>' if svg else ""
+            trs += f'<tr><td>{esc(what(ra[0][0]))}</td><td>{cell(ra, top, "#2f5bff")}</td><td>{cell(rb, top, C2)}</td><td>{gap(ra, rb)}{spark}</td></tr>'
     if trs:
-        body += (f'<div style="overflow-x:auto;margin-top:18px"><table class="pts vs"><colgroup><col style="width:36%"><col style="width:28%"><col style="width:28%"><col style="width:8%"></colgroup>'
-                 f'<thead><tr><th></th><th>{esc(a)}</th><th>{esc(b)}</th><th></th></tr></thead><tbody>{trs}</tbody></table></div>')
+        key = lambda name, col: f'<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:{col};margin-right:7px"></span>{esc(name)}'
+        body += (f'<div style="overflow-x:auto;margin-top:18px"><table class="pts vs"><colgroup><col style="width:27%"><col style="width:27%"><col style="width:27%"><col style="width:19%"></colgroup>'
+                 f'<thead><tr><th></th><th>{key(a, "#2f5bff")}</th><th>{key(b, C2)}</th><th>Gap and history</th></tr></thead><tbody>{trs}</tbody></table></div>')
     for name, mine, other in ((a, by_a, by_b), (b, by_b, by_a)):
         only = [r for k, rs in mine.items() if k not in other for r in rs]
         if only:
             body += (f'<h2>Only tracked for {esc(name)}</h2><div class="chips">' + "".join(f'<a href="{number_path(m)}">{esc(what(m))}</a>' for m, t, n in only[:40]) + "</div>")
     body += f'<div class="cta"><a class="btn ghost" href="{subject_path(a)}">{esc(a)} in numbers</a><a class="btn ghost" href="{subject_path(b)}">{esc(b)} in numbers</a><a class="btn ghost" href="{versus_path(b, a)}">Swap</a></div>'
-    css = ("<style>table.vs{table-layout:fixed;min-width:560px}table.vs td:first-child{white-space:normal;color:var(--ink);font:15px var(--display)}"
-           "table.vs td:nth-child(2),table.vs td:nth-child(3){font-weight:400;white-space:normal}table.vs td:last-child{text-align:right}"
+    css = ("<style>table.vs{table-layout:fixed;min-width:640px}table.vs td{vertical-align:top;padding:11px 6px}table.vs td:first-child{white-space:normal;color:var(--ink);font:15px var(--display)}"
+           "table.vs td:nth-child(2),table.vs td:nth-child(3){font-weight:400;white-space:normal;padding-right:18px}"
            "table.vs thead th{position:sticky;top:0;background:var(--paper);z-index:1}table.vs th:nth-child(2),table.vs th:nth-child(3){color:var(--ink);font:600 15px var(--display);text-transform:none;letter-spacing:0}"
-           "table.vs tr.grp td{font:600 19px var(--display);letter-spacing:-.02em;color:var(--ink);padding:26px 6px 8px;border-bottom:1px solid var(--ink)}</style>")
+           "table.vs tr.grp td{font:600 19px var(--display);letter-spacing:-.02em;color:var(--ink);padding:26px 6px 8px;border-bottom:1px solid var(--ink)}"
+           ".vv{display:block;text-decoration:none;margin-bottom:8px}.vv:last-child{margin-bottom:0}.vv b{font:600 16px var(--display);font-variant-numeric:tabular-nums;color:var(--ink)}.vv span{color:var(--mute);font-size:13px}"
+           ".vv i{display:block;height:8px;margin-top:5px;background:transparent;border-left:1px solid #c9ced8}.vv u{display:block;height:8px;border-radius:0 4px 4px 0;text-decoration:none}"
+           ".vv:hover b{color:var(--accent)}.gap{display:block;font:13px var(--display);color:var(--mute);margin-bottom:5px}.gap b{color:var(--ink);font-weight:600}</style>")
     return shell(f"{a} vs {b}: revenue, valuation, prices, people, side by side | Tally", f"{a} and {b} compared number by number: {len(both)} figures tracked for both, each with its history and its source.", versus_path(a, b), css + body)
 
 
