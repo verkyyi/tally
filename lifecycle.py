@@ -139,7 +139,8 @@ def state(u, did):
         out |= {"reasons": p.get("reasons", [])}
     elif row["status"] == "ready":
         txt, unit = pp.fmt(p["value"], p.get("unit"))
-        out |= {"value": txt + (" " + unit if unit else ""), "quote": p["quote"], "url": p["url"], "recipe": p["body"], "plan": p.get("plan"), "no_past": p.get("no_past") or "",
+        out |= {"value": txt + (" " + unit if unit else ""), "value_raw": p["value"], "quote": p["quote"], "url": p["url"], "recipe": p["body"], "plan": p.get("plan"), "no_past": p.get("no_past") or "",
+                "points": [[h["date"], h["value"]] for h in p.get("history") or []] + [[db.now()[:10], p["value"]]], "holds": bool((p.get("plan") or {}).get("holds")),
                 "history": [{"date": h["date"], "value": " ".join(x for x in pp.fmt(h["value"], p.get("unit")) if x), "url": h.get("url")} for h in p.get("history") or []]}
     return out
 

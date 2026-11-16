@@ -100,6 +100,30 @@ ul.rows li span{font:13px var(--mono);color:var(--mute);white-space:nowrap}
 .num .m{font:12px var(--mono);color:var(--mute);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:auto}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
 ol.steps{margin:0;padding-left:22px;font-size:14px;color:#344054}ol.steps li{padding:2px 0;word-break:break-word}ol.steps li.chk{list-style:none;margin-left:-22px;color:var(--ink)}
+.run{margin-top:16px}.phases{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;padding:0;list-style:none}
+.phases li{display:flex;align-items:center;gap:7px;font:13px var(--display);color:var(--mute);padding:5px 11px 5px 8px;border:1px solid var(--line);border-radius:999px;background:var(--card);transition:color .3s,border-color .3s,background .3s}
+.phases li i{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font:700 10px var(--display);font-style:normal;color:#fff;flex:none;transition:background .3s,border-color .3s}
+.phases li.done{color:var(--ink)}.phases li.done i{background:var(--up);border-color:var(--up)}.phases li.done i::before{content:"✓"}
+.phases li.now{color:var(--ink);border-color:var(--accent);background:#eaf0ff}.phases li.now i{border-color:var(--accent);border-top-color:transparent;animation:spin .8s linear infinite}
+.phases li.bad i{background:#d92d20;border-color:#d92d20}.phases li.bad i::before{content:"×"}
+.runhead{display:flex;justify-content:space-between;gap:12px;align-items:baseline;font:13px var(--mono);color:var(--mute);margin-bottom:8px}
+.feed{list-style:none;margin:0;padding:0;border-left:2px solid var(--line);margin-left:9px}
+.feed li{position:relative;padding:5px 0 5px 20px;font-size:14.5px;color:#344054;word-break:break-word;animation:stepin .35s ease-out both}
+.feed li::before{content:"";position:absolute;left:-6px;top:11px;width:10px;height:10px;border-radius:50%;background:var(--card);border:2px solid #c9ced8}
+.feed li.ok::before{background:var(--up);border-color:var(--up)}.feed li.no::before{background:#d92d20;border-color:#d92d20}
+.feed li.live{color:var(--ink)}.feed li.live::before{border-color:var(--accent);background:var(--accent);animation:pulse 1.2s ease-in-out infinite}
+.feed li .av{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;font:700 10px var(--display);color:#fff;margin-right:7px;vertical-align:-3px}
+.feed li a{text-decoration-color:#c9ced8}button.more{font:13px var(--mono);color:var(--mute);cursor:pointer;padding:2px 0 6px 29px;background:none;border:0;text-decoration:underline;text-decoration-color:#c9ced8;text-underline-offset:3px}button.more:hover{color:var(--ink)}
+.think{display:inline-block;margin-left:8px;font:13px var(--mono);background:linear-gradient(90deg,#98a2b3 0%,#0e1320 50%,#98a2b3 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 1.6s linear infinite}
+.srcs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0}.srcs span{font:12px var(--mono);color:var(--mute);border:1px solid var(--line);border-radius:999px;padding:3px 9px;background:var(--card);animation:stepin .35s ease-out both}
+.skel{margin-top:14px;border:1px dashed var(--line);border-radius:14px;padding:18px 20px}.skel b,.skel u{display:block;border-radius:6px;background:linear-gradient(90deg,#eceef2 25%,#f7f8fa 50%,#eceef2 75%);background-size:200% 100%;animation:shimmer 1.4s linear infinite;text-decoration:none}
+.skel b{height:14px;width:42%}.skel u{height:40px;width:30%;margin-top:12px}.skel u+u{height:64px;width:100%}
+.reveal{animation:rise .5s cubic-bezier(.2,.8,.2,1) both}.reveal .pts tr{animation:stepin .4s ease-out both}
+.drawline{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.1s .25s ease-out forwards}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(47,91,255,.45)}50%{box-shadow:0 0 0 6px rgba(47,91,255,0)}}
+@keyframes shimmer{to{background-position:-200% 0}}@keyframes stepin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}@keyframes draw{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion: reduce){.feed li,.srcs span,.reveal,.reveal .pts tr{animation:none}.phases li.now i,.feed li.live::before,.think,.skel b,.skel u{animation:none}.drawline{animation:none;stroke-dashoffset:0}}
 .usebox pre{white-space:pre-wrap;word-break:break-word;font:13px/1.5 var(--mono);background:var(--paper);border-radius:8px;padding:10px 12px;margin:0 0 10px}
 table.pts{border-collapse:collapse;width:100%;font-size:15px}table.pts td,table.pts th{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
 table.pts th{font:12px var(--mono);color:var(--mute);font-weight:400;text-transform:uppercase;letter-spacing:.06em}table.pts td:nth-child(2){font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -190,7 +214,7 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 <div class="sbox"><input type="search" data-suggest autocomplete="off" placeholder="Search a number" aria-label="Search a number"></div>
 <nav style="display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end;font-size:15px"><a href="/changes" style="text-decoration:none">What changed</a><a href="/numbers" style="text-decoration:none">All numbers</a><a href="/app" style="text-decoration:none;font-weight:600">Your board</a></nav></header>
 {body}
-<script src="/static/pub.js?v=8" defer></script>
+<script src="/static/pub.js?v=9" defer></script>
 <footer>Data on Tally is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
 <a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
