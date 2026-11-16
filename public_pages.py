@@ -363,7 +363,7 @@ def compare_page(a, b, ta, tb, pa, pb, others=()):
     twin = "" if same else (paint(chart(pa, ta["unit"], h=200, step=core.stepped(a))), paint(chart(pb, tb["unit"], h=200, step=core.stepped(b)), first=False))
     def key(m, t, pts, colour):
         txt, unit = fmt(t["value"], t["unit"])
-        return (f'<a class="t" href="{number_path(m)}"><b>{logo_img(subject(m), 20)}{esc(m["title"])}<span style="display:block;height:4px;width:44px;border-radius:2px;background:{colour};margin-top:7px"></span></b>'
+        return (f'<a class="t" href="{number_path(m)}"><b>{logo_img(subject(m), 20)}{esc(m["title"])}<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{colour};margin-left:8px;vertical-align:middle"></span></b>'
                 f'<div class="v">{esc(txt or "no value yet")}<small>{esc(unit)}</small></div><div class="m">{len(pts):,} points{" since " + when(pts[0]["at"]) if pts else ""}</div></a>')
     va, vb = fmt(ta["value"], ta["unit"]), fmt(tb["value"], tb["unit"])
     title = f'{a["title"]} vs {b["title"]} | Tally'
@@ -693,7 +693,7 @@ def versus_page(a, b, rows_a, rows_b):
                 spark = f'<a href="{esc(compare_path(pa[0], pb[0]))}" title="Both histories on one chart" aria-label="{esc(what(ra[0][0]))}: both histories on one chart">{svg}</a>' if svg else ""
             trs += f'<tr><td>{esc(what(ra[0][0]))}</td><td>{cell(ra, top, ca)}</td><td>{cell(rb, top, cb)}</td><td>{gap(ra, rb)}{spark}</td></tr>'
     if trs:
-        key = lambda name, col: f'{logo_img(name, 22)}{esc(name)}<span style="display:block;height:4px;width:44px;border-radius:2px;background:{col};margin-top:6px"></span>'
+        key = lambda name, col: f'{logo_img(name, 22)}{esc(name)}<span title="{esc(name)}\'s colour in the bars and charts below" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{col};margin-left:8px;vertical-align:middle"></span>'
         body += (f'<div style="overflow-x:auto;margin-top:18px"><table class="pts vs"><colgroup><col style="width:27%"><col style="width:27%"><col style="width:27%"><col style="width:19%"></colgroup>'
                  f'<thead><tr><th></th><th>{key(a, ca)}</th><th>{key(b, cb)}</th><th>Gap and history</th></tr></thead><tbody>{trs}</tbody></table></div>')
     for name, mine, other in ((a, by_a, by_b), (b, by_b, by_a)):
