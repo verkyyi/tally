@@ -381,14 +381,11 @@ def stocks():
     import free_sources as fs
     import recipes
     want = {t.upper() for t in sys.argv[2:]}
-    tk = {v["ticker"]: v for v in fs._get("https://www.sec.gov/files/company_tickers.json", ttl=86400).values()}
     made = pts = 0
-    for ticker, name in fs.STOCKS:
+    for ticker, name, cik_n in fs.STOCKS:
         if want and ticker not in want:
             continue
-        if ticker not in tk:
-            print("no SEC record for", ticker); continue
-        cik = f'{tk[ticker]["cik_str"]:010d}'
+        cik = f"{cik_n:010d}"
         db.run("INSERT OR REPLACE INTO aliases(alias,subject,kind) VALUES(?,?,'ticker')", (ticker.lower(), name))
         for what, q, concepts, kind, unit, shown in fs.STOCK_NUMBERS:
             found = []

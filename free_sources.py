@@ -158,12 +158,17 @@ def history(spec):
     return []
 
 
-# Listed companies: ticker, the name people use. Their figures come from the filings each makes with the US securities regulator.
-STOCKS = [("NVDA", "Nvidia"), ("MSFT", "Microsoft"), ("AAPL", "Apple"), ("GOOGL", "Alphabet"), ("AMZN", "Amazon"), ("META", "Meta"), ("AVGO", "Broadcom"), ("TSLA", "Tesla"),
-          ("BRK-B", "Berkshire Hathaway"), ("LLY", "Eli Lilly"), ("JPM", "JPMorgan Chase"), ("WMT", "Walmart"), ("V", "Visa"), ("ORCL", "Oracle"), ("MA", "Mastercard"), ("XOM", "ExxonMobil"),
-          ("NFLX", "Netflix"), ("COST", "Costco"), ("JNJ", "Johnson & Johnson"), ("HD", "Home Depot"), ("PLTR", "Palantir"), ("AMD", "AMD"), ("CRM", "Salesforce"), ("ADBE", "Adobe"),
-          ("INTC", "Intel"), ("CSCO", "Cisco"), ("IBM", "IBM"), ("UBER", "Uber"), ("QCOM", "Qualcomm"), ("MU", "Micron"), ("NOW", "ServiceNow"), ("SNOW", "Snowflake"), ("DDOG", "Datadog"),
-          ("NET", "Cloudflare"), ("CRWD", "CrowdStrike"), ("SHOP", "Shopify"), ("COIN", "Coinbase"), ("ABNB", "Airbnb"), ("DIS", "Disney"), ("KO", "Coca-Cola")]
+# Listed companies: ticker, the name people use, the SEC's number for the company (its CIK). Their figures come from the filings each makes with the US securities regulator.
+STOCKS = [("NVDA", "Nvidia", 1045810), ("MSFT", "Microsoft", 789019), ("AAPL", "Apple", 320193), ("GOOGL", "Alphabet", 1652044),
+          ("AMZN", "Amazon", 1018724), ("META", "Meta", 1326801), ("AVGO", "Broadcom", 1730168), ("TSLA", "Tesla", 1318605),
+          ("BRK-B", "Berkshire Hathaway", 1067983), ("LLY", "Eli Lilly", 59478), ("JPM", "JPMorgan Chase", 19617), ("WMT", "Walmart", 104169),
+          ("V", "Visa", 1403161), ("ORCL", "Oracle", 1341439), ("MA", "Mastercard", 1141391), ("XOM", "ExxonMobil", 2115436),
+          ("NFLX", "Netflix", 1065280), ("COST", "Costco", 909832), ("JNJ", "Johnson & Johnson", 200406), ("HD", "Home Depot", 354950),
+          ("PLTR", "Palantir", 1321655), ("AMD", "AMD", 2488), ("CRM", "Salesforce", 1108524), ("ADBE", "Adobe", 796343),
+          ("INTC", "Intel", 50863), ("CSCO", "Cisco", 858877), ("IBM", "IBM", 51143), ("UBER", "Uber", 1543151),
+          ("QCOM", "Qualcomm", 804328), ("MU", "Micron", 723125), ("NOW", "ServiceNow", 1373715), ("SNOW", "Snowflake", 1640147),
+          ("DDOG", "Datadog", 1561550), ("NET", "Cloudflare", 1477333), ("CRWD", "CrowdStrike", 1535527), ("SHOP", "Shopify", 1594805),
+          ("COIN", "Coinbase", 1679788), ("ABNB", "Airbnb", 1559720), ("DIS", "Disney", 1744489), ("KO", "Coca-Cola", 21344)]
 ALSO_KNOWN_AS = {"Alphabet": ["google", "goog"], "Meta": ["facebook", "fb"], "Berkshire Hathaway": ["brk", "brk.b", "brkb"], "Anthropic": ["ant"], "JPMorgan Chase": ["jpmorgan", "chase"]}
 REVENUE = ("RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "RevenuesNetOfInterestExpense", "SalesRevenueNet", "RevenueFromContractWithCustomerIncludingAssessedTax")
 # what is tracked for each: name after the dot, question, candidate concepts, kind, unit, shown unit
