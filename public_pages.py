@@ -4,6 +4,7 @@ import html
 import re
 from datetime import datetime, timezone
 
+import brand
 import core
 import db
 
@@ -319,8 +320,9 @@ def landing_card(m, t, pts, rising=False):
 
 
 def landing_compare(a, ta, b, tb, kind):
-    return (f'<a class="strip" href="{esc(compare_path(a, b))}"><span><b>Compare two numbers on one chart.</b> <span class="dot" style="background:#2f5bff"></span>{esc(subject(a))} {esc(fmt(ta["value"], ta["unit"])[0])}'
-            f' &nbsp;vs&nbsp; <span class="dot" style="background:{C2}"></span>{esc(subject(b))} {esc(fmt(tb["value"], tb["unit"])[0])} · {esc(kind)}</span><span class="go">Open the chart</span></a>')
+    ca, cb = brand.pair(subject(a), subject(b))
+    return (f'<a class="strip" href="{esc(compare_path(a, b))}"><span><b>Compare two numbers on one chart.</b> <span class="dot" style="background:{ca}"></span>{esc(subject(a))} {esc(fmt(ta["value"], ta["unit"])[0])}'
+            f' &nbsp;vs&nbsp; <span class="dot" style="background:{cb}"></span>{esc(subject(b))} {esc(fmt(tb["value"], tb["unit"])[0])} · {esc(kind)}</span><span class="go">Open the chart</span></a>')
 
 
 def track_page(q):
@@ -355,8 +357,10 @@ def compare_path(a, b):
 def compare_page(a, b, ta, tb, pa, pb, others=()):
     """Two numbers on one chart. a, b: metric rows; ta, tb: signed-out tiles; pa, pb: their public series; others: [(metric, label)] to swap in for b."""
     same = (ta["unit"] or "") == (tb["unit"] or "")
-    svg = chart(pa, ta["unit"], step=core.stepped(a), other=(pb, tb["unit"], core.stepped(b))) if same else ""
-    twin = "" if same else (chart(pa, ta["unit"], h=200, step=core.stepped(a)), chart(pb, tb["unit"], h=200, step=core.stepped(b)).replace("#2f5bff", C2))
+    ca, cb = brand.pair(subject(a), subject(b)) if subject(a) != subject(b) else ("#2f5bff", C2)
+    paint = lambda svg, first=True: svg.replace("#2f5bff", "@A").replace(C2, "@B").replace("@A", ca if first else cb).replace("@B", cb)
+    svg = paint(chart(pa, ta["unit"], step=core.stepped(a), other=(pb, tb["unit"], core.stepped(b)))) if same else ""
+    twin = "" if same else (paint(chart(pa, ta["unit"], h=200, step=core.stepped(a))), paint(chart(pb, tb["unit"], h=200, step=core.stepped(b)), first=False))
     def key(m, t, pts, colour):
         txt, unit = fmt(t["value"], t["unit"])
         return (f'<a class="t" href="{number_path(m)}"><b><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:{colour};margin-right:7px"></span>{esc(m["title"])}</b>'
@@ -367,7 +371,7 @@ def compare_page(a, b, ta, tb, pa, pb, others=()):
             "on one chart, each with its history and its source.")
     body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / Compare</div><h1>{esc(subject(a))} vs {esc(subject(b))}</h1>'
             f'<p class="q">{esc(a["title"].split(" · ")[-1] if a["title"].split(" · ")[-1] == b["title"].split(" · ")[-1] else a["title"] + " and " + b["title"])}, on one chart.</p>'
-            f'<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">{key(a, ta, pa, "#2f5bff")}{key(b, tb, pb, C2)}</div>')
+            f'<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">{key(a, ta, pa, ca)}{key(b, tb, pb, cb)}</div>')
     if svg:
         body += (f'<div class="card" style="padding:16px 16px 8px;margin-top:12px">{svg}</div><p class="meta">Both on one value axis. Every point links back to a source on the number\'s own page.</p>')
     elif twin and twin[0] and twin[1]:
@@ -607,7 +611,7 @@ def versus_path(a, b):
     return f"/vs/{slug(a)}/{slug(b)}"
 
 
-def _pair_spark(pa, pb, step_a=False, step_b=False, w=132, h=34):
+def _pair_spark(pa, pb, step_a=False, step_b=False, w=132, h=34, colours=("#2f5bff", "#e8590c")):
     """Two histories on one small chart, sharing one value axis from zero, so the gap between the lines is the real gap."""
     from datetime import datetime as _dt
     stamp = lambda ps: [_dt.strptime(p["at"][:10], "%Y-%m-%d").timestamp() for p in ps]
@@ -620,7 +624,7 @@ def _pair_spark(pa, pb, step_a=False, step_b=False, w=132, h=34):
     X = lambda t: 4 + (t - t0) / (t1 - t0) * (w - 8)
     Y = lambda v: 4 + (1 - max(v, 0) / hi) * (h - 8)
     out = ""
-    for ts, vs, col, st in ((ta, va, "#2f5bff", step_a), (tb, vb, C2, step_b)):
+    for ts, vs, col, st in ((ta, va, colours[0], step_a), (tb, vb, colours[1], step_b)):
         out += (f'<path d="{_line(ts, vs, X, Y, st)}" fill="none" stroke="{col}" stroke-width="1.75" stroke-linejoin="round"/>'
                 f'<circle cx="{X(ts[-1]):.1f}" cy="{Y(vs[-1]):.1f}" r="2.6" fill="{col}" stroke="#fff" stroke-width="1"/>')
     return f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}" aria-hidden="true" style="display:block"><line x1="4" x2="{w - 4}" y1="{h - 4}" y2="{h - 4}" stroke="#e1e4ea"/>{out}</svg>'
@@ -654,6 +658,7 @@ def versus_page(a, b, rows_a, rows_b):
             return '<span class="gap">level</span>'
         return f'<span class="gap"><b>{esc(hi_name)}</b> {f"{r:.1f}×".replace(".0×", "×") if r >= 2 else f"+{(r - 1) * 100:.0f}%"}</span>'
 
+    ca, cb = brand.pair(a, b)  # each company in the colour people know it by
     by_a, by_b = {}, {}
     for r in rows_a:
         by_a.setdefault(what(r[0]).lower(), []).append(r)
@@ -677,13 +682,13 @@ def versus_page(a, b, rows_a, rows_b):
             pa, pb = next((r for r in ra if r[2] >= 2), None), next((r for r in rb if r[2] >= 2), None)
             spark = ""
             if pa and pb and len(ra) == 1 and len(rb) == 1:
-                svg = _pair_spark(core.series(pa[0]["id"]), core.series(pb[0]["id"]), core.stepped(pa[0]), core.stepped(pb[0]))
+                svg = _pair_spark(core.series(pa[0]["id"]), core.series(pb[0]["id"]), core.stepped(pa[0]), core.stepped(pb[0]), colours=(ca, cb))
                 spark = f'<a href="{esc(compare_path(pa[0], pb[0]))}" title="Both histories on one chart" aria-label="{esc(what(ra[0][0]))}: both histories on one chart">{svg}</a>' if svg else ""
-            trs += f'<tr><td>{esc(what(ra[0][0]))}</td><td>{cell(ra, top, "#2f5bff")}</td><td>{cell(rb, top, C2)}</td><td>{gap(ra, rb)}{spark}</td></tr>'
+            trs += f'<tr><td>{esc(what(ra[0][0]))}</td><td>{cell(ra, top, ca)}</td><td>{cell(rb, top, cb)}</td><td>{gap(ra, rb)}{spark}</td></tr>'
     if trs:
         key = lambda name, col: f'<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:{col};margin-right:7px"></span>{esc(name)}'
         body += (f'<div style="overflow-x:auto;margin-top:18px"><table class="pts vs"><colgroup><col style="width:27%"><col style="width:27%"><col style="width:27%"><col style="width:19%"></colgroup>'
-                 f'<thead><tr><th></th><th>{key(a, "#2f5bff")}</th><th>{key(b, C2)}</th><th>Gap and history</th></tr></thead><tbody>{trs}</tbody></table></div>')
+                 f'<thead><tr><th></th><th>{key(a, ca)}</th><th>{key(b, cb)}</th><th>Gap and history</th></tr></thead><tbody>{trs}</tbody></table></div>')
     for name, mine, other in ((a, by_a, by_b), (b, by_b, by_a)):
         only = [r for k, rs in mine.items() if k not in other for r in rs]
         if only:
