@@ -175,7 +175,7 @@ def publish(u, did):
     return core.metric(mid)
 
 
-def create_curated(question, company=None, on_done=None):
+def create_curated(question, company=None, title=None):
     """Tally's own additions go through the same lifecycle as anyone's, without the daily allowance: research, proof, history, publish.
     Returns (status, metric or None, draft payload)."""
     u = {"id": "tally", "plan": "pro"}
@@ -188,6 +188,8 @@ def create_curated(question, company=None, on_done=None):
         return row["status"], None, p
     m = publish(u, did)
     db.run("UPDATE metrics SET curated=1, company=COALESCE(?,company) WHERE id=?", (company, m["id"]))
+    if title and not db.one("SELECT 1 x FROM metrics WHERE lower(title)=? AND id!=?", (title.lower(), m["id"])):
+        db.run("UPDATE metrics SET title=? WHERE id=?", (title, m["id"]))  # a curated name keeps one company's numbers comparable with another's
     db.run("DELETE FROM board_items WHERE user='tally'")
     return "published", core.metric(m["id"]), p
 

@@ -654,8 +654,40 @@ def public_subject(slug: str):
     for name, ids in pp.groups().items():
         if pp.slug(name) == slug:
             ms = {i: core.metric(i) for i in ids}
-            return HTMLResponse(pp.subject_page(name, [tile(ms[i], None) for i in ids], ms, {i: core.series(i) for i in ids}))
+            return HTMLResponse(pp.subject_page(name, [tile(ms[i], None) for i in ids], ms, {i: core.series(i) for i in ids}, _rivals(name, ms)))
     raise HTTPException(404, "nothing tracked under that name yet")
+
+
+def _rivals(name, ms, limit=4):
+    """Other subjects that share the most kinds of number with this one: the ones worth putting side by side."""
+    mine = {pp.what(m).lower() for m in ms.values()}
+    score = {}
+    for other, ids in pp.groups().items():
+        if other != name:
+            n = len(mine & {pp.what(core.metric(i)).lower() for i in ids})
+            if n >= 3:
+                score[other] = n
+    return sorted(score, key=lambda k: -score[k])[:limit]
+
+
+def _subject_rows(name):
+    for n, ids in pp.groups().items():
+        if pp.slug(n) == name:
+            out = []
+            for i in ids:
+                m = core.metric(i)
+                out.append((m, tile(m, None), db.one("SELECT COUNT(*) n FROM observations WHERE metric_id=? AND seeded=0 AND value IS NOT NULL", (i,))["n"]))
+            return n, out
+    return None, []
+
+
+@app.get("/vs/{a}/{b}")
+def versus(a: str, b: str):
+    na, ra = _subject_rows(a)
+    nb, rb = _subject_rows(b)
+    if not na or not nb or na == nb:
+        raise HTTPException(404, "pick two different companies to compare")
+    return HTMLResponse(pp.versus_page(na, nb, ra, rb))
 
 
 @app.get("/c/{slug}/card.png")

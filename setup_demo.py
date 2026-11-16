@@ -342,7 +342,7 @@ def create_numbers():
 
     def one(it):
         try:
-            status, m, p = lifecycle.create_curated(it["q"], it.get("company"))
+            status, m, p = lifecycle.create_curated(it["q"], it.get("company"), it.get("title"))
         except Exception as e:
             return f"FAILED {it['q'][:70]} | {type(e).__name__} {str(e)[:120]}"
         if status == "published":

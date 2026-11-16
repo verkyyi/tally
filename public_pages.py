@@ -596,7 +596,53 @@ def category(m):
     return next((g for rx, g in _CAT if rx.search(what)), "Other")
 
 
-def subject_page(name, tiles, metrics=None, series=None):
+def what(m):
+    """What a number measures, without whose it is: 'Claude Opus (latest) · API input price' -> 'API input price'."""
+    return (m.get("title") or "").split(" · ")[-1].strip()
+
+
+def versus_path(a, b):
+    return f"/vs/{slug(a)}/{slug(b)}"
+
+
+def versus_page(a, b, rows_a, rows_b):
+    """Two companies side by side: every kind of number both have, each side's values, and a link to the two on one chart.
+    rows_*: [(metric, tile, number of history points)]."""
+    def cell(rows):
+        return "<br>".join(f'<a href="{number_path(m)}" style="text-decoration:none"><b style="font-variant-numeric:tabular-nums">{esc(" ".join(x for x in fmt(t["value"], t["unit"]) if x) or "no value yet")}</b></a>'
+                           + (f' <span style="color:#667085;font-size:13px">{esc(m["title"].split(" · ")[0])}</span>' if m["title"].split(" · ")[0] not in (a, b) else "") for m, t, n in rows)
+    by_a, by_b = {}, {}
+    for r in rows_a:
+        by_a.setdefault(what(r[0]).lower(), []).append(r)
+    for r in rows_b:
+        by_b.setdefault(what(r[0]).lower(), []).append(r)
+    both = [k for k in by_a if k in by_b]
+    groups = {}
+    for k in both:
+        groups.setdefault(category(by_a[k][0][0]), []).append(k)
+    body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / Compare</div><h1>{esc(a)} vs {esc(b)}</h1>'
+            f'<p class="q">{len(both)} kinds of number tracked for both, side by side. Each value opens its own page with its history and source; “chart” puts the two on one chart.</p>'
+            f'{share_bar(versus_path(a, b), f"{a} vs {b} in numbers, each with its history and source")}')
+    for g in GROUPS:
+        if g not in groups:
+            continue
+        trs = ""
+        for k in sorted(groups[g]):
+            ra, rb = by_a[k], by_b[k]
+            pa, pb = next((r for r in ra if r[2] >= 2), None), next((r for r in rb if r[2] >= 2), None)
+            chart = f'<a href="{esc(compare_path(pa[0], pb[0]))}">chart</a>' if pa and pb and len(ra) == 1 and len(rb) == 1 else ""
+            trs += f'<tr><td>{esc(what(ra[0][0]))}</td><td>{cell(ra)}</td><td>{cell(rb)}</td><td>{chart}</td></tr>'
+        body += f'<h2>{g}</h2><div style="overflow-x:auto"><table class="pts vs"><tr><th></th><th>{esc(a)}</th><th>{esc(b)}</th><th></th></tr>{trs}</table></div>'
+    for name, mine, other in ((a, by_a, by_b), (b, by_b, by_a)):
+        only = [r for k, rs in mine.items() if k not in other for r in rs]
+        if only:
+            body += (f'<h2>Only tracked for {esc(name)}</h2><div class="chips">' + "".join(f'<a href="{number_path(m)}">{esc(what(m))}</a>' for m, t, n in only[:40]) + "</div>")
+    body += f'<div class="cta"><a class="btn ghost" href="{subject_path(a)}">{esc(a)} in numbers</a><a class="btn ghost" href="{subject_path(b)}">{esc(b)} in numbers</a><a class="btn ghost" href="{versus_path(b, a)}">Swap</a></div>'
+    css = "<style>table.vs td:first-child{white-space:normal;color:var(--ink);font:15px var(--display)}table.vs td:nth-child(2),table.vs td:nth-child(3){font-weight:400;white-space:normal}table.vs th:nth-child(2),table.vs th:nth-child(3){color:var(--ink);font:600 14px var(--display);text-transform:none;letter-spacing:0}</style>"
+    return shell(f"{a} vs {b}: revenue, valuation, prices, people, side by side | Tally", f"{a} and {b} compared number by number: {len(both)} figures tracked for both, each with its history and its source.", versus_path(a, b), css + body)
+
+
+def subject_page(name, tiles, metrics=None, series=None, rivals=()):
     have = [t for t in tiles if t["value"] is not None]
     bits = []
     for t in have[:4]:
@@ -620,6 +666,8 @@ def subject_page(name, tiles, metrics=None, series=None):
     body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / {esc(name)}</div><h1 style="display:flex;align-items:center;gap:14px"><img src="/logo/{slug(name)}.png" alt="" width="44" height="44" style="border-radius:11px;background:#fff;border:1px solid #e1e4ea" onerror="this.remove()">{esc(name)} in numbers</h1>'
             f'<p class="q">{len(tiles)} numbers about {esc(name)}{f", {charted} with a history to chart" if charted else ""}. Each opens to its evidence, its past and its source.</p>'
             f'{share_bar(subject_path(name), f"{name} in numbers: " + "; ".join(bits[:3]))}'
+            + (f'<p class="meta" style="margin-top:12px">Compare side by side: ' + " · ".join(f'<a href="{versus_path(name, r)}"><b>{esc(name)} vs {esc(r)}</b></a>' for r in rivals) + "</p>" if rivals else "") +
+            f''
             f'<div class="cards" style="margin-top:18px">{cards}</div>'
             f'<div class="cta"><a class="btn" href="/app?q={esc(name)}">Follow these on your board</a><a class="btn ghost" href="/numbers">The whole catalog</a></div>')
     return shell(title[:110], desc[:300], subject_path(name), body, image=f"/c/{slug(name)}/card.png")
