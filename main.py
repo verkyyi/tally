@@ -42,8 +42,15 @@ app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="
 # Nothing about the visitor is stored: no IP address, no cookie, no user agent. Crawlers are counted under their own name.
 import re as _re
 from urllib.parse import urlsplit as _urlsplit
-_BOT = _re.compile(r"(googlebot|bingbot|duckduckbot|yandex|baiduspider|slurp|applebot|facebookexternalhit|twitterbot|linkedinbot|slackbot|discordbot|"
-                   r"gptbot|claudebot|perplexitybot|ccbot|ahrefs|semrush|bot\b|crawl|spider|curl|python|httpx|playwright|headless|uptime|monitor)", _re.I)
+_BOT = _re.compile(r"(oai-searchbot|chatgpt-user|gptbot|claude-searchbot|claude-user|claudebot|anthropic-ai|perplexity-user|perplexitybot|mistralai-user|cohere-ai|"
+                   r"meta-externalagent|duckassistbot|amazonbot|bytespider|google-extended|googleother|googlebot|bingbot|duckduckbot|yandex|baiduspider|slurp|applebot|"
+                   r"facebookexternalhit|twitterbot|linkedinbot|slackbot|discordbot|ccbot|ahrefs|semrush|[a-z0-9_-]*bot\b|crawl|spider|curl|python|httpx|node-fetch|undici|axios|"
+                   r"playwright|headless|uptime|monitor)", _re.I)
+# Answer engines: the crawlers that read pages for an assistant's index or on a person's behalf, and the sites their links arrive from.
+AI_AGENTS = ("oai-searchbot", "chatgpt-user", "gptbot", "claude-searchbot", "claude-user", "claudebot", "anthropic-ai", "perplexity-user", "perplexitybot",
+             "mistralai-user", "cohere-ai", "meta-externalagent", "duckassistbot", "amazonbot", "bytespider")
+AI_SITES = ("chatgpt.com", "chat.openai.com", "perplexity.ai", "claude.ai", "copilot.microsoft.com", "gemini.google.com", "you.com", "phind.com", "kagi.com")
+_DATA = _re.compile(r"\.(json|md|csv)$|^/(llms\.txt|sitemap\.xml|robots\.txt)$")
 _GROUPS = ("/n/", "/c/", "/b/", "/top/")
 # Distinct visitors per day: a salted fingerprint kept only in memory, so one person reloading is not ten people.
 # The salt is random per process and the fingerprints are never written anywhere; only the day's count is stored.
@@ -56,11 +63,19 @@ async def count_visit(request: Request, call_next):
     response = await call_next(request)
     try:
         path = request.url.path
-        if request.method == "GET" and response.status_code == 200 and not path.startswith(("/api/", "/static/")) and "." not in path.rsplit("/", 1)[-1]:
+        if request.method == "GET" and response.status_code == 200 and _DATA.search(path):
+            bot = _BOT.search(request.headers.get("user-agent", ""))  # which crawler or agent read a data address; people are not counted here
+            if bot:
+                db.run("INSERT INTO visits(day,path,ref,n) VALUES(?,?,?,1) ON CONFLICT(day,path,ref) DO UPDATE SET n=n+1",
+                       (db.now()[:10], "*data" if path.endswith((".json", ".md", ".csv")) else "*" + path[1:], "bot:" + bot.group(1).lower()))
+        elif request.method == "GET" and response.status_code == 200 and not path.startswith(("/api/", "/static/")) and "." not in path.rsplit("/", 1)[-1]:
             group = next((g.rstrip("/") for g in _GROUPS if path.startswith(g)), path)
             ua = request.headers.get("user-agent", "")
             bot = _BOT.search(ua)
             host = (_urlsplit(request.headers.get("referer", "")).hostname or "").lower()
+            if not host:  # assistants often send no referring page and tag the link instead (utm_source=chatgpt.com)
+                tag = _re.sub(r"[^a-z0-9.-]", "", (request.query_params.get("utm_source") or "").lower())[:40]
+                host = tag if "." in tag else ""
             ref = ("bot:" + bot.group(1).lower()) if bot else ("" if host in ("", "tallycatalog.com", "www.tallycatalog.com", "127.0.0.1", "localhost") else host[:60])
             day = db.now()[:10]
             db.run("INSERT INTO visits(day,path,ref,n) VALUES(?,?,?,1) ON CONFLICT(day,path,ref) DO UPDATE SET n=n+1", (day, group[:60], ref))
