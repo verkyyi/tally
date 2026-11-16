@@ -587,7 +587,7 @@ _CAT = ((re.compile(r"\bipo\b", re.I), "Money"),
         (re.compile(r"price|plan\b|seat|per million|mtok|rate limit|spend cap|\btier", re.I), "Prices and plans"),
         (re.compile(r"employee|headcount|\broles?\b|hiring|job post|staff", re.I), "People"),
         (re.compile(r"customer|users?\b|stars|downloads|rating|launches|subscribers|traffic|installs", re.I), "Customers and usage"),
-        (re.compile(r"compute|gigawatt|\bgw\b|capacity|commitments|chips|data cent", re.I), "Compute"),
+        (re.compile(r"compute|gigawatt|\bgw\b|capacity|commitments|committed spend|chips|data cent", re.I), "Compute"),
         (re.compile(r"valuation|funding|round|revenue|loss|income|profit|cash|debt|indebted|retention|raised|placement|shares|capital|investment|fund size|deals", re.I), "Money"))
 
 
