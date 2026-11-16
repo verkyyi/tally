@@ -84,6 +84,7 @@ MIGRATIONS = [
     "ALTER TABLE users ADD COLUMN email_alerts INTEGER DEFAULT 1",  # 1 = email this person when a number they follow moves
     "ALTER TABLE users ADD COLUMN alerted_at TEXT",                 # when the last alert email went out
     "CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY, v TEXT)",
+    "CREATE TABLE IF NOT EXISTS aliases(alias TEXT PRIMARY KEY, subject TEXT, kind TEXT)",  # other names people search a company by: its stock ticker, a former or common name
     "CREATE TABLE IF NOT EXISTS views(day TEXT, metric_id INTEGER, n INTEGER DEFAULT 0, PRIMARY KEY(day, metric_id))",  # people opening a number's page, per day; no IPs, no cookies
     "CREATE TABLE IF NOT EXISTS interest(subject TEXT PRIMARY KEY, article TEXT, week REAL, base REAL, at TEXT)",  # how much each subject is being read about this week (Wikipedia page views)  # the recipe version that produced this reading (empty for readings older than this column)
     "CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY, metric_id INTEGER, change_id INTEGER, user TEXT, action TEXT, at TEXT)",

@@ -105,8 +105,15 @@ def retext(m, old_start, new_start):
     return out
 
 
+def reported_by_period(m):
+    """True for a figure that is a total for a quarter or a year (quarterly revenue), as opposed to a level that carries on."""
+    return (m.get("title") or "").split(" · ")[-1].lower().startswith(("quarterly ", "annual "))
+
+
 def by_period(m, pts):
     """True when this number's history is one point per period (so it is drawn as bars)."""
+    if reported_by_period(m or {}):
+        return len(pts) >= 2
     return bool((m or {}).get("period")) and len({period_span(m["period"], p["at"])[0] for p in pts}) == len(pts) >= 2
 
 
@@ -859,7 +866,14 @@ def backfill_free(m):
 def series(mid, upto=None):
     """Every real reading of a number, oldest first: [{at, value, origin, url}]. Simulated points are never included."""
     rows = db.q("SELECT as_of, value, origin, evidence_url, recipe_version, quote FROM observations WHERE metric_id=? AND value IS NOT NULL AND seeded=0 ORDER BY as_of, id", (mid,))
-    per = (db.one("SELECT period FROM metrics WHERE id=?", (mid,)) or {}).get("period")
+    meta = db.one("SELECT period, title FROM metrics WHERE id=?", (mid,)) or {}
+    per = meta.get("period")
+    if reported_by_period(meta):  # a quarter's total read again every day is still one quarter: keep each value once
+        kept = []
+        for r in rows:
+            if not kept or r["value"] != kept[-1]["value"]:
+                kept.append(r)
+        rows = kept
     if per:  # one point per period: the last reading inside it. Within a single period, the daily readings are shown instead.
         last = {}
         for r in rows:

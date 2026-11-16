@@ -336,12 +336,22 @@ def landing():
                         .replace("<!--RANKS-->", "".join(f'<a href="/top/{sl}">{pp.esc(n)} <span>{pp.esc(pp.subject(ts[0]))} leads</span></a>' for n, sl, ts in _rankings()[:6])))
 
 
+COMMON_WORDS = {"now", "net", "ma", "v", "hd", "dis", "ko", "coin", "mu", "ant", "meta", "uber", "shop", "cost", "amd", "ibm"} - {"amd", "ibm", "uber"}
+
+
 @app.get("/api/suggest")
 def suggest(q: str = ""):
     """Numbers matching what was typed, for the search box on every public page: each with its current value and its page."""
-    words = [w for w in " ".join(q.split())[:80].lower().split() if w]
+    raw = " ".join(q.split())[:80].split()
+    words = [w.lower() for w in raw if w]
     if not words:
         return {"numbers": [], "boards": []}
+    # A stock ticker or another common name finds the company: "msft revenue" is "microsoft revenue". Tickers that are also
+    # ordinary words ("now", "net") count only when typed in capitals or on their own.
+    al = db.one("SELECT subject, kind FROM aliases WHERE alias=?", (words[0],))
+    if al and (al["kind"] != "ticker" or words[0] not in COMMON_WORDS or raw[0].isupper() or len(words) == 1):
+        words = al["subject"].lower().split() + words[1:]
+    tick = {r["subject"]: r["alias"].upper() for r in db.q("SELECT alias, subject FROM aliases WHERE kind='ticker'")}
     # a company, sector or investor whose name matches: its page lists every number tracked about it
     boards = sorted(((n, len(ids)) for n, ids in pp.groups().items() if len(ids) >= 2 and all(w in n.lower() for w in words)), key=lambda x: (x[0].lower() != " ".join(words), not x[0].lower().startswith(words[0]), -x[1]))[:3]
     hits = []
@@ -355,7 +365,7 @@ def suggest(q: str = ""):
         t = tile(m, None)
         txt, unit = pp.fmt(t["value"], t["unit"])
         out.append({"title": m["title"], "value": (txt + (" " + unit if unit else "")) if txt else "no value yet", "path": pp.number_path(m)})
-    return {"numbers": out, "total": len(hits), "boards": [{"name": n, "count": c, "path": pp.subject_path(n)} for n, c in boards]}
+    return {"numbers": out, "total": len(hits), "boards": [{"name": n + (f" ({tick[n]})" if n in tick else ""), "count": c, "path": pp.subject_path(n)} for n, c in boards]}
 
 
 @app.get("/track")
@@ -654,7 +664,8 @@ def public_subject(slug: str):
     for name, ids in pp.groups().items():
         if pp.slug(name) == slug:
             ms = {i: core.metric(i) for i in ids}
-            return HTMLResponse(pp.subject_page(name, [tile(ms[i], None) for i in ids], ms, {i: core.series(i) for i in ids}, _rivals(name, ms)))
+            tk = db.one("SELECT alias FROM aliases WHERE subject=? AND kind='ticker'", (name,))
+            return HTMLResponse(pp.subject_page(name, [tile(ms[i], None) for i in ids], ms, {i: core.series(i) for i in ids}, _rivals(name, ms), tk["alias"].upper() if tk else None))
     raise HTTPException(404, "nothing tracked under that name yet")
 
 

@@ -711,14 +711,15 @@ def versus_page(a, b, rows_a, rows_b):
     return shell(f"{a} vs {b}: revenue, valuation, prices, people, side by side | Tally", f"{a} and {b} compared number by number: {len(both)} figures tracked for both, each with its history and its source.", versus_path(a, b), css + body)
 
 
-def subject_page(name, tiles, metrics=None, series=None, rivals=()):
+def subject_page(name, tiles, metrics=None, series=None, rivals=(), ticker=None):
     have = [t for t in tiles if t["value"] is not None]
     bits = []
     for t in have[:4]:
         txt, unit = fmt(t["value"], t["unit"])
         bits.append(f'{t["title"].split(" · ")[-1]} {txt}{" " + unit if unit else ""}')
-    title = f"{name}: {', '.join(x.split(' · ')[-1] for x in [t['title'] for t in tiles][:4])} | Tally"
+    title = f"{name}{f' ({ticker})' if ticker else ''}: {', '.join(x.split(' · ')[-1] for x in [t['title'] for t in tiles][:4])} | Tally"
     desc = f"{name} in numbers: {'; '.join(bits)}. Each with its source and history, kept current on Tally." if bits else f"Numbers Tally tracks about {name}, each with its source."
+    chip = f'<span style="font:500 16px var(--mono);color:var(--mute);letter-spacing:0;border:1px solid var(--line);border-radius:7px;padding:3px 8px">{esc(ticker)}</span>' if ticker else ""
     series = series or {}
     order = sorted(tiles, key=lambda t: (-min(len(series.get(t["id"], [])), 3), t["value"] is None))
     card = lambda t: landing_card(metrics[t["id"]], t, series.get(t["id"], [])) if t["value"] is not None and metrics and t["id"] in metrics else tile_link(t)
@@ -732,7 +733,7 @@ def subject_page(name, tiles, metrics=None, series=None, rivals=()):
     else:
         cards = "".join(card(t) for t in order)
     charted = sum(1 for t in tiles if len(series.get(t["id"], [])) >= 2)
-    body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / {esc(name)}</div><h1 style="display:flex;align-items:center;gap:14px"><img src="/logo/{slug(name)}.png" alt="" width="44" height="44" style="border-radius:11px;background:#fff;border:1px solid #e1e4ea" onerror="this.remove()">{esc(name)} in numbers</h1>'
+    body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / {esc(name)}</div><h1 style="display:flex;align-items:center;gap:14px"><img src="/logo/{slug(name)}.png" alt="" width="44" height="44" style="border-radius:11px;background:#fff;border:1px solid #e1e4ea" onerror="this.remove()">{esc(name)} in numbers{chip}</h1>'
             f'<p class="q">{len(tiles)} numbers about {esc(name)}{f", {charted} with a history to chart" if charted else ""}. Each opens to its evidence, its past and its source.</p>'
             f'{share_bar(subject_path(name), f"{name} in numbers: " + "; ".join(bits[:3]))}'
             + (f'<p class="meta" style="margin-top:12px">Compare side by side: ' + " · ".join(f'<a href="{versus_path(name, r)}"><b>{esc(name)} vs {esc(r)}</b></a>' for r in rivals) + "</p>" if rivals else "") +

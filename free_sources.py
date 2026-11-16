@@ -6,6 +6,8 @@
 Each reader returns {"value", "quote", "evidence_url"} or None."""
 import time
 
+import re
+
 import httpx
 
 _cache = {}
@@ -28,6 +30,38 @@ def _get(url, ttl=1800):
     return _cache[url][1]
 
 
+SEC = "https://data.sec.gov/api/xbrl/companyconcept/CIK{}/{}/{}.json"
+_KIND = {"q": re.compile(r"^CY\d{4}Q\d$"), "a": re.compile(r"^CY\d{4}$"), "i": re.compile(r"I$")}
+
+
+def sec_points(spec):
+    """Every value a listed company has reported to the SEC for one figure: [(period end, value, filing address, note)], oldest first.
+    spec: free|sec|<10-digit CIK>|<taxonomy>:<concept>|<q quarterly, a annual, i a level at a date>|<unit>.
+    A fourth quarter is rarely filed on its own, so it is taken as the fiscal year minus its first three quarters, and marked as such."""
+    p = spec.split("|")
+    tax, concepts = p[3].split(":")
+    kind, unit = p[4], (p[5] if len(p) > 5 else "USD")
+    facts = []  # a company may have reported the same figure under different labels over the years: they are read in order, the later label winning
+    for concept in concepts.split("+"):
+        try:
+            facts += _get(SEC.format(p[2], tax, concept), ttl=6 * 3600)["units"].get(unit, [])
+        except Exception:
+            continue
+    url = lambda x: f'https://www.sec.gov/Archives/edgar/data/{int(p[2])}/{x["accn"].replace("-", "")}/'
+    out = {}
+    for x in facts:
+        if x.get("frame") and _KIND[kind].search(x["frame"]):
+            out[x["end"]] = (x["end"], x["val"], url(x), f'{x["form"]} filed {x.get("filed", "")}')
+    if kind == "q":
+        quarters = [x for x in facts if x.get("frame") and _KIND["q"].search(x["frame"]) and x.get("start")]
+        for y in facts:
+            if y.get("frame") and _KIND["a"].search(y["frame"]) and y.get("start") and y["end"] not in out:
+                three = [q for q in quarters if y["start"] <= q["start"] and q["end"] < y["end"]]
+                if len({q["end"] for q in three}) == 3:
+                    out[y["end"]] = (y["end"], y["val"] - sum({q["end"]: q["val"] for q in three}.values()), url(y), f'fiscal year minus its first three quarters ({y["form"]} filed {y.get("filed", "")})')
+    return [out[k] for k in sorted(out)]
+
+
 def is_free(m):
     return ((m or {}).get("skill") or "").startswith("free|")
 
@@ -44,6 +78,12 @@ def read(spec):
         if p[1] == "pypi":
             d = _get(f"https://pypistats.org/api/packages/{p[2]}/recent", ttl=600)
             return {"value": d["data"]["last_week"], "quote": f'last_week: {d["data"]["last_week"]}', "evidence_url": f"https://pypistats.org/packages/{p[2]}"}
+        if p[1] == "sec":
+            pts = sec_points(spec)
+            if not pts:
+                return None
+            d, v, url, note = pts[-1]
+            return {"value": v, "quote": f'{p[3].split(":")[1]}, period ending {d}: {v:,.0f} ({note})', "evidence_url": url}
         if p[1] == "yc" and p[2] == "series":  # the newest full batch; its history is every batch before it
             b = [v for v in _get("https://yc-oss.github.io/api/meta.json")["batches"].values() if v["count"] >= 100][0]
             return {"value": b["count"], "quote": f'{b["name"]}: {b["count"]} companies', "evidence_url": "https://www.ycombinator.com/companies"}
@@ -88,6 +128,8 @@ def history(spec):
         if p[1] == "pypi":  # the public statistics keep 180 days
             d = _get(f"https://pypistats.org/api/packages/{p[2]}/overall?mirrors=false", ttl=3600)["data"]
             return [(d, n, f"https://pypistats.org/packages/{p[2]}", "weekly downloads, PyPI statistics") for d, n in _weekly([(x["date"], x["downloads"]) for x in d])]
+        if p[1] == "sec":
+            return sec_points(spec)
         if p[1] == "yc" and p[2] in ("tags", "industries"):
             # The directory lists every company with the batch it was in (acquired and closed ones too), so the count after
             # each batch can be rebuilt exactly. It uses today's tags: a tag added later counts from the company's batch.
@@ -115,6 +157,21 @@ def history(spec):
         print("free history failed:", spec, str(e)[:100])
     return []
 
+
+# Listed companies: ticker, the name people use. Their figures come from the filings each makes with the US securities regulator.
+STOCKS = [("NVDA", "Nvidia"), ("MSFT", "Microsoft"), ("AAPL", "Apple"), ("GOOGL", "Alphabet"), ("AMZN", "Amazon"), ("META", "Meta"), ("AVGO", "Broadcom"), ("TSLA", "Tesla"),
+          ("BRK-B", "Berkshire Hathaway"), ("LLY", "Eli Lilly"), ("JPM", "JPMorgan Chase"), ("WMT", "Walmart"), ("V", "Visa"), ("ORCL", "Oracle"), ("MA", "Mastercard"), ("XOM", "ExxonMobil"),
+          ("NFLX", "Netflix"), ("COST", "Costco"), ("JNJ", "Johnson & Johnson"), ("HD", "Home Depot"), ("PLTR", "Palantir"), ("AMD", "AMD"), ("CRM", "Salesforce"), ("ADBE", "Adobe"),
+          ("INTC", "Intel"), ("CSCO", "Cisco"), ("IBM", "IBM"), ("UBER", "Uber"), ("QCOM", "Qualcomm"), ("MU", "Micron"), ("NOW", "ServiceNow"), ("SNOW", "Snowflake"), ("DDOG", "Datadog"),
+          ("NET", "Cloudflare"), ("CRWD", "CrowdStrike"), ("SHOP", "Shopify"), ("COIN", "Coinbase"), ("ABNB", "Airbnb"), ("DIS", "Disney"), ("KO", "Coca-Cola")]
+ALSO_KNOWN_AS = {"Alphabet": ["google", "goog"], "Meta": ["facebook", "fb"], "Berkshire Hathaway": ["brk", "brk.b", "brkb"], "Anthropic": ["ant"], "JPMorgan Chase": ["jpmorgan", "chase"]}
+REVENUE = ("RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "RevenuesNetOfInterestExpense", "SalesRevenueNet", "RevenueFromContractWithCustomerIncludingAssessedTax")
+# what is tracked for each: name after the dot, question, candidate concepts, kind, unit, shown unit
+STOCK_NUMBERS = [("quarterly revenue", "What was {}'s revenue in its most recently reported quarter?", REVENUE, "q", "USD", "USD"),
+                 ("annual revenue", "What was {}'s revenue in its most recent full fiscal year?", REVENUE, "a", "USD", "USD"),
+                 ("quarterly net income", "What was {}'s net income in its most recently reported quarter?", ("NetIncomeLoss",), "q", "USD", "USD"),
+                 ("quarterly operating income (loss)", "What was {}'s operating income or loss in its most recently reported quarter?", ("OperatingIncomeLoss",), "q", "USD", "USD"),
+                 ("shares outstanding", "How many shares of {} are outstanding?", ("dei:EntityCommonStockSharesOutstanding",), "i", "shares", "shares")]
 
 # name, GitHub repository, npm package, PyPI package
 OSS = [

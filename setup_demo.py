@@ -375,6 +375,53 @@ def resource():
             print(line, flush=True)
 
 
+def stocks():
+    """Listed companies, from what each reports to the SEC: revenue, income and shares for every period on record, plus the ticker people search by.
+    No search and no model are involved. Usage: stocks [TICKER ...]   (default: the whole list)"""
+    import free_sources as fs
+    import recipes
+    want = {t.upper() for t in sys.argv[2:]}
+    tk = {v["ticker"]: v for v in fs._get("https://www.sec.gov/files/company_tickers.json", ttl=86400).values()}
+    made = pts = 0
+    for ticker, name in fs.STOCKS:
+        if want and ticker not in want:
+            continue
+        if ticker not in tk:
+            print("no SEC record for", ticker); continue
+        cik = f'{tk[ticker]["cik_str"]:010d}'
+        db.run("INSERT OR REPLACE INTO aliases(alias,subject,kind) VALUES(?,?,'ticker')", (ticker.lower(), name))
+        for what, q, concepts, kind, unit, shown in fs.STOCK_NUMBERS:
+            found = []
+            for c in concepts:
+                spec = f"free|sec|{cik}|{c if ':' in c else 'us-gaap:' + c}|{kind}|{unit}"
+                try:
+                    p = fs.sec_points(spec)
+                except Exception:
+                    p = []
+                if p:
+                    found.append((p[-1][0], c))
+            if not found:
+                print("  not reported:", name, what); continue
+            found.sort()  # the label in use most recently goes last, so its values win where two labels overlap
+            tax = "dei" if found[0][1].startswith("dei:") else "us-gaap"
+            best = (f"free|sec|{cik}|{tax}:{'+'.join(c.split(':')[-1] for _, c in found)}|{kind}|{unit}", None)
+            old = db.one("SELECT id FROM metrics WHERE lower(title)=?", (f"{name} · {what}".lower(),))
+            if old:
+                db.run("UPDATE metrics SET skill=? WHERE id=?", (best[0], old["id"]))  # the same number, now read under every label the company has used
+            mid, new = core.create_free(f"{name} · {what}", q.format(name), shown, best[0], name, f"stock:{what}")
+            if not mid:
+                continue
+            made += 1 if new else 0
+            n = core.backfill_free(core.metric(mid))
+            pts += n
+            recipes.live(core.metric(mid))
+        print(ticker, name, "ok", flush=True)
+    for subject, names in fs.ALSO_KNOWN_AS.items():
+        for a in names:
+            db.run("INSERT OR REPLACE INTO aliases(alias,subject,kind) VALUES(?,?,'name')", (a, subject))
+    print("numbers created:", made, "| history points:", pts, "| search aliases:", db.one("SELECT COUNT(*) n FROM aliases")["n"])
+
+
 def scout():
     """Survey the open web for the numbers about a company worth recording, and save the list (nothing is created). Usage: scout "Anthropic" [out.json]"""
     import agent
@@ -441,4 +488,4 @@ def period_history():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "stocks": stocks, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
