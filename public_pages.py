@@ -563,7 +563,9 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     asof = when(t.get("as_of") or t.get("last_checked"))
     told = story(m, pts) if txt and not (per and not per["current"]) else ""
     val = txt + (" " + unit if unit else "") if txt else "no value yet"
-    title = (f'{plain_name(m)} history: {val} ({datetime.strptime((t.get("as_of") or t.get("last_checked"))[:10], "%Y-%m-%d").strftime("%b %Y")}) | Tally' if told and asof
+    pts = list(pts)
+    stamp = pts[-1]["at"] if pts and core.reported_by_period(m) else (t.get("as_of") or t.get("last_checked") or "")  # a quarter's figure is dated by its quarter, not by when it was read
+    title = (f'{plain_name(m)} history: {val} ({datetime.strptime(stamp[:10], "%Y-%m-%d").strftime("%b %Y")}) | Tally' if told and asof
              else f'{m["title"]}: {val} | Tally')
     desc = (f'{m["question"]} {txt}{" " + unit if unit else ""}{", as of " + asof if asof else ""}. {told or "Tracked on Tally with its source and history."}'[:300] if txt
             else f'{m["question"]} Tally is tracking this and will show the value with its source as soon as one is found.')
