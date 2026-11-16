@@ -623,22 +623,28 @@ def versus_page(a, b, rows_a, rows_b):
     body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / Compare</div><h1>{esc(a)} vs {esc(b)}</h1>'
             f'<p class="q">{len(both)} kinds of number tracked for both, side by side. Each value opens its own page with its history and source; “chart” puts the two on one chart.</p>'
             f'{share_bar(versus_path(a, b), f"{a} vs {b} in numbers, each with its history and source")}')
+    trs = ""  # one table for every group, so the two companies' values sit in the same two columns all the way down
     for g in GROUPS:
         if g not in groups:
             continue
-        trs = ""
+        trs += f'<tr class="grp"><td colspan="4">{g}</td></tr>'
         for k in sorted(groups[g]):
             ra, rb = by_a[k], by_b[k]
             pa, pb = next((r for r in ra if r[2] >= 2), None), next((r for r in rb if r[2] >= 2), None)
             chart = f'<a href="{esc(compare_path(pa[0], pb[0]))}">chart</a>' if pa and pb and len(ra) == 1 and len(rb) == 1 else ""
             trs += f'<tr><td>{esc(what(ra[0][0]))}</td><td>{cell(ra)}</td><td>{cell(rb)}</td><td>{chart}</td></tr>'
-        body += f'<h2>{g}</h2><div style="overflow-x:auto"><table class="pts vs"><tr><th></th><th>{esc(a)}</th><th>{esc(b)}</th><th></th></tr>{trs}</table></div>'
+    if trs:
+        body += (f'<div style="overflow-x:auto;margin-top:18px"><table class="pts vs"><colgroup><col style="width:36%"><col style="width:28%"><col style="width:28%"><col style="width:8%"></colgroup>'
+                 f'<thead><tr><th></th><th>{esc(a)}</th><th>{esc(b)}</th><th></th></tr></thead><tbody>{trs}</tbody></table></div>')
     for name, mine, other in ((a, by_a, by_b), (b, by_b, by_a)):
         only = [r for k, rs in mine.items() if k not in other for r in rs]
         if only:
             body += (f'<h2>Only tracked for {esc(name)}</h2><div class="chips">' + "".join(f'<a href="{number_path(m)}">{esc(what(m))}</a>' for m, t, n in only[:40]) + "</div>")
     body += f'<div class="cta"><a class="btn ghost" href="{subject_path(a)}">{esc(a)} in numbers</a><a class="btn ghost" href="{subject_path(b)}">{esc(b)} in numbers</a><a class="btn ghost" href="{versus_path(b, a)}">Swap</a></div>'
-    css = "<style>table.vs td:first-child{white-space:normal;color:var(--ink);font:15px var(--display)}table.vs td:nth-child(2),table.vs td:nth-child(3){font-weight:400;white-space:normal}table.vs th:nth-child(2),table.vs th:nth-child(3){color:var(--ink);font:600 14px var(--display);text-transform:none;letter-spacing:0}</style>"
+    css = ("<style>table.vs{table-layout:fixed;min-width:560px}table.vs td:first-child{white-space:normal;color:var(--ink);font:15px var(--display)}"
+           "table.vs td:nth-child(2),table.vs td:nth-child(3){font-weight:400;white-space:normal}table.vs td:last-child{text-align:right}"
+           "table.vs thead th{position:sticky;top:0;background:var(--paper);z-index:1}table.vs th:nth-child(2),table.vs th:nth-child(3){color:var(--ink);font:600 15px var(--display);text-transform:none;letter-spacing:0}"
+           "table.vs tr.grp td{font:600 19px var(--display);letter-spacing:-.02em;color:var(--ink);padding:26px 6px 8px;border-bottom:1px solid var(--ink)}</style>")
     return shell(f"{a} vs {b}: revenue, valuation, prices, people, side by side | Tally", f"{a} and {b} compared number by number: {len(both)} figures tracked for both, each with its history and its source.", versus_path(a, b), css + body)
 
 
