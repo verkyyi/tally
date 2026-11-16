@@ -363,7 +363,7 @@ def compare_page(a, b, ta, tb, pa, pb, others=()):
     twin = "" if same else (paint(chart(pa, ta["unit"], h=200, step=core.stepped(a))), paint(chart(pb, tb["unit"], h=200, step=core.stepped(b)), first=False))
     def key(m, t, pts, colour):
         txt, unit = fmt(t["value"], t["unit"])
-        return (f'<a class="t" href="{number_path(m)}"><b><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:{colour};margin-right:7px"></span>{esc(m["title"])}</b>'
+        return (f'<a class="t" href="{number_path(m)}"><b>{logo_img(subject(m), 20)}{esc(m["title"])}<span style="display:block;height:4px;width:44px;border-radius:2px;background:{colour};margin-top:7px"></span></b>'
                 f'<div class="v">{esc(txt or "no value yet")}<small>{esc(unit)}</small></div><div class="m">{len(pts):,} points{" since " + when(pts[0]["at"]) if pts else ""}</div></a>')
     va, vb = fmt(ta["value"], ta["unit"]), fmt(tb["value"], tb["unit"])
     title = f'{a["title"]} vs {b["title"]} | Tally'
@@ -607,6 +607,12 @@ def what(m):
     return (m.get("title") or "").split(" · ")[-1].strip()
 
 
+def logo_img(name, size=22):
+    """A company's logo beside its name; it removes itself when there is none."""
+    return (f'<img src="/logo/{slug(name)}.png" alt="" width="{size}" height="{size}" loading="lazy" onerror="this.remove()" '
+            f'style="border-radius:{max(4, size // 4)}px;background:#fff;border:1px solid #e1e4ea;vertical-align:middle;margin-right:{max(6, size // 3)}px;object-fit:contain">')
+
+
 def versus_path(a, b):
     return f"/vs/{slug(a)}/{slug(b)}"
 
@@ -668,7 +674,8 @@ def versus_page(a, b, rows_a, rows_b):
     groups = {}
     for k in both:
         groups.setdefault(category(by_a[k][0][0]), []).append(k)
-    body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / Compare</div><h1>{esc(a)} vs {esc(b)}</h1>'
+    body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / Compare</div>'
+            f'<h1 style="display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px"><span style="white-space:nowrap">{logo_img(a, 40)}{esc(a)}</span><span style="color:var(--mute);font-weight:500">vs</span><span style="white-space:nowrap">{logo_img(b, 40)}{esc(b)}</span></h1>'
             f'<p class="q">{len(both)} kinds of number tracked for both. In each row the two bars share one scale, so their lengths compare directly; the small chart shows both histories on one axis and opens the full comparison.</p>'
             f'{share_bar(versus_path(a, b), f"{a} vs {b} in numbers, each with its history and source")}')
     trs = ""  # one table for every group, so the two companies' values sit in the same two columns all the way down
@@ -686,7 +693,7 @@ def versus_page(a, b, rows_a, rows_b):
                 spark = f'<a href="{esc(compare_path(pa[0], pb[0]))}" title="Both histories on one chart" aria-label="{esc(what(ra[0][0]))}: both histories on one chart">{svg}</a>' if svg else ""
             trs += f'<tr><td>{esc(what(ra[0][0]))}</td><td>{cell(ra, top, ca)}</td><td>{cell(rb, top, cb)}</td><td>{gap(ra, rb)}{spark}</td></tr>'
     if trs:
-        key = lambda name, col: f'<span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:{col};margin-right:7px"></span>{esc(name)}'
+        key = lambda name, col: f'{logo_img(name, 22)}{esc(name)}<span style="display:block;height:4px;width:44px;border-radius:2px;background:{col};margin-top:6px"></span>'
         body += (f'<div style="overflow-x:auto;margin-top:18px"><table class="pts vs"><colgroup><col style="width:27%"><col style="width:27%"><col style="width:27%"><col style="width:19%"></colgroup>'
                  f'<thead><tr><th></th><th>{key(a, ca)}</th><th>{key(b, cb)}</th><th>Gap and history</th></tr></thead><tbody>{trs}</tbody></table></div>')
     for name, mine, other in ((a, by_a, by_b), (b, by_b, by_a)):
