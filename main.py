@@ -594,6 +594,10 @@ a number with no quotable source reads "no value yet".
 - Everything about one company or sector: {pp.SITE}/c/anthropic.json
 - The whole catalog as a site map: {pp.SITE}/sitemap.xml
 
+## The whole record in two files
+- One row per number, with its current value and source: {pp.SITE}/data/numbers.csv
+- One row per dated value, across every number: {pp.SITE}/data/history.csv
+
 ## Read a number (replace 265 with the number's id)
 - JSON, with the full history and a source per point: {pp.SITE}/n/265.json
 - Plain text (Markdown): {pp.SITE}/n/265.md
@@ -644,6 +648,43 @@ def public_csv(mid: int):
     t = tile(m, None)
     return RawResponse(pp.history_csv(m, _public_series(m, t)), media_type="text/csv",
                        headers={"Content-Disposition": f'attachment; filename="{pp.slug(m["title"])}.csv"'})
+
+
+_bulk = {"at": 0.0}
+
+
+def bulk():
+    """The whole public record as two tables, rebuilt at most once an hour: one row per number, and one row per dated value."""
+    import csv
+    import io
+    if time.time() - _bulk["at"] < 3600:
+        return _bulk
+    nums, hist = io.StringIO(), io.StringIO()
+    a, b = csv.writer(nums, lineterminator="\n"), csv.writer(hist, lineterminator="\n")
+    a.writerow(["id", "title", "subject", "unit", "value", "as_of", "source", "history_points", "first_date", "page"])
+    b.writerow(["number_id", "title", "date", "value", "unit", "kind", "source"])
+    for m in db.q(f"SELECT * FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id"):
+        t = tile(m, None)
+        d = pp.number_data(m, t, _public_series(m, t))
+        if d["value"] is None:
+            continue
+        a.writerow([d["id"], d["title"], pp.subject(m), d["unit"], f'{d["value"]:.12g}', d["as_of"] or "", d["source"] or "", len(d["history"]), d["history"][0]["date"] if d["history"] else "", d["page"]])
+        for h in d["history"]:
+            b.writerow([d["id"], d["title"], h["date"], f'{h["value"]:.12g}', d["unit"], h["kind"], h["source"] or ""])
+    _bulk.update(at=time.time(), numbers=nums.getvalue(), history=hist.getvalue())
+    return _bulk
+
+
+@app.get("/data/numbers.csv")
+def data_numbers():
+    fetched("bulk")
+    return RawResponse(bulk()["numbers"], media_type="text/csv; charset=utf-8", headers=OPEN)
+
+
+@app.get("/data/history.csv")
+def data_history():
+    fetched("bulk")
+    return RawResponse(bulk()["history"], media_type="text/csv; charset=utf-8", headers=OPEN)
 
 
 @app.get("/n/{mid}")
