@@ -291,6 +291,13 @@ def resolve_direct(m, exclude_domain=None, fresh=False):
                 urls.append(r["url"])
     pages = [p for p in telem.fetch(urls[:5], m["id"], fresh=True) if p["ok"]]  # always the live page: a cached copy gave a stale count once
     ex = llm.extract_direct(m["question"], m.get("unit") or "", pages, skill_text(m)) if pages else None
+    plain = [p["url"] for p in pages if p.get("provider") == "direct"]
+    if plain and (not ex or not isinstance(ex.get("value"), (int, float))):
+        # The site's own text did not hold the value (often a page filled in by script): read those pages through the reading service once.
+        again = [p for p in telem.fetch(plain[:5], m["id"], fresh=True, direct=False) if p["ok"]]
+        if again:
+            pages = [p for p in pages if p["url"] not in plain] + again
+            ex = llm.extract_direct(m["question"], m.get("unit") or "", pages, skill_text(m))
     if not ex or not isinstance(ex.get("value"), (int, float)):
         # The page text had no value (often a script-rendered page). Try what search providers read from it.
         if results is None:
@@ -521,7 +528,7 @@ def ensure_monitor(m):
     """Give a metric its Telem monitor. Returns True if one was created."""
     global _monitors_full_until
     import time
-    if m["telem_monitor_id"] or time.time() < _monitors_full_until:
+    if m["telem_monitor_id"] or time.time() < _monitors_full_until or not telem.monitors():
         return False
     mon, paced = None, 1
     for f in BASE_FREQS:
@@ -551,6 +558,8 @@ def pace(create_max=4, tick_max=3):
     that are due. A metric that changed since its last tick is checked twice as often (down to 15 minutes);
     a quiet one is checked less often (up to once a day)."""
     out = {"created": 0, "ticked": 0}
+    if not telem.monitors():
+        return out
     for m in db.q("SELECT * FROM metrics WHERE telem_monitor_id IS NULL ORDER BY id LIMIT ?", (create_max,)):
         out["created"] += 1 if ensure_monitor(m) else 0
     for m in db.q("SELECT * FROM metrics WHERE paced=1 AND telem_monitor_id IS NOT NULL AND next_tick_at<=? ORDER BY next_tick_at LIMIT ?",
@@ -588,8 +597,8 @@ def refresh_searched(limit=2, older_than_hours=22):
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=older_than_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
     n = 0
     now = datetime.now(timezone.utc)
-    for m in db.q("SELECT id, title, update_json, last_checked_at FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%' AND telem_monitor_id IS NULL AND (last_checked_at IS NULL OR last_checked_at<?) "
-                  "ORDER BY last_checked_at LIMIT ?", (cutoff, limit * 20)):
+    for m in db.q("SELECT id, title, update_json, last_checked_at FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%' AND (telem_monitor_id IS NULL OR ?) AND (last_checked_at IS NULL OR last_checked_at<?) "
+                  "ORDER BY last_checked_at LIMIT ?", (0 if telem.monitors() else 1, cutoff, limit * 20)):  # with no monitoring service every number is read here
         days = {"week": 7, "month": 30}.get(update_plan(m).get("every"), 0)  # the number's own plan says how often it can change
         if days and m["last_checked_at"] and (now - datetime.strptime(m["last_checked_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)).days < days:
             continue
@@ -898,6 +907,8 @@ def refresh_free(limit=3, older_than_hours=20):
 
 def sync_all():
     out = {"metrics": 0, "changes": 0, "errors": []}
+    if not telem.monitors():
+        return out
     for m in db.q("SELECT * FROM metrics WHERE telem_monitor_id IS NOT NULL"):
         try:
             out["changes"] += sync_metric(m)
