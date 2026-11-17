@@ -46,6 +46,20 @@ _BOT = _re.compile(r"(oai-searchbot|chatgpt-user|gptbot|claude-searchbot|claude-
                    r"meta-externalagent|duckassistbot|amazonbot|bytespider|google-extended|googleother|googlebot|bingbot|duckduckbot|yandex|baiduspider|slurp|applebot|"
                    r"facebookexternalhit|twitterbot|linkedinbot|slackbot|discordbot|ccbot|ahrefs|semrush|[a-z0-9_-]*bot\b|crawl|spider|curl|python|httpx|node-fetch|undici|axios|"
                    r"playwright|headless|uptime|monitor)", _re.I)
+_VAGUE = {"crawl", "spider", "bot", "python", "monitor", "uptime"}
+_NAMED = (_re.compile(r"compatible;\s*([a-z][a-z0-9_.-]{2,30})[/ ;)]", _re.I), _re.compile(r"^([a-z][a-z0-9_.-]{2,30})[/ ;)]", _re.I))
+
+
+def _bot(ua):
+    """Which crawler this is, or None for a person. A match on a general word ("crawl", "bot") is replaced by the name the crawler gives itself."""
+    m = _BOT.search(ua or "")
+    if not m:
+        return None
+    name = m.group(1).lower()
+    if name in _VAGUE:
+        own = next((x.group(1).lower() for x in (r.search(ua) for r in _NAMED) if x and x.group(1).lower() != "mozilla"), None)
+        name = own or name
+    return name
 # Answer engines: the crawlers that read pages for an assistant's index or on a person's behalf, and the sites their links arrive from.
 AI_AGENTS = ("oai-searchbot", "chatgpt-user", "gptbot", "claude-searchbot", "claude-user", "claudebot", "anthropic-ai", "perplexity-user", "perplexitybot",
              "mistralai-user", "cohere-ai", "meta-externalagent", "duckassistbot", "amazonbot", "bytespider")
@@ -64,19 +78,19 @@ async def count_visit(request: Request, call_next):
     try:
         path = request.url.path
         if request.method == "GET" and response.status_code == 200 and _DATA.search(path):
-            bot = _BOT.search(request.headers.get("user-agent", ""))  # which crawler or agent read a data address; people are not counted here
+            bot = _bot(request.headers.get("user-agent", ""))  # which crawler or agent read a data address; people are not counted here
             if bot:
                 db.run("INSERT INTO visits(day,path,ref,n) VALUES(?,?,?,1) ON CONFLICT(day,path,ref) DO UPDATE SET n=n+1",
-                       (db.now()[:10], "*data" if path.endswith((".json", ".md", ".csv")) else "*" + path[1:], "bot:" + bot.group(1).lower()))
+                       (db.now()[:10], "*data" if path.endswith((".json", ".md", ".csv")) else "*" + path[1:], "bot:" + bot))
         elif request.method == "GET" and response.status_code == 200 and not path.startswith(("/api/", "/static/")) and "." not in path.rsplit("/", 1)[-1]:
             group = next((g.rstrip("/") for g in _GROUPS if path.startswith(g)), path)
             ua = request.headers.get("user-agent", "")
-            bot = _BOT.search(ua)
+            bot = _bot(ua)
             host = (_urlsplit(request.headers.get("referer", "")).hostname or "").lower()
             if not host:  # assistants often send no referring page and tag the link instead (utm_source=chatgpt.com)
                 tag = _re.sub(r"[^a-z0-9.-]", "", (request.query_params.get("utm_source") or "").lower())[:40]
                 host = tag if "." in tag else ""
-            ref = ("bot:" + bot.group(1).lower()) if bot else ("" if host in ("", "tallycatalog.com", "www.tallycatalog.com", "127.0.0.1", "localhost") else host[:60])
+            ref = ("bot:" + bot) if bot else ("" if host in ("", "tallycatalog.com", "www.tallycatalog.com", "127.0.0.1", "localhost") else host[:60])
             day = db.now()[:10]
             db.run("INSERT INTO visits(day,path,ref,n) VALUES(?,?,?,1) ON CONFLICT(day,path,ref) DO UPDATE SET n=n+1", (day, group[:60], ref))
             if not bot:
@@ -351,6 +365,19 @@ def landing():
                         .replace("<!--RANKS-->", "".join(f'<a href="/top/{sl}">{pp.esc(n)} <span>{pp.esc(pp.subject(ts[0]))} leads</span></a>' for n, sl, ts in _rankings()[:6])))
 
 
+FILLER = {"the", "of", "a", "an", "how", "many", "much", "does", "do", "have", "has", "what", "is", "are", "for", "in", "at", "s", "count", "counts", "number", "numbers"}
+
+
+def _stem(w):
+    return w[:-3] + "y" if w.endswith("ies") and len(w) > 4 else w[:-1] if w.endswith("s") and not w.endswith("ss") and len(w) > 3 else w
+
+
+def _matches(words, hay):
+    """Every meaningful word typed is in the text, give or take a plural: "profound employees" finds "Profound · employee count"."""
+    keep = [w for w in words if w not in FILLER] or words
+    return all(w in hay or _stem(w) in hay for w in keep)
+
+
 COMMON_WORDS = {"now", "net", "ma", "v", "hd", "dis", "ko", "coin", "mu", "ant", "meta", "uber", "shop", "cost", "amd", "ibm"} - {"amd", "ibm", "uber"}
 
 
@@ -371,10 +398,10 @@ def suggest(q: str = ""):
     boards = sorted(((n, len(ids)) for n, ids in pp.groups().items() if len(ids) >= 2 and all(w in n.lower() for w in words)), key=lambda x: (x[0].lower() != " ".join(words), not x[0].lower().startswith(words[0]), -x[1]))[:3]
     hits = []
     for m in db.q(f"SELECT * FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id"):
-        hay = " ".join([m["title"] or "", m["question"] or "", m.get("company") or ""]).lower()
-        if all(w in hay for w in words):
+        hay = " ".join([m["title"] or "", m["question"] or "", m.get("company") or "", m.get("unit") or ""]).lower()
+        if _matches(words, hay):
             hits.append(m)
-    hits.sort(key=lambda m: (0 if all(w in (m["title"] or "").lower() for w in words) else 1, len(m["title"] or "")))
+    hits.sort(key=lambda m: (0 if _matches(words, (m["title"] or "").lower()) else 1, len(m["title"] or "")))
     out = []
     for m in hits[:7]:
         t = tile(m, None)
@@ -972,8 +999,8 @@ def search(request: Request, q: str = ""):
     found = []
     if words:
         for m in db.q("SELECT * FROM metrics ORDER BY id"):
-            hay = " ".join([m["title"] or "", m["question"] or "", m.get("company") or ""]).lower()
-            if all(w in hay for w in words):
+            hay = " ".join([m["title"] or "", m["question"] or "", m.get("company") or "", m.get("unit") or ""]).lower()
+            if _matches(words, hay):
                 t = tile(m, u, ids)
                 found.append({k: t[k] for k in ("id", "title", "question", "kind", "unit", "value", "followers", "live", "on_board", "curated")})
     found.sort(key=lambda t: -t["followers"])

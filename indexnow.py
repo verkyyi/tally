@@ -55,5 +55,12 @@ def flush(limit=500):
     db.run("INSERT OR REPLACE INTO settings(k,v) VALUES(?,?)", (MARK, now))
     if not last:
         return 0  # first run only sets the mark: the site map already lists everything
-    paths = due(last["v"])[:limit]
-    return len(paths) if paths and send(paths) else 0
+    # A page is announced once a day at most: a share price moves every few minutes, and repeating the same address is treated as noise.
+    row = db.one("SELECT v FROM settings WHERE k='indexnow_today'")
+    told = json.loads(row["v"]) if row else {}
+    told = told if told.get("day") == now[:10] else {"day": now[:10], "paths": []}
+    paths = [p for p in due(last["v"]) if p not in set(told["paths"])][:limit]
+    if not paths or not send(paths):
+        return 0
+    db.run("INSERT OR REPLACE INTO settings(k,v) VALUES('indexnow_today',?)", (json.dumps({"day": told["day"], "paths": told["paths"] + paths}),))
+    return len(paths)
