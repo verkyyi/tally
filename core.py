@@ -598,7 +598,7 @@ def refresh_searched(limit=2, older_than_hours=22):
     n = 0
     now = datetime.now(timezone.utc)
     for m in db.q("SELECT id, title, update_json, last_checked_at FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%' AND (telem_monitor_id IS NULL OR ?) AND (last_checked_at IS NULL OR last_checked_at<?) "
-                  "ORDER BY last_checked_at LIMIT ?", (0 if telem.monitors() else 1, cutoff, limit * 20)):  # with no monitoring service every number is read here
+                  "ORDER BY last_checked_at", (0 if telem.monitors() else 1, cutoff)):  # with no monitoring service every number is read here. No row limit: the oldest rows are the weekly and monthly numbers that are not due, and a limit let them crowd out every number that was
         days = {"week": 7, "month": 30}.get(update_plan(m).get("every"), 0)  # the number's own plan says how often it can change
         if days and m["last_checked_at"] and (now - datetime.strptime(m["last_checked_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)).days < days:
             continue
