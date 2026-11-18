@@ -47,3 +47,28 @@ Stack: Python 3.11, FastAPI, SQLite, httpx, one static `index.html`. LLM: Anthro
 ## License
 
 MIT. See `LICENSE`.
+
+## Local regression tests
+
+```sh
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+Tests create temporary SQLite databases and mock network access, LLM responses and
+notifications. They do not need credentials or a running service.
+
+Text-derived direct values pass a shared evidence review (`evidence.py`) using the
+existing LLM client. The runtime requires a quote on the cited fetched page, a
+matching entity and metric scope, an exact value, and an evidenced effective date
+(or an explicitly current undated source). Failed, ambiguous, bounded, approximate,
+or range values are saved in `evidence_reviews`, not published as exact numbers.
+The original quote, qualifier and bounds remain available there for later review;
+there is no review UI yet. LLM failure holds the candidate without replacing the
+last observation. Legacy headcount points without scope metadata require review
+before a changed value can produce a comparison.
+
+Observations distinguish `as_of` (fact date) from `collected_at` (read time).
+Recipe repair, replacement and restoration must pass every required check. Monitor
+notifications trigger verified reads, rather than directly supplying direct values.
+Structured public API adapters keep their existing deterministic extraction path.
+No migration rewrites historical observations or sends corrections/alerts.

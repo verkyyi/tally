@@ -289,7 +289,7 @@ def tile(m, u=None, ids="unset"):
             nxt = (datetime.strptime(m["last_checked_at"], "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
         except ValueError:
             nxt = None
-    return base | {"value": value, "previous": prev, "spark": obs, "last_checked": checked, "as_of": checked, "next_check": nxt,
+    return base | {"value": value, "previous": prev, "spark": obs, "last_checked": checked, "as_of": obs[-1]["as_of"] if obs else None, "next_check": nxt,
                    "source_url": m["source_url"], "new_entries": new}
 
 

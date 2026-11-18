@@ -124,7 +124,8 @@ def _quoted(value, quote, page):
 def _verify(m, res, pages):
     """Check what the agent reported against the pages it fetched. Returns (checks, value or None, kept history)."""
     checks, value, hist = [], None, []
-    if not res or not res.get("found"):
+    import evidence
+    if not res or not res.get("found") or not evidence.finite(res.get("value")):
         checks.append({"name": "The recipe produced a value", "ok": False, "detail": (res or {}).get("notes") or "The agent found no value by following it."})
         return checks, None, []
     checks.append({"name": "The recipe produced a value", "ok": True, "detail": ""})
@@ -139,8 +140,11 @@ def _verify(m, res, pages):
     checks.append({"name": "The value can be read in the source text", "ok": readable, "detail": "" if readable else "The number is not in the page text or in the quote."})
     old = core.latest_obs(m["id"]) if m["kind"] == "direct" else {"value": core.count_value(m["id"])}
     ov = (old or {}).get("value")
-    jump = bool(ov) and res["value"] not in (0, None) and not (1 / JUMP <= res["value"] / ov <= JUMP)
+    jump = ov is not None and ov != res["value"] and (not ov or not (1 / JUMP <= res["value"] / ov <= JUMP))
     checks.append({"name": "No unexplained jump from the current value", "ok": not jump, "detail": f"Current {ov:g}, trial {res['value']:g}: more than {JUMP:g}x apart, so it is held for a second source." if jump else ""})
+    import evidence
+    semantic = evidence.assess(m, res, page)
+    checks.append({"name": "Evidence date, entity, scope and qualifiers are valid", "ok": semantic, "detail": (res.get("_review") or {}).get("reason", "")})
     if all(c["ok"] for c in checks):
         value = res["value"]
     today = db.now()[:10]
@@ -150,9 +154,14 @@ def _verify(m, res, pages):
             continue
         page_h = _page_for(h.get("url"), pages)
         if re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], page_h) and (len(page_h) < LONG or any(_quoted(h["value"], q, page_h) for q in quotes if q)):
-            hist.append(h)
+            if evidence.historical(m, h, page_h):
+                hist.append(h)
     if res.get("history"):
         checks.append({"name": "Past points can be read in the pages they cite", "ok": len(hist) > 0, "detail": f"{len(hist)} of {len(res['history'])} kept."})
+    if not all(c["ok"] for c in checks):
+        res["_review"]["accepted"] = False
+        evidence.hold(m, res, "; ".join(c["name"] for c in checks if not c["ok"]))
+        value = None
     return checks, value, hist
 
 
@@ -231,7 +240,7 @@ def revise(u, m, body, note, again=False):
                (secs["Read"], _first_url(secs["Source"]), _search_line(secs["Source"]), ver, m["id"]))
         fresh = core.metric(m["id"])
         if m["kind"] == "direct":
-            core.record_direct(fresh, {"value": value, "evidence_url": res["evidence_url"], "quote": res["quote"]}, "recipe")
+            core.record_direct(fresh, res, "recipe")
             if hist:  # the past as this version rebuilds it replaces what an earlier version rebuilt
                 db.run("DELETE FROM observations WHERE metric_id=? AND origin='source_history' AND quote LIKE 'recipe v%'", (m["id"],))
             for h in hist:
@@ -262,17 +271,14 @@ def set_history(m, text, note):
 
 
 def revert(u, m, version):
-    """Make an earlier adopted version live again. Its text is trusted because it already passed a trial (or is the baseline)."""
+    """Restoring old text requires a new passing trial under the current gates."""
     r = db.one("SELECT * FROM recipes WHERE metric_id=? AND version=? AND status IN ('superseded','live')", (m["id"], version))
     if not r:
         raise ValueError("That version was never adopted, so it cannot be restored.")
-    ver = db.one("SELECT MAX(version) v FROM recipes WHERE metric_id=?", (m["id"],))["v"] + 1
-    secs = parse(r["body"])
-    db.run("UPDATE recipes SET status='superseded' WHERE metric_id=? AND status='live'", (m["id"],))
-    db.run("INSERT INTO recipes(metric_id,version,body,author,note,status,created_at) VALUES(?,?,?,?,?,?,?)", (m["id"], ver, r["body"], u["id"], f"Restored version {version}.", "live", db.now()))
-    db.run("UPDATE metrics SET instructions=?, source_url=COALESCE(?,source_url), search_query=COALESCE(?,search_query), recipe_version=? WHERE id=?",
-           (secs.get("Read") if version > 1 else None, _first_url(secs.get("Source", "")), _search_line(secs.get("Source", "")), ver, m["id"]))
-    return ver
+    report = revise(u, m, r["body"], f"Restored version {version} after a new trial.", again=True)
+    if not report["adopted"]:
+        raise ValueError("The restored recipe failed current evidence checks; the live recipe was kept.")
+    return report["version"]
 
 
 def _first_url(text):

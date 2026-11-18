@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 import db
+import evidence
 import llm
 import telem
 import free_sources
@@ -172,8 +173,19 @@ SITE = os.environ.get("TALLY_SITE", "https://tallycatalog.com")
 WEBHOOK_HOSTS = ("https://hooks.slack.com/", "https://discord.com/api/webhooks/", "https://discordapp.com/api/webhooks/")
 
 
+def same_value(before, after):
+    if before is None or after is None:
+        return before is after
+    try:
+        return float(before) == float(after)
+    except (ValueError, TypeError):
+        return str(before) == str(after)
+
+
 def is_major(kind, before, after, metric_kind):
     """A change that moved the number, as opposed to a small edit to one entry."""
+    if kind in ("entity_added", "value_changed") and (before is None or after is None or same_value(before, after)):
+        return False
     if kind == "entity_added":
         return before is not None
     if kind == "value_changed" and metric_kind == "direct":
@@ -205,6 +217,8 @@ def notify(mid, before, after, kind, note):
 
 
 def add_change(mid, before, after, origin, kind, note=None, entry_id=None, url=None, at=None):
+    if kind in ("entity_added", "value_changed") and before is not None and same_value(before, after):
+        return
     db.run("INSERT INTO changes(metric_id,before,after,entry_id,at,origin,kind,note,url) VALUES(?,?,?,?,?,?,?,?,?)",
            (mid, None if before is None else str(before), None if after is None else str(after),
             entry_id, at or db.now(), origin, kind, note, url))
@@ -275,7 +289,7 @@ def read_json_path(url, path):
             v = v[int(part)] if isinstance(v, list) else v[part]
     except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
         return None
-    return {"value": float(v), "evidence_url": url, "quote": f"{path}: {v}"} if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+    return {"value": float(v), "evidence_url": url, "quote": f"{path}: {v}", "_structured": True} if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
 def resolve_direct(m, exclude_domain=None, fresh=False):
@@ -290,13 +304,13 @@ def resolve_direct(m, exclude_domain=None, fresh=False):
     urls, results = [], None
     if m.get("source_url") and domain(m["source_url"]) != exclude_domain:
         urls.append(m["source_url"])
-    if len(urls) < 1 or exclude_domain or plan.get("method") == "search":  # a value that moves to a new page each time (a new announcement) is searched for, not only re-read
-        results, _ = telem.search(m["search_query"] or m["question"], m["id"], auto=True, num_results=5)
-        hint = (m.get("source_hint") or "").lower()
-        results.sort(key=lambda r: (0 if hint and hint in domain(r["url"]) else 1, r.get("rank") or 99))
-        for r in results:
-            if domain(r["url"]) != exclude_domain and r["url"] not in urls:
-                urls.append(r["url"])
+    # Compare the pinned page with newly discovered evidence on each text read.
+    results, _ = telem.search(m["search_query"] or m["question"], m["id"], auto=True, num_results=5)
+    hint = (m.get("source_hint") or "").lower()
+    results.sort(key=lambda r: (0 if hint and hint in domain(r["url"]) else 1, r.get("rank") or 99))
+    for r in results:
+        if domain(r["url"]) != exclude_domain and r["url"] not in urls:
+            urls.append(r["url"])
     pages = [p for p in telem.fetch(urls[:5], m["id"], fresh=True) if p["ok"]]  # always the live page: a cached copy gave a stale count once
     ex = llm.extract_direct(m["question"], m.get("unit") or "", pages, skill_text(m)) if pages else None
     plain = [p["url"] for p in pages if p.get("provider") == "direct"]
@@ -315,12 +329,10 @@ def resolve_direct(m, exclude_domain=None, fresh=False):
         ex = llm.extract_direct(m["question"], m.get("unit") or "", snips, skill_text(m)) if snips else None
     if not ex or not isinstance(ex.get("value"), (int, float)):
         return None
-    read = " ".join([ex.get("quote") or ""] + [p["content"] for p in pages] + [r["title"] + " " + r["summary"] for r in (results or [])])
-    if not supported(ex["value"], read):
-        print("rejected unsupported value:", m["id"], ex["value"], (ex.get("quote") or "")[:80])
-        return None  # the extraction named a number that is not in the text: no value yet, rather than a guess
-    if not ex.get("evidence_url"):
-        ex["evidence_url"] = pages[0]["url"]
+    page = next((p["content"] for p in pages if p["url"] == ex.get("evidence_url")), "")
+    if not evidence.assess(m, ex, page):
+        return None
+
     return ex
 
 
@@ -331,45 +343,44 @@ def jump_held(m, ex):
     """True if this reading is more than 3x away from the last one and no second source agrees with it.
     Such a reading is not recorded: the number keeps its last value until two sources say the same."""
     prev = latest_obs(m["id"])
-    if not prev or not prev["value"] or not ex.get("value") or free_sources.is_free(m):
+    if not prev or prev["value"] == ex.get("value") or free_sources.is_free(m):
         return False
-    if 1 / JUMP <= ex["value"] / prev["value"] <= JUMP:
+    if prev["value"] and 1 / JUMP <= ex["value"] / prev["value"] <= JUMP:
         return False
     try:
         second = resolve_direct(m, exclude_domain=domain(ex["evidence_url"]))
     except telem.TelemError:
         second = None
-    if second and second.get("value") and 0.8 <= second["value"] / ex["value"] <= 1.25:
+    if second and domain(second.get("evidence_url")) != domain(ex.get("evidence_url")) and (second.get("value") == ex["value"] or (ex["value"] and second.get("value") and 0.8 <= second["value"] / ex["value"] <= 1.25)):
         return False
     print("held jump:", m["id"], prev["value"], "->", ex["value"], "second source:", (second or {}).get("value"))
     return True
 
 
-def _belongs_to(ex, prev):
-    """The earlier day a newly read value belongs to (the end of its period, the day of its event), when the reader found
-    one stated and the quote itself carries that year. None otherwise: the value is then dated by the day it was read."""
-    d = (ex.get("as_of") or "") if isinstance(ex.get("as_of"), str) else ""
-    try:
-        datetime.strptime(d, "%Y-%m-%d")
-    except ValueError:
-        return None
-    if not (prev["as_of"][:10] < d < db.now()[:10]) or d[:4] not in (ex.get("quote") or ""):
-        return None
-    return d
-
-
 def record_direct(m, ex, origin):
+    if not evidence.finite(ex.get("value")):
+        evidence.hold(m, ex, "Invalid numeric value")
+        return False
+    trusted = free_sources.is_free(m) or ex.get("_structured") is True
+    if not trusted:
+        reason = evidence.rejection(m, ex)
+        if reason or not (ex.get("_review") or {}).get("accepted"):
+            evidence.hold(m, ex, reason or "Evidence was not verified")
+            return False
+        if jump_held(m, ex):
+            evidence.hold(m, ex, "Unexplained jump")
+            return False
     prev = latest_obs(m["id"])
-    if prev and prev["value"] != ex["value"]:
-        since = _belongs_to(ex, prev)
-        if since:  # a new figure is filed under its own date; the reading below, dated today, confirms it
-            db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)",
-                   (m["id"], ex["value"], since + "T00:00:00Z", ex["evidence_url"], "source_history", "the date this value belongs to, as the page states it", m.get("recipe_version")))
-    db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)",
-           (m["id"], ex["value"], db.now(), ex["evidence_url"], origin, ex.get("quote"), m.get("recipe_version")))
-    if prev and prev["value"] != ex["value"]:
+    review = ex.get("_review") or {}
+    at = review.get("effective_date") or (ex.get("as_of") if trusted else None) or db.now()
+    if len(at) == 10:
+        at += "T00:00:00Z"
+    db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version,collected_at,evidence_json) VALUES(?,?,?,?,?,0,?,?,?,?)",
+           (m["id"], ex["value"], at, ex["evidence_url"], origin, ex.get("quote"), m.get("recipe_version"), db.now(), json.dumps(review)))
+    changed = prev is not None and prev["value"] != ex["value"]
+    if changed:
         add_change(m["id"], fmt(prev["value"]), fmt(ex["value"]), origin, "value_changed", url=ex["evidence_url"])
-    return prev is not None and prev["value"] != ex["value"]
+    return changed
 
 
 # ---------- count ----------
@@ -442,7 +453,7 @@ def upsert_entries(m, entries, origin, record_changes=True):
             if rk:
                 seen[rk] = {"id": eid, "title": e["title"], "value": e.get("value")}
         new_ids.append(eid)
-        if record_changes:
+        if record_changes and before != count_value(m["id"]):
             add_change(m["id"], fmt(before), fmt(count_value(m["id"])), origin, "entity_added", note=e["title"].strip(), entry_id=eid, url=e.get("url"))
     return new_ids
 
@@ -779,8 +790,8 @@ def sync_metric(m):
     mid, cursor, added = m["id"], m["monitor_cursor"] or 0, 0
     # A curated or skill-backed number, and any sum/avg/max, is never taken from the monitor's own reading:
     # the monitor only says "something moved", and the stored recipe is run again to get the value.
-    # Only for monitors this server paces; the original hourly monitors keep their old behaviour.
-    verify = bool(m.get("paced")) and (bool(m.get("curated") or m.get("skill")) or (m["kind"] != "direct" and (m.get("reducer") or "count") != "count"))
+    # All direct monitors are wake-ups: even legacy monitors must rerun verified extraction.
+    verify = m["kind"] == "direct" or bool(m.get("paced")) and (bool(m.get("curated") or m.get("skill")) or (m["kind"] != "direct" and (m.get("reducer") or "count") != "count"))
     rerun = False
     # A paced monitor's first run lists everything it can see. That is its baseline, not news: skip it.
     baseline, saw_run = bool(m.get("paced")) and not m.get("baselined"), False

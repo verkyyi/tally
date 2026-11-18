@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 
 import core
 import db
+import evidence
 import recipes
 import sources
 import telem
@@ -118,6 +119,8 @@ def deepen(m, max_iterations=28):
             continue
         if total and (h["value"] > cur["value"] or (good and h["value"] < good[-1]["value"])):
             continue  # a running total never falls and never exceeds what it is today
+        if not evidence.historical(m, h, page):
+            continue
         good.append(h)
         label = core.clean_label(h.get("label"), page)
         if h["date"][:7] not in months:
@@ -175,7 +178,8 @@ def _work(did, q):
                 page_h = recipes._page_for(h.get("url"), again["pages"])
                 if sources.readable(h.get("url")) and (re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], page_h)
                         and (len(page_h) < recipes.LONG or recipes._quoted(h["value"], h.get("quote"), page_h))):
-                    hist.append(h)
+                    if evidence.historical(m, h, page_h):
+                        hist.append(h)
             checks.append({"name": "A second run looked only for its past", "ok": True, "detail": f"{len(hist)} past values could be read in the pages they cite."})
             past_note = past_note or ((again["result"] or {}).get("notes") or "")
         every_page = run["pages"] | ((again or {}).get("pages") or {})
@@ -187,7 +191,7 @@ def _work(did, q):
             hist = hist if ok else []  # rounds that do not add up are not shown as its past; the number itself still stands
         steps += [{"tool": "check", "arg": c["name"] + (": " + c["detail"] if c["detail"] else ""), "ok": c["ok"]} for c in checks]
         report = {"steps": steps, "checks": checks, "notes": (res or {}).get("notes"), "model": run["model"], "usage": run["usage"]}
-        if value is None:
+        if value is None or not all(c["ok"] for c in checks):
             reasons = [c["name"] + (": " + c["detail"] if c["detail"] else "") for c in checks if not c["ok"]]
             db.run("UPDATE drafts SET title=? WHERE id=?", (m["title"], did))
             _set(did, "failed", reasons=reasons, **report)
@@ -200,7 +204,7 @@ def _work(did, q):
         body = (f"## Source\n{res['evidence_url']}\n{r['Source']}\n\n## Read\n{r['Read'] or 'Read the single value that answers the question from the source page, with the sentence that states it.'}\n\n"
                 f"## History\n{r['History'] or 'Observed from the day this number was created.'}\n\n## Update\n{r['Update'] or 'Once a day.'}\n\n## Checks\n{r['Checks'] or CHECKS}\n")
         db.run("UPDATE drafts SET title=? WHERE id=?", (m["title"], did))
-        _set(did, "ready", value=value, unit=m["unit"], quote=res["quote"], url=res["evidence_url"], history=hist, running=bool(plan.get("running_total")), plan=plan, body=body,
+        _set(did, "ready", evidence=res, value=value, unit=m["unit"], quote=res["quote"], url=res["evidence_url"], history=hist, running=bool(plan.get("running_total")), plan=plan, body=body,
              value_date=_dated(res.get("value_date")), value_label=core.clean_label(res.get("value_label"), recipes._page_for(res.get("evidence_url"), run["pages"])),
              no_past="" if hist else (past_note or "Two runs found no earlier value stated with a date."), **report)
     except Exception as e:
@@ -223,7 +227,7 @@ def state(u, did):
     elif row["status"] == "ready":
         txt, unit = pp.fmt(p["value"], p.get("unit"))
         out |= {"value": txt + (" " + unit if unit else ""), "value_raw": p["value"], "quote": p["quote"], "url": p["url"], "recipe": p["body"], "plan": p.get("plan"), "no_past": p.get("no_past") or "",
-                "points": [[h["date"], h["value"]] for h in p.get("history") or []] + [[db.now()[:10], p["value"]]], "holds": bool((p.get("plan") or {}).get("holds")),
+                "points": [[h["date"], h["value"]] for h in p.get("history") or []] + [[((p.get("evidence") or {}).get("_review") or {}).get("effective_date") or db.now()[:10], p["value"]]], "holds": bool((p.get("plan") or {}).get("holds")),
                 "history": [{"date": h["date"], "value": " ".join(x for x in pp.fmt(h["value"], p.get("unit")) if x), "url": h.get("url")} for h in p.get("history") or []]}
     return out
 
@@ -234,6 +238,10 @@ def publish(u, did):
     if not row or row["status"] != "ready":
         raise Refused("That draft is not waiting to be published.")
     p = json.loads(row["payload"])
+    import evidence
+    candidate = p.get("evidence") or {}
+    if not p.get("checks") or not all(c.get("ok") is True for c in p["checks"]) or not (candidate.get("_review") or {}).get("accepted") or evidence.rejection({"id": None, "question": row["question"], "unit": p.get("unit")}, candidate):
+        raise Refused("The draft needs a new passing evidence review before publication.")
     clash = db.one("SELECT * FROM metrics WHERE lower(title)=?", (row["title"].lower(),))
     if clash:
         core.follow(u["id"], clash["id"])
@@ -248,15 +256,10 @@ def publish(u, did):
            (mid, 1, p["body"], u["id"], "Written by the agent that created this number, from the research it did.", "live", db.now(),
             json.dumps({k: p.get(k) for k in ("checks", "notes", "steps", "model", "usage")} | {"adopted": True, "created": True})))
     m = core.metric(mid)
-    core.record_direct(m, {"value": p["value"], "evidence_url": p["url"], "quote": p["quote"]}, "created")
+    core.record_direct(m, candidate, "created")
     if p.get("value_label"):
         db.run("UPDATE observations SET label=? WHERE metric_id=?", (p["value_label"], mid))
     today = db.now()[:10]
-    since = p.get("value_date")
-    if since and since < today and not any(h["date"] >= since for h in p.get("history") or []):
-        # the value belongs to an earlier day (the end of its period, the day of the event): it is filed there, and today's reading only confirms it
-        db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version,label) VALUES(?,?,?,?,?,0,?,1,?)",
-               (mid, p["value"], since + "T00:00:00Z", p["url"], "source_history", "recipe v1: the date this value belongs to", p.get("value_label")))
     for h in p.get("history") or []:
         if h["date"] < today:
             db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version,label) VALUES(?,?,?,?,?,0,?,1,?)",
@@ -294,13 +297,13 @@ def repair(m):
     writes a new recipe and update plan, adopted only if it passes the usual checks. Returns "read", "repaired" or "failed"."""
     import agent
     db.run("UPDATE metrics SET repaired_at=? WHERE id=?", (db.now(), m["id"]))
-    passed = lambda checks: all(c["ok"] for c in checks if not c["name"].startswith("No unexplained jump"))  # the agent is the second look a big move was waiting for
+    passed = lambda checks: all(c["ok"] for c in checks)  # every required check is binding
     cur = recipes.live(m)
     run = agent.run_recipe(m, cur["body"])
     res = run["result"]
     checks, _, _ = recipes._verify(m, res, run["pages"])
     if res and res.get("found") and passed(checks):
-        core.record_direct(m, {"value": res["value"], "evidence_url": res["evidence_url"], "quote": res["quote"]}, "agent")
+        core.record_direct(m, res, "agent")
         db.run("UPDATE metrics SET read_failures=0, last_checked_at=? WHERE id=?", (db.now(), m["id"]))
         return "read"
     run = agent.create(m["question"])
@@ -320,7 +323,7 @@ def repair(m):
     db.run("UPDATE metrics SET source_url=?, instructions=?, search_query=COALESCE(?,search_query), update_json=?, recipe_version=?, read_failures=0, last_checked_at=? WHERE id=?",
            (res["evidence_url"], secs.get("Read"), recipes._search_line(secs.get("Source", "")), json.dumps(plan), ver, db.now(), m["id"]))
     fresh = core.metric(m["id"])
-    core.record_direct(fresh, {"value": res["value"], "evidence_url": res["evidence_url"], "quote": res["quote"]}, "agent")
+    core.record_direct(fresh, res, "agent")
     if not plan.get("running_total"):
         for h in hist:
             at = h["date"] + "T00:00:00Z"
@@ -337,7 +340,7 @@ def resource(m, hint):
     run = agent.create(m["question"] + " " + hint)
     res = run["result"]
     checks, _, hist = recipes._verify(m, res, run["pages"])
-    ok = bool(res and res.get("found")) and all(c["ok"] for c in checks if not c["name"].startswith("No unexplained jump"))
+    ok = bool(res and res.get("found")) and all(c["ok"] for c in checks)
     if not ok:
         return "kept as it was: " + "; ".join(c["name"] for c in checks if not c["ok"]), 0
     r, plan, cur = res["recipe"], res.get("plan") or {}, recipes.live(m)
@@ -354,7 +357,7 @@ def resource(m, hint):
     secs = recipes.parse(body)
     db.run("UPDATE metrics SET source_url=?, instructions=?, search_query=COALESCE(?,search_query), update_json=?, recipe_version=?, read_failures=0, last_checked_at=? WHERE id=?",
            (res["evidence_url"], secs.get("Read"), recipes._search_line(secs.get("Source", "")), json.dumps(plan), ver, db.now(), m["id"]))
-    core.record_direct(core.metric(m["id"]), {"value": res["value"], "evidence_url": res["evidence_url"], "quote": res["quote"]}, "agent")
+    core.record_direct(core.metric(m["id"]), res, "agent")
     if hist:
         today = db.now()[:10]
         for h in hist:  # a point of the earlier past is replaced only by a new point for the same month; the rest of that past stays until it is replaced too

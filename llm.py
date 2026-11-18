@@ -65,6 +65,7 @@ EXTRACT_DIRECT = """You read fetched web pages and extract the single value that
 Return {"value": number or null, "unit": string, "as_of": "YYYY-MM-DD", "evidence_url": string, "confidence": 0 to 1, "quote": string}.
 - value is a plain number: 343000000, not "343M". For a price, the number in the listed currency.
 - quote is the short text on the page that states the value. evidence_url is the URL of the page it came from.
+- Preserve the full numeric phrase in quote, including fewer than, at least, about, + and ranges. Never omit a qualifier. LinkedIn associated members are not employees. Compare fact dates: an old article is not a current headcount.
 - When several pages state a value, prefer the subject's own official page (its pricing page, its repository, its store listing) over blog posts and third-party sites, and use the currency that page shows.
 - quote is one short plain phrase, not a table row.
 - as_of is the date the value belongs to, only when the page states it: the last day of the period a figure reports ("three months ended September 30, 2026" is 2026-09-30), or the day of the event that set it. Otherwise null. Never today's date, never a guess.
@@ -97,7 +98,10 @@ def _with_skill(system, skill):
 
 
 def extract_direct(question, unit, pages, skill=None):
-    return ask_json(_with_skill(EXTRACT_DIRECT, skill), f"Today is {date.today()}.\nQuestion: {question}\nExpected unit: {unit}\n\n{_pages(pages)}")
+    try:
+        return ask_json(_with_skill(EXTRACT_DIRECT, skill), f"Today is {date.today()}.\nQuestion: {question}\nExpected unit: {unit}\n\n{_pages(pages)}")
+    except (anthropic.APIError, ValueError, TypeError):
+        return None
 
 
 def extract_count(question, results, pages=(), skill=None, field=None):

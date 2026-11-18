@@ -615,6 +615,8 @@ def day(iso):
 def changes_page(rows, path="/changes", heading="What changed", intro="Numbers on Tally that moved recently. Each links to its evidence."):
     items, last = "", None
     for c in rows:
+        if c.get("kind") in ("entity_added", "value_changed") and not core.is_major(c["kind"], c.get("before"), c.get("after"), c.get("metric_kind", "direct")):
+            continue
         d = day(c["at"])
         if d != last:
             items += f'{"</ul>" if last else ""}<h2>{esc(d)}</h2><ul class="rows">'
@@ -633,6 +635,8 @@ def atom(rows, title, self_path):
     out = (f'<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom"><title>{esc(title)}</title><id>{SITE}{esc(self_path)}</id>'
            f'<link rel="self" href="{SITE}{esc(self_path)}"/><link href="{SITE}/changes"/><updated>{updated}</updated>')
     for c in rows:
+        if c.get("kind") in ("entity_added", "value_changed") and not core.is_major(c["kind"], c.get("before"), c.get("after"), c.get("metric_kind", "direct")):
+            continue
         a, note = change_line(c)
         out += (f'<entry><id>{SITE}/n/{c["metric_id"]}#c{c["id"]}</id><title>{esc(c["title"])}: {esc(a)}</title><link href="{SITE}{number_path({"id": c["metric_id"]})}"/>'
                 f'<updated>{c["at"]}</updated><summary>{esc(note)}</summary></entry>')
