@@ -434,6 +434,17 @@ def _public_series(m, t):
     return core.series(m["id"], None if t["live"] else (t.get("as_of") or ""))
 
 
+def _open(m, t, pts):
+    """A number as the open data may carry it: (tile, series) without the points whose source allows a link and a
+    snippet on the site but not redistribution. When the present value itself rests on such a source, the open data
+    gives no value for the number."""
+    import sources
+    keep = [p for p in pts if sources.status(p.get("url") or (m.get("source_url") if p["origin"] != "source_history" else "")) == "ok"]
+    if pts and (not keep or keep[-1] is not pts[-1]):
+        t = t | {"value": None}
+    return t, keep
+
+
 @app.get("/n/{mid}/recipe")
 def public_recipe(mid: int):
     m = core.metric(mid)
@@ -533,7 +544,8 @@ def _number_or_404(mid):
     if not m or core.folded_into(m):
         raise HTTPException(404, "no such number")
     t = tile(m, None)
-    return m, t, _public_series(m, t)
+    t, pts = _open(m, t, _public_series(m, t))
+    return m, t, pts
 
 
 @app.get("/n/{mid}.json")
@@ -569,7 +581,7 @@ def subject_json(slug: str):
             for i in ids:
                 m = core.metric(i)
                 t = tile(m, None)
-                out.append({k: v for k, v in pp.number_data(m, t, _public_series(m, t)).items() if k != "history"} | {"json": f"{pp.SITE}/n/{i}.json"})
+                out.append({k: v for k, v in pp.number_data(m, *_open(m, t, _public_series(m, t))).items() if k != "history"} | {"json": f"{pp.SITE}/n/{i}.json"})
             return JSONResponse({"name": name, "page": pp.SITE + pp.subject_path(name), "license": "CC BY 4.0", "numbers": out}, headers=OPEN)
     raise HTTPException(404, "nothing tracked under that name yet")
 
@@ -601,8 +613,7 @@ def _mcp_number(args, history=False):
         m = core.folded_into(m)
     if not m:
         raise ValueError("No such number. Use search_numbers to find its id.")
-    t = tile(m, None)
-    pts = _public_series(m, t)
+    t, pts = _open(m, tile(m, None), _public_series(m, tile(m, None)))
     d = pp.number_data(m, t, pts)
     hist = d.pop("history")
     mv = pp.last_move(pts)
@@ -623,7 +634,7 @@ def _mcp_on(args):
         raise ValueError("date must be a past or present day, YYYY-MM-DD")
     d = _mcp_number(args)
     m = core.metric(d["id"])
-    return {"id": d["id"], "title": d["title"], "unit": d["unit"], "page": d["page"] + "?on=" + day} | core.value_on(m, _public_series(m, tile(m, None)), day) | {"license": "CC BY 4.0", "attribution": d["attribution"]}
+    return {"id": d["id"], "title": d["title"], "unit": d["unit"], "page": d["page"] + "?on=" + day} | core.value_on(m, _open(m, tile(m, None), _public_series(m, tile(m, None)))[1], day) | {"license": "CC BY 4.0", "attribution": d["attribution"]}
 
 
 def _mcp_search(args):
@@ -759,7 +770,7 @@ def public_csv(mid: int):
         raise HTTPException(404, "no such number")
     fetched("csv", mid)
     t = tile(m, None)
-    return RawResponse(pp.history_csv(m, _public_series(m, t)), media_type="text/csv",
+    return RawResponse(pp.history_csv(m, _open(m, t, _public_series(m, t))[1]), media_type="text/csv",
                        headers={"Content-Disposition": f'attachment; filename="{pp.slug(m["title"])}.csv"'})
 
 
@@ -778,7 +789,7 @@ def bulk():
     b.writerow(["number_id", "title", "date", "value", "unit", "kind", "source"])
     for m in db.q(f"SELECT * FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id"):
         t = tile(m, None)
-        d = pp.number_data(m, t, _public_series(m, t))
+        d = pp.number_data(m, *_open(m, t, _public_series(m, t)))
         if d["value"] is None:
             continue
         a.writerow([d["id"], d["title"], pp.subject(m), d["unit"], f'{d["value"]:.12g}', d["as_of"] or "", d["source"] or "", len(d["history"]), d["history"][0]["date"] if d["history"] else "", d["page"]])

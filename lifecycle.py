@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 import core
 import db
 import recipes
+import sources
 
 PER_DAY = {"free": 1, "pro": 20}   # attempts per person per day: each one runs a search and an agent, whether or not it works
 SITE_PER_DAY = 50
@@ -110,6 +111,8 @@ def deepen(m, max_iterations=28):
     added, labelled, good = 0, 0, []
     for h in sorted(res.get("history") or [], key=lambda x: x["date"]):
         page = recipes._page_for(h.get("url"), run["pages"])
+        if not sources.readable(h.get("url")):
+            continue
         if not (_dated(h["date"]) and h["date"] < first_live and core.supported(h["value"], page) and (len(page) < recipes.LONG or recipes._quoted(h["value"], h.get("quote"), page))):
             continue
         if total and (h["value"] > cur["value"] or (good and h["value"] < good[-1]["value"])):
@@ -169,7 +172,7 @@ def _work(did, q):
             today = db.now()[:10]
             for h in sorted((again["result"] or {}).get("history") or [], key=lambda x: x["date"]):
                 page_h = recipes._page_for(h.get("url"), again["pages"])
-                if (re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], page_h)
+                if sources.readable(h.get("url")) and (re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], page_h)
                         and (len(page_h) < recipes.LONG or recipes._quoted(h["value"], h.get("quote"), page_h))):
                     hist.append(h)
             checks.append({"name": "A second run looked only for its past", "ok": True, "detail": f"{len(hist)} past values could be read in the pages they cite."})

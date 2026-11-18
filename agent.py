@@ -1,5 +1,6 @@
 """The recipe agent: Claude follows a number's recipe with tools and hands back a reading the runtime can check.
 The agent proposes; the runtime verifies. Nothing the agent says is stored unless the runtime can read it in a page the agent fetched."""
+import sources
 import ipaddress
 import json
 import os
@@ -121,6 +122,8 @@ def _toolbox(pages, steps, mid, on_step=None, limit=None):
         log("fetch", url[:300])
         if not _public_host(url):
             return "refused: only public https pages can be read"
+        if not sources.readable(url):
+            return sources.REFUSED.format(why=sources.why(url))
         try:
             rows = [p for p in telem.fetch([url], mid, fresh=True) if p["ok"]]
         except Exception as e:
@@ -140,6 +143,8 @@ def _toolbox(pages, steps, mid, on_step=None, limit=None):
         log("get_json", url[:300])
         if not _public_host(url):
             return "refused: only public https endpoints can be read"
+        if not sources.readable(url):
+            return sources.REFUSED.format(why=sources.why(url))
         try:
             r = httpx.get(url, timeout=20, follow_redirects=False, headers={"User-Agent": "tally-catalog", "Accept": "application/json"})
         except httpx.HTTPError as e:
@@ -162,6 +167,8 @@ def _toolbox(pages, steps, mid, on_step=None, limit=None):
         log("grep", f"{pattern[:80]} in {url[:220]}")
         if not _public_host(url):
             return "refused: only public https pages can be read"
+        if not sources.readable(url):
+            return sources.REFUSED.format(why=sources.why(url))
         if url not in pages or len(pages[url]) < 30000:
             try:
                 r = httpx.get(url, timeout=60, follow_redirects=True, headers={"User-Agent": "tally-catalog", "Accept": "text/html,application/xhtml+xml"})
@@ -270,6 +277,11 @@ You are given a request in a person's words. You decide how to do the research; 
 - update_json: the same plan in a form a program can run: {"method": "json" | "page" | "search", "url": "...", "json_path": "data.stars" (only for json: dotted keys and [index]), "every": "day" | "week" | "month", "holds": true if the value stays put between events, "running_total": true if the history you report is a list of rounds to be added up}.
   Use "json" whenever a public API states the value: it then costs nothing to keep current. Use "page" when one page states it. Use "search" only when the value moves between pages (a new announcement each time).
 
+Sources
+- Record only what a source itself reported: the company's announcement or page, a filing, a price list, a registry's own count, a news report of the event.
+- Never a publisher's own estimate (an "estimated revenue", a model-implied or secondary-market valuation), even when a page states it plainly: an estimate is not a reported fact.
+- Company databases and aggregators (Tracxn, CB Insights, PitchBook, Crunchbase profiles, Dealroom, Sacra, Yahoo Finance, stockanalysis and the like) cannot be read or cited; the tools refuse them. When a search points there, find the announcement or filing the figure came from.
+
 Rules that are checked afterwards, by a program, against the pages you fetched
 - The value and every past value must be readable in the text of the page you cite. Anything that is not is discarded, and if today's value is discarded the number is not created.
 - If no page states the number, say so (found = false) and say what you tried. That is a useful result: the request goes on a public list of wanted numbers.
@@ -373,6 +385,8 @@ Find every earlier value of this same number that a page states with a date. Wor
 4. An API that carries dates.
 
 {FILINGS}
+
+Record only what a source itself reported (an announcement, a filing, a price list, a news report of the event). Never a publisher's own estimate, and never a company database or aggregator: the tools refuse those, so trace the figure to where it was first reported.
 
 One point per date, the value as it was then, with the address of the page you read it on. For a point taken from a long document, add "quote": the table row or sentence that states it. Use the first day of the month when only the month is known. Never fill in between two points and never estimate: a value that is not readable on the page you cite is discarded by a program afterwards. If after all four places there is nothing, say exactly what you tried.
 

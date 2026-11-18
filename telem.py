@@ -2,6 +2,7 @@
 With TAVILY_API_KEY set, search goes to Tavily and a page is read straight from its site first, through Tavily only when the
 site refuses a plain request or needs a browser; there are no monitors, so every number is read again on Tally's own schedule.
 Without it, the older Telem service is used for search, reading and its monitors."""
+import sources
 import json
 import os
 import time
@@ -118,7 +119,7 @@ def search(query, metric_id=None, include=None, auto=True, num_results=8):
         results = [{"url": r["url"], "title": r.get("title") or "", "summary": (r.get("content") or "")[:3000], "provider": "tavily", "rank": i + 1}
                    for i, r in enumerate(data.get("results") or []) if r.get("url")]
         _log(metric_id, "search", ["tavily"], ms, 0.008)
-        return results, ["tavily"]
+        return [r for r in results if sources.readable(r["url"])], ["tavily"]  # results from sources Tally does not take figures from are dropped
     s = {"num_results": num_results}
     if include:
         s["providers"] = {"include": include}
@@ -140,7 +141,7 @@ def search(query, metric_id=None, include=None, auto=True, num_results=8):
                             "provider": name, "rank": r.get("rank")})
     cost = sum(PRICE.get(p, 0.005) for p in provs)
     _log(metric_id, "search", provs, ms, cost)
-    return results, provs
+    return [r for r in results if sources.readable(r["url"])], provs
 
 
 def fetch(urls, metric_id=None, fresh=False, max_chars=100000, direct=True):
@@ -148,7 +149,7 @@ def fetch(urls, metric_id=None, fresh=False, max_chars=100000, direct=True):
     not tried first: for a page whose plain text turned out not to hold the value."""
     seen, uniq = set(), []
     for u in urls:
-        if u and u not in seen:
+        if u and u not in seen and sources.readable(u):  # a page Tally may not take figures from is not read at all
             seen.add(u)
             uniq.append(u)
     uniq = uniq[:5]  # a 6th URL is a 400

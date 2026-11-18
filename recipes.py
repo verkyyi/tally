@@ -129,6 +129,9 @@ def _verify(m, res, pages):
         return checks, None, []
     checks.append({"name": "The recipe produced a value", "ok": True, "detail": ""})
     checks.append({"name": "It still answers this number's question", "ok": bool(res.get("on_topic", True)), "detail": "" if res.get("on_topic", True) else (res.get("notes") or "The recipe reads something else.")})
+    import sources
+    usable = sources.readable(res["evidence_url"])
+    checks.append({"name": "The source is one Tally may take figures from", "ok": usable, "detail": "" if usable else f"Not used ({sources.why(res['evidence_url'])}). The figure has to be cited to where it was first reported."})
     page = _page_for(res["evidence_url"], pages)
     fetched = bool(page)
     checks.append({"name": "The evidence page was actually read in this run", "ok": fetched, "detail": "" if fetched else "The reported source was not among the pages fetched."})
@@ -143,6 +146,8 @@ def _verify(m, res, pages):
     today = db.now()[:10]
     quotes = [res.get("quote")] + [h.get("quote") for h in res.get("history") or []]  # one table row is often quoted once for all its periods
     for h in sorted(res.get("history") or [], key=lambda x: x["date"]):
+        if not sources.readable(h.get("url")):
+            continue
         page_h = _page_for(h.get("url"), pages)
         if re.match(r"^\d{4}-\d{2}-\d{2}$", h["date"]) and h["date"] < today and core.supported(h["value"], page_h) and (len(page_h) < LONG or any(_quoted(h["value"], q, page_h) for q in quotes if q)):
             hist.append(h)
