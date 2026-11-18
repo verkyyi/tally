@@ -78,8 +78,8 @@ h1{font-size:clamp(28px,4.4vw,40px);line-height:1.1;letter-spacing:-.03em;margin
 blockquote{margin:0;border-left:3px solid var(--accent);padding:2px 0 2px 14px;color:#475467}
 ul.rows{list-style:none;margin:0;padding:0}ul.rows li{padding:9px 2px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:14px}
 ul.rows li span{font:13px var(--mono);color:var(--mute);white-space:nowrap}
-.chip{font:600 12px var(--mono);letter-spacing:0;padding:2px 7px;border-radius:999px;margin-left:8px;white-space:nowrap;vertical-align:4px}.chip.up{color:#0a8f5b;background:#e7f6ef}.chip.down{color:#d92d20;background:#fdecea}
-.m .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px}.dot.ok{background:#0a8f5b}.dot.late{background:#b7791f}.dot.off{background:#98a2b3}
+.val .chip{vertical-align:middle;font-size:13px}.chip{font:600 12px var(--mono);letter-spacing:0;padding:2px 7px;border-radius:999px;margin-left:8px;white-space:nowrap;vertical-align:4px}.chip.up{color:#0a8f5b;background:#e7f6ef}.chip.down{color:#d92d20;background:#fdecea}
+.m .dot,.meta .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px}.dot.ok{background:#0a8f5b}.dot.late{background:#b7791f}.dot.off{background:#98a2b3}
 .t .m{display:flex;justify-content:space-between;gap:8px;flex-wrap:nowrap;margin-top:4px}
 .num .m>span,.t .m>span{white-space:nowrap}.num .m>span:last-child,.t .m>span:last-child{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
@@ -256,6 +256,12 @@ def move_chip(pts, unit):
         on = "" if at is None else "today" if days <= 0 else "yesterday" if days == 1 else at.strftime("%b %-d") if at.year == now.year else at.strftime("%b %Y")
         return f'<span class="chip {"up" if d > 0 else "down"}">{"▲" if d > 0 else "▼"} {esc(size)}{" · " + on if on else ""}</span>'
     return ""
+
+
+def last_move(pts):
+    """The last two readings that differ: (earlier point, later point), or None when the value never moved."""
+    pts = [p for p in pts or [] if p.get("value") is not None]
+    return next(((pts[i - 1], pts[i]) for i in range(len(pts) - 1, 0, -1) if pts[i]["value"] != pts[i - 1]["value"]), None)
 
 
 def fresh(checked, failures=0, every=None):
@@ -614,8 +620,9 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     desc = (f'{m["question"]} {txt}{" " + unit if unit else ""}{", as of " + asof if asof else ""}. {told or "Tracked on Tally with its source and history."}'[:300] if txt
             else f'{m["question"]} Tally is tracking this and will show the value with its source as soon as one is found.')
     lede = f'<p class="lede">{esc(told)}</p>' if told else ""
+    now_shown = not (per and not per["current"])  # a past period's page shows that period, not the latest move
     body = f'<div class="crumb"><a href="/numbers">Numbers</a> / <a href="{subject_path(sub)}">{esc(sub)}</a></div><h1>{esc(m["title"])}</h1><p class="q">{esc(m["question"])}</p>{lede}<div class="card">'
-    body += ('<div class="valrow">' + (f'<div class="val">{esc(txt)}<small>{esc(unit)}</small></div>' if txt else '<div class="none">No value yet. Tally does not guess.</div>')
+    body += ('<div class="valrow">' + (f'<div class="val">{esc(txt)}<small>{esc(unit)}</small>{move_chip(pts, t["unit"]) if now_shown else ""}</div>' if txt else '<div class="none">No value yet. Tally does not guess.</div>')
              + f'<button class="follow" type="button" data-follow="{m["id"]}" aria-pressed="false">Follow</button></div>')
     if per:
         tabs = "".join(f'<a href="{number_path(m)}{"" if i == 0 else "?period=" + k[:7]}" class="rg{" on" if on else ""}">{esc(lab)}</a>' for i, (k, lab, on) in enumerate(per["tabs"]))
@@ -626,11 +633,15 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     made = (m.get("created_at") or "")[:10]
     if not m.get("curated") and m.get("created_by") not in (None, "system", "tally") and made:
         from datetime import timedelta as _td2
-        fresh = made >= (datetime.now(timezone.utc) - _td2(days=core.MIN_DAYS)).strftime("%Y-%m-%d")
-        body += (f'<div class="meta">{"<b style=color:var(--accent)>New</b> · " if fresh else ""}created by {esc(who(m["created_by"]))} on {esc(when(made + "T00:00:00Z") or made)}'
-                 f'{". It joins rankings and the front page once it has two weeks of readings." if fresh else ""}</div>')
+        newish = made >= (datetime.now(timezone.utc) - _td2(days=core.MIN_DAYS)).strftime("%Y-%m-%d")
+        body += (f'<div class="meta">{"<b style=color:var(--accent)>New</b> · " if newish else ""}created by {esc(who(m["created_by"]))} on {esc(when(made + "T00:00:00Z") or made)}'
+                 f'{". It joins rankings and the front page once it has two weeks of readings." if newish else ""}</div>')
     if rank:
         body += f'<div class="meta"><a href="/top/{rank[3]}"><b style="color:var(--ink)">#{rank[0]} of {rank[1]}</b> by {esc(rank[2])}</a></div>'
+    if txt and now_shown:
+        mv = last_move(pts)
+        body += (f'<div class="meta">{fresh(m.get("last_checked_at"), m.get("read_failures"), core.update_plan(m).get("every"))}'
+                 + (f' · last change: {esc(fmt(mv[0]["value"], t["unit"])[0])} → {esc(fmt(mv[1]["value"], t["unit"])[0])} on {esc(when(mv[1]["at"]) or mv[1]["at"][:10])}' if mv else " · has not changed since Tally began reading it") + "</div>")
     body += (f'<div class="meta">{"As of " + asof if asof else "Not read yet"} · followed by {t["followers"]} <span id="follownote" style="margin-left:6px"></span></div>'
              '<div class="signin" id="signin" hidden></div>'
              + share_bar(number_path(m), f'{m["title"]}: {txt + (" " + unit if unit else "") if txt else "no value yet"}, with its history and source') + '</div>')
