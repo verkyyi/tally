@@ -468,7 +468,9 @@ def chart(pts, unit, w=820, h=280, card=False, versions=(), step=False, other=No
         for i in reversed(_events(pts)):
             x, y = X(ts[i]), Y(vs[i])
             right = x > w - R - 120
-            tx, ty = (x - 7 if right else x + 7), max(T + 10, y - 8)
+            down = i > 0 and vs[i] < vs[i - 1]
+            below = y - 8 < T + 10 or (right and down)  # no room above, or the line it stepped down from runs just above
+            tx, ty = (x - 7 if right else x + 7), (y + 16 if below else y - 8)
             tip = f'{pts[i]["label"]} · {" ".join(z for z in fmt(vs[i], unit) if z)} · {_dt.fromtimestamp(ts[i]).strftime("%b %Y")}'
             named += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" fill="#fff" stroke="#2f5bff" stroke-width="2"><title>{esc(tip)}</title></circle>'
             if any(abs(tx - px) < 110 and abs(ty - py) < 20 for px, py in placed):
