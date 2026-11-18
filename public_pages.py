@@ -416,7 +416,7 @@ def landing_card(m, t, pts, rising=False):
     src = "archived pricing pages" if m["title"].lower().endswith("plan price") else "funding announcements" if core.round_kind(m) else (
         "its entries, each with a link" if m["kind"] == "count" else re.sub(r"^www\.", "", (m.get("source_url") or "").split("/")[2]) if (m.get("source_url") or "").count("/") >= 2 else "its source")
     return (f'<a class="num" href="{number_path(m)}"><b>{esc(m["title"])}{"<i>in the news</i>" if rising else ""}</b><div class="v">{esc(txt)}<small>{esc(unit)}</small>{move_chip(pts, t["unit"])}</div>{svg}'
-            f'<div class="m">{fresh(m.get("last_checked_at"), m.get("read_failures"), core.update_plan(m).get("every"))}<span>{esc(src)}</span></div></a>')
+            f'<div class="m">{fresh(m.get("last_checked_at"), m.get("read_failures"), core.read_every(m))}<span>{esc(src)}</span></div></a>')
 
 
 def landing_compare(a, ta, b, tb, kind):
@@ -665,7 +665,7 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
         body += f'<div class="meta"><a href="/top/{rank[3]}"><b style="color:var(--ink)">#{rank[0]} of {rank[1]}</b> by {esc(rank[2])}</a></div>'
     if txt and now_shown:
         mv = last_move(pts)
-        body += (f'<div class="meta">{fresh(m.get("last_checked_at"), m.get("read_failures"), core.update_plan(m).get("every"))}'
+        body += (f'<div class="meta">{fresh(m.get("last_checked_at"), m.get("read_failures"), core.read_every(m))}'
                  + (f' · last change: {esc(fmt(mv[0]["value"], t["unit"])[0])} → {esc(fmt(mv[1]["value"], t["unit"])[0])} on {esc(when(mv[1]["at"]) or mv[1]["at"][:10])}' if mv else " · has not changed since Tally began reading it") + "</div>")
     body += (f'<div class="meta">{"As of " + asof if asof else "Not read yet"} · followed by {t["followers"]} <span id="follownote" style="margin-left:6px"></span></div>'
              '<div class="signin" id="signin" hidden></div>'

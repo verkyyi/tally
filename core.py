@@ -248,6 +248,13 @@ def supported(value, text):
     return False
 
 
+def read_every(m):
+    """How often a number is read, for its card: 'week' or 'month' when its pace is that slow, else None (daily or so)."""
+    days = 0 if telem.monitors() and m.get("telem_monitor_id") else (m.get("check_interval_s") or 0) / 86400
+    plan = update_plan(m).get("every")
+    return "month" if plan == "month" or days >= 30 else "week" if plan == "week" or days >= 4 else None
+
+
 def update_plan(m):
     """The machine-readable plan the creating agent left for keeping this number current, or {}."""
     try:
@@ -591,19 +598,63 @@ def run_now(mid):
     return out
 
 
+def _days_since(iso, now):
+    try:
+        return (now - datetime.strptime((iso or "")[:19].rstrip("Z"), "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)).total_seconds() / 86400
+    except ValueError:
+        return None
+
+
+def read_pace(now=None):
+    """How many days to leave between reads of each searched number: {id: days}. A number is read daily while it keeps
+    moving or while people are looking at it; one whose value has sat still is read less often, down to weekly. A number
+    that varies from day to day (headcount, open roles) is also read daily for its first two weeks, because those reads
+    are its history; one that holds until an event (a round, a price change) is paced by how long its value has held.
+    The number's own plan (weekly, monthly) is never undercut. Reading costs search credits; a value that has not moved
+    in two months rarely moves tomorrow."""
+    now = now or datetime.now(timezone.utc)
+    week = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+    moved = {r["metric_id"]: r["at"] for r in db.q("SELECT metric_id, MAX(at) at FROM changes WHERE COALESCE(status,'accepted')='accepted' GROUP BY metric_id")}
+    views = {r["metric_id"]: r["n"] for r in db.q("SELECT metric_id, SUM(n) n FROM views WHERE day>=? GROUP BY metric_id", (week,))}
+    followed = {r["metric_id"] for r in db.q("SELECT DISTINCT metric_id FROM board_items WHERE user LIKE '%@%' AND user NOT LIKE '%@tally'")}
+    held, last = {}, {}  # the date each number's present value was first seen
+    for o in db.q("SELECT metric_id, value, as_of FROM observations WHERE seeded=0 AND value IS NOT NULL ORDER BY metric_id, as_of, id"):
+        if last.get(o["metric_id"]) != o["value"]:
+            last[o["metric_id"]], held[o["metric_id"]] = o["value"], o["as_of"]
+    hot = {r["subject"] for r in db.q("SELECT subject FROM interest WHERE base>0 AND week>=base*1.5")}  # read about half again as much as usual this week
+    out = {}
+    for m in db.q("SELECT id, title, company, created_at, update_json, read_failures FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%'"):
+        age, steps = _days_since(m["created_at"], now), stepped(m)
+        if steps:  # its value is dated by the event that set it
+            still = _days_since(held.get(m["id"]), now)
+            still = 0 if still is None else still
+        else:  # days since Tally last saw it move, or since it was added
+            still = min(x for x in (_days_since(moved.get(m["id"]), now), age, 9999) if x is not None)
+        days = 1 if still < 7 else 2 if still < 21 else 4 if still < 60 else 7
+        seen = views.get(m["id"], 0)
+        if (not steps and age is not None and age < MIN_DAYS) or m["id"] in followed or seen >= 5 or (m.get("company") or m["title"].split(" · ")[0]).strip() in hot:
+            days = 1
+        elif seen:
+            days = min(days, 2)
+        out[m["id"]] = max(days, {"week": 7, "month": 30}.get(update_plan(m).get("every"), 1))
+    return out
+
+
 def refresh_searched(limit=2, older_than_hours=22):
-    """Read again, once a day, the numbers that are found by search and have no automatic monitor (the monitor allowance
-    covers only a few). Without this they keep one value for ever and never grow a history. A few per round, oldest first."""
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=older_than_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    n = 0
+    """Read again the numbers that are found by search, each at its own pace (see read_pace): daily at most, weekly at
+    least unless its plan says monthly. Without this they keep one value for ever and never grow a history. A few per
+    round, longest-unread first."""
     now = datetime.now(timezone.utc)
-    for m in db.q("SELECT id, title, update_json, last_checked_at FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%' AND (telem_monitor_id IS NULL OR ?) AND (last_checked_at IS NULL OR last_checked_at<?) "
-                  "ORDER BY last_checked_at", (0 if telem.monitors() else 1, cutoff)):  # with no monitoring service every number is read here. No row limit: the oldest rows are the weekly and monthly numbers that are not due, and a limit let them crowd out every number that was
-        days = {"week": 7, "month": 30}.get(update_plan(m).get("every"), 0)  # the number's own plan says how often it can change
-        if days and m["last_checked_at"] and (now - datetime.strptime(m["last_checked_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)).days < days:
+    cutoff = (now - timedelta(hours=older_than_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    pace_now, n = read_pace(now), 0
+    for m in db.q("SELECT id, title, last_checked_at, check_interval_s FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%' AND (telem_monitor_id IS NULL OR ?) "
+                  "ORDER BY last_checked_at", (0 if telem.monitors() else 1,)):  # with no monitoring service every number is read here
+        days = pace_now.get(m["id"], 1)
+        if m["check_interval_s"] != days * 86400:  # kept on the number, so its card can tell a read that is late from one that is on schedule
+            db.run("UPDATE metrics SET check_interval_s=? WHERE id=?", (days * 86400, m["id"]))
+        waited = _days_since(m["last_checked_at"], now)
+        if n >= limit or (waited is not None and (m["last_checked_at"] >= cutoff or waited < days - 0.1)):
             continue
-        if n >= limit:
-            break
         try:
             out = run_now(m["id"])
             n += 1
