@@ -840,6 +840,43 @@ def public_changes():
     return HTMLResponse(pp.changes_page(_major_changes(_public_ids())))
 
 
+_week = {"at": 0.0, "html": ""}
+
+
+def _moved_this_week(limit=36):
+    """Numbers whose value differs from what it was seven days ago. A number first read this week has nothing to be compared with and is left out.
+    Events (a round, a price change) come first, newest first; then the day-to-day numbers that moved by 2% or more, biggest first."""
+    now = datetime.now(timezone.utc)
+    cut = (now - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    events, drifts = [], []
+    for m in db.q(f"SELECT * FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id"):
+        if m.get("period"):  # a count kept per month or quarter climbs through its period: that is not news
+            continue
+        pts = core.series(m["id"])
+        before = [p for p in pts if p["at"] <= cut]
+        if not before or not pts or pts[-1]["value"] == before[-1]["value"] or pts[-1]["at"] <= cut:
+            continue
+        old, new = before[-1]["value"], pts[-1]["value"]
+        pct = abs(new - old) / abs(old) * 100 if old else 0
+        steps = core.stepped(m)
+        if not steps and pct < 2:
+            continue
+        size = pp.fmt(abs(new - old), m["unit"])[0] if pct < 1 else f"{pct:.1f}%" if pct < 10 else f"{pct:,.0f}%"
+        chip = f'<span class="chip {"up" if new > old else "down"}">{"▲" if new > old else "▼"} {pp.esc(size)} · this week</span>'
+        (events if steps else drifts).append({"m": m, "pts": pts, "chip": chip, "pct": pct, "at": next(p["at"] for p in pts if p["at"] > cut)})
+    cards = (sorted(events, key=lambda c: c["at"], reverse=True) + sorted(drifts, key=lambda c: -c["pct"]))[:limit]
+    for c in cards:
+        c["t"] = tile(c["m"], None)
+    return [c for c in cards if c["t"]["value"] is not None], now - timedelta(days=7), now
+
+
+@app.get("/this-week")
+def public_week():
+    if time.time() - _week["at"] > 1800:  # worked out at most every half hour: it reads every number's history
+        _week.update(at=time.time(), html=pp.moved_page(*_moved_this_week()))
+    return HTMLResponse(_week["html"])
+
+
 @app.get("/feed.xml")
 def public_feed():
     return RawResponse(pp.atom(_major_changes(_public_ids(), 50), "Tally: what changed", "/feed.xml"), media_type="application/atom+xml")
@@ -1007,7 +1044,7 @@ def sitemap():
     groups = pp.groups()
     of = lambda name: max((changed.get(i, "") for i in groups.get(name, [])), default="")
     today = db.now()[:10]
-    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
+    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
     urls += [(pp.subject_path(n), of(n)) for n in groups]
     urls += [(pp.versus_path(a, b), max(of(a), of(b))) for a, b in _pairs()]
     urls += [(pp.number_path(m), changed.get(m["id"], "")) for m in db.q(f"SELECT id, title FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id")]

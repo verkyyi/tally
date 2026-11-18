@@ -220,8 +220,8 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 <nav style="display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end;font-size:15px"><a href="/changes" style="text-decoration:none">What changed</a><a href="/numbers" style="text-decoration:none">All numbers</a><a href="/app" style="text-decoration:none;font-weight:600">Your board</a></nav></header>
 {body}
 <script src="/static/pub.js?v=9" defer></script>
-<footer>Data on Tally is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
-<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
+<footer>Data on Tally is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>, or take the whole record from the <a href="https://github.com/verkyyi/tally-data" rel="noopener">open dataset</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
+<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
 
 _PATHS = {"at": 0.0, "by_id": {}, "by_path": {}}
@@ -409,13 +409,27 @@ def chart(pts, unit, w=820, h=280, card=False, versions=(), step=False, other=No
             f'<path d="{line}" fill="none" stroke="#2f5bff" stroke-width="2" stroke-linejoin="round"/><circle cx="{X(ts[-1]):.1f}" cy="{Y(vs[-1]):.1f}" r="4" fill="#2f5bff"/>{second}</svg>')
 
 
-def landing_card(m, t, pts, rising=False):
+def moved_page(cards, since, until):
+    """What moved this week: the numbers whose value changed in the last seven days, biggest news first."""
+    names = [plain_name(c["m"]) for c in cards[:3]]
+    span = f'{since.strftime("%B %-d")} to {until.strftime("%B %-d, %Y")}'
+    grid = "".join(landing_card(c["m"], c["t"], c["pts"], chip=c["chip"]) for c in cards)
+    body = (f'<h1 style="margin-top:22px">What moved this week</h1><p class="q">{len(cards)} numbers on Tally changed between {esc(span)}. '
+            'Funding rounds, valuations and prices come first, then the biggest moves. Each card opens the number\'s history and its source.</p>'
+            + share_bar("/this-week", f'What moved this week on Tally: {", ".join(names)}' if names else "What moved this week on Tally")
+            + (f'<div class="cards" style="margin-top:16px">{grid}</div>' if cards else '<p class="q">Nothing has moved in the last seven days.</p>')
+            + '<div class="cta"><a class="btn ghost" href="/changes">Every change, day by day</a><a class="btn ghost" href="/feed.xml">Feed</a><a class="btn" href="/app?setup=1">Follow the numbers you care about</a></div>')
+    title = next((x for x in (f'What moved this week: {", ".join(names[:k])} | Tally' for k in (3, 2, 1)) if len(x) <= 100), "What moved this week | Tally") if names else "What moved this week | Tally"
+    return shell(title, f'Numbers that changed between {span}: {", ".join(plain_name(c["m"]) for c in cards[:6])}. Each with its history and its source.'[:300], "/this-week", body)
+
+
+def landing_card(m, t, pts, rising=False, chip=None):
     """One number on the landing page: its value, its past, where it comes from. The whole card opens the number's page."""
     txt, unit = fmt(t["value"], t["unit"])
     svg = chart(pts, t["unit"], 300, 78, card=True, step=core.stepped(m), bars=core.by_period(m, pts)).replace('role="img" aria-label="History chart"', 'aria-hidden="true"')
     src = "archived pricing pages" if m["title"].lower().endswith("plan price") else "funding announcements" if core.round_kind(m) else (
         "its entries, each with a link" if m["kind"] == "count" else re.sub(r"^www\.", "", (m.get("source_url") or "").split("/")[2]) if (m.get("source_url") or "").count("/") >= 2 else "its source")
-    return (f'<a class="num" href="{number_path(m)}"><b>{esc(m["title"])}{"<i>in the news</i>" if rising else ""}</b><div class="v">{esc(txt)}<small>{esc(unit)}</small>{move_chip(pts, t["unit"])}</div>{svg}'
+    return (f'<a class="num" href="{number_path(m)}"><b>{esc(m["title"])}{"<i>in the news</i>" if rising else ""}</b><div class="v">{esc(txt)}<small>{esc(unit)}</small>{chip if chip is not None else move_chip(pts, t["unit"])}</div>{svg}'
             f'<div class="m">{fresh(m.get("last_checked_at"), m.get("read_failures"), core.read_every(m))}<span>{esc(src)}</span></div></a>')
 
 
