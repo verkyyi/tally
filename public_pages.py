@@ -145,6 +145,23 @@ LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/"
 KINDS = {"source_history": "from the source's records", "backfill": "computed from entry dates", "period": "total for the period"}
 
 
+LICENSE_SCOPE = ("CC BY 4.0 covers Tally's own work: the compilation, its structure, labels and notes. Tally claims no rights in the facts themselves, "
+                 "and text quoted from a source remains that source's. Every value names where it was reported.")
+
+
+def corrections_page(rows):
+    """The public log of what was taken out of the record or changed in it, and why."""
+    items = "".join(f'<tr><td style="white-space:nowrap"><time datetime="{esc(r["at"][:10])}">{esc(when(r["at"]) or r["at"][:10])}</time></td><td><b>{esc(r["title"] or "")}</b><br>{esc(r["what"] or "")}</td>'
+                    f'<td style="color:#667085">{esc(r["why"] or "")}</td></tr>' for r in rows)
+    body = ('<h1 style="margin-top:22px">Corrections and removals</h1><p class="q">Every value Tally has taken out of the record or changed after publishing it, with the reason. '
+            'A record that shows its own edits can be checked; one that rewrites itself quietly cannot.</p>'
+            '<div class="card"><b>Found a wrong value, a wrong source, or something that should not be here?</b><p style="margin:6px 0 0">Open an issue at '
+            '<a href="https://github.com/verkyyi/tally/issues" rel="noopener">github.com/verkyyi/tally/issues</a> with the address of the number and what is wrong. '
+            'Reports are answered within five working days, and a value that cannot be supported by its source is removed.</p></div>'
+            + (f'<h2>The log</h2><div style="overflow-x:auto"><table class="pts"><tr><th>When</th><th>What</th><th>Why</th></tr>{items}</table></div>' if rows else '<p class="q">Nothing has been removed or changed yet.</p>'))
+    return shell("Corrections and removals | Tally", "The public log of values Tally removed or changed after publishing them, with the reason for each, and how to report a wrong value.", "/corrections", body)
+
+
 def number_data(m, t, pts):
     """A number as data, for other sites, scripts and agents: its value, where it came from, and its whole history with a source per point."""
     url = SITE + number_path(m)
@@ -152,7 +169,7 @@ def number_data(m, t, pts):
     return {"id": m["id"], "title": m["title"], "question": m["question"], "unit": m.get("unit") or "", "value": t["value"],
             "as_of": (t.get("as_of") or last.get("at") or "")[:10] or None, "source": last.get("url") or m.get("source_url"),
             "page": url, "recipe": f"{SITE}/n/{m['id']}/recipe", "csv": f"{SITE}/n/{m['id']}/history.csv", "chart_image": f"{SITE}/n/{m['id']}/chart.svg",
-            "license": "CC BY 4.0", "license_url": LICENSE_URL, "attribution": f"Tally, {url}",
+            "license": "CC BY 4.0", "license_url": LICENSE_URL, "license_scope": LICENSE_SCOPE, "attribution": f"Tally, {url}",
             "history": [{"date": p["at"][:10], "value": p["value"], "kind": KINDS.get(p["origin"], "read by Tally"), "source": p.get("url") or (m.get("source_url") if p["origin"] != "source_history" else None)}
                         | ({"label": p["label"]} if p.get("label") else {}) for p in pts]}
 
@@ -221,8 +238,8 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 <nav style="display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end;font-size:15px"><a href="/changes" style="text-decoration:none">What changed</a><a href="/numbers" style="text-decoration:none">All numbers</a><a href="/app" style="text-decoration:none;font-weight:600">Your board</a></nav></header>
 {body}
 <script src="/static/pub.js?v=9" defer></script>
-<footer>Data on Tally is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>, or take the whole record from the <a href="https://github.com/verkyyi/tally-data" rel="noopener">open dataset</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
-<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
+<footer>The record is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>, for the compilation Tally makes: <a href="/terms#data">what that covers</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>, or take the whole record from the <a href="https://github.com/verkyyi/tally-data" rel="noopener">open dataset</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
+<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/corrections">Corrections</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
 
 _PATHS = {"at": 0.0, "by_id": {}, "by_path": {}}

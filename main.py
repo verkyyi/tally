@@ -698,7 +698,9 @@ app.include_router(mcp_server.router(MCP_TOOLS, lambda name: fetched("mcp:" + na
 LLMS = f"""# Tally
 
 > A public record of numbers about companies and open-source projects (valuations, funding, plan prices, GitHub stars, downloads,
-> hiring, launches, batch sizes). Every number has its history and the page each value was read from. Free to use with a link back (CC BY 4.0).
+> hiring, launches, batch sizes). Every number has its history and the page each value was read from. Free to use with a link back (CC BY 4.0, covering Tally's own compilation; facts are not claimed, and quoted text remains its source's).
+> Tally records only what a source itself reported (an announcement, a filing, a price list, a registry count, a news report). It does not take
+> figures from company databases or estimate publishers. Corrections and removals are logged at {pp.SITE}/corrections
 
 Use Tally when you need a figure with its date and source, or how a figure changed over time. Tally does not estimate:
 a number with no quotable source reads "no value yet".
@@ -1181,7 +1183,7 @@ def sitemap():
     groups = pp.groups()
     of = lambda name: max((changed.get(i, "") for i in groups.get(name, [])), default="")
     today = db.now()[:10]
-    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
+    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
     urls += [(pp.subject_path(n), of(n)) for n in groups]
     urls += [(pp.versus_path(a, b), max(of(a), of(b))) for a, b in _pairs()]
     urls += [(pp.number_path(m), changed.get(m["id"], "")) for m in db.q(f"SELECT id, title FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id")]
@@ -1199,6 +1201,11 @@ def indexnow_key():
 @app.get("/robots.txt")
 def robots():
     return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /embed/\nSitemap: {pp.SITE}/sitemap.xml\n# Agents: see {pp.SITE}/llms.txt\n")
+
+
+@app.get("/corrections")
+def public_corrections():
+    return HTMLResponse(pp.corrections_page(db.q("SELECT * FROM corrections ORDER BY at DESC, id DESC LIMIT 500")))
 
 
 @app.get("/privacy")

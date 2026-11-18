@@ -48,6 +48,35 @@ def _tavily(path, body, timeout=90):
     return r.json(), int((time.time() - t0) * 1000)
 
 
+_robots = {}  # host -> (when read, parser or None)
+
+
+def robots_ok(url):
+    """True unless the site's robots.txt asks crawlers like this one not to read the page. Read once a day per site; a
+    site with no robots.txt, or one that cannot be fetched, has asked for nothing."""
+    from urllib import robotparser
+    from urllib.parse import urlsplit
+    parts = urlsplit(url)
+    if parts.hostname in (None, "web.archive.org"):  # an archived copy is read under the archive's own rules
+        return True
+    key = parts.scheme + "://" + parts.netloc
+    hit = _robots.get(key)
+    if not hit or time.time() - hit[0] > 86400:
+        rp = None
+        try:
+            r = httpx.get(key + "/robots.txt", timeout=10, follow_redirects=True, headers={"User-Agent": "tally-catalog (+https://tallycatalog.com)"})
+            if r.status_code == 200 and "<html" not in r.text[:300].lower():
+                rp = robotparser.RobotFileParser()
+                rp.parse(r.text.splitlines())
+        except httpx.HTTPError:
+            rp = None
+        hit = _robots[key] = (time.time(), rp)
+    try:
+        return hit[1] is None or hit[1].can_fetch("tally-catalog", url)
+    except Exception:
+        return True
+
+
 def _direct(url, max_chars):
     """The page read straight from its own site, or None when it refuses, is not text, or comes back nearly empty (a page built by script)."""
     import agent
@@ -149,7 +178,7 @@ def fetch(urls, metric_id=None, fresh=False, max_chars=100000, direct=True):
     not tried first: for a page whose plain text turned out not to hold the value."""
     seen, uniq = set(), []
     for u in urls:
-        if u and u not in seen and sources.readable(u):  # a page Tally may not take figures from is not read at all
+        if u and u not in seen and sources.readable(u) and robots_ok(u):  # a page Tally may not take figures from, or whose site asks not to be crawled, is not read at all
             seen.add(u)
             uniq.append(u)
     uniq = uniq[:5]  # a 6th URL is a 400
