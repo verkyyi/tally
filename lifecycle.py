@@ -107,7 +107,7 @@ def deepen(m, max_iterations=28):
     first_live = (db.one("SELECT MIN(as_of) a FROM observations WHERE metric_id=? AND origin!='source_history' AND seeded=0", (m["id"],))["a"] or today)[:10]
     months = {r["mo"] for r in db.q("SELECT DISTINCT substr(as_of,1,7) mo FROM observations WHERE metric_id=? AND seeded=0 AND value IS NOT NULL", (m["id"],))}
     total = bool(core.update_plan(m).get("running_total"))
-    added, good = 0, []
+    added, labelled, good = 0, 0, []
     for h in sorted(res.get("history") or [], key=lambda x: x["date"]):
         page = recipes._page_for(h.get("url"), run["pages"])
         if not (_dated(h["date"]) and h["date"] < first_live and core.supported(h["value"], page) and (len(page) < recipes.LONG or recipes._quoted(h["value"], h.get("quote"), page))):
@@ -115,11 +115,15 @@ def deepen(m, max_iterations=28):
         if total and (h["value"] > cur["value"] or (good and h["value"] < good[-1]["value"])):
             continue  # a running total never falls and never exceeds what it is today
         good.append(h)
+        label = core.clean_label(h.get("label"), page)
         if h["date"][:7] not in months:
-            db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)",
-                   (m["id"], h["value"], h["date"] + "T00:00:00Z", h.get("url"), "source_history", "found on a second research pass", m.get("recipe_version")))
+            db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version,label) VALUES(?,?,?,?,?,0,?,?,?)",
+                   (m["id"], h["value"], h["date"] + "T00:00:00Z", h.get("url"), "source_history", "found on a second research pass", m.get("recipe_version"), label))
             months.add(h["date"][:7])
             added += 1
+        elif label:  # the point is already in the record: it gains the name of its event
+            _, n = db.run("UPDATE observations SET label=? WHERE metric_id=? AND seeded=0 AND substr(as_of,1,7)=? AND value=? AND label IS NULL", (label, m["id"], h["date"][:7], h["value"]))
+            labelled += n or 0
     since = _dated(res.get("value_date"))
     dated = None
     last_hist = db.one("SELECT value, as_of FROM observations WHERE metric_id=? AND origin='source_history' AND seeded=0 ORDER BY as_of DESC, id DESC LIMIT 1", (m["id"],))
@@ -127,7 +131,12 @@ def deepen(m, max_iterations=28):
         db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)",
                (m["id"], cur["value"], since + "T00:00:00Z", cur.get("evidence_url"), "source_history", "the date this value belongs to, found on a second research pass", m.get("recipe_version")))
         dated = since
-    return {"added": added, "dated": dated, "found": len(res.get("history") or []), "notes": (res.get("notes") or "")[:300], "usage": run.get("usage"), "steps": len(run["steps"])}
+    now_label = core.clean_label(res.get("value_label"), " ".join(run["pages"].values()) if run["pages"] else None)
+    if now_label:  # the event that set today's value, on every reading of that value since it last changed
+        last_other = db.one("SELECT MAX(as_of) a FROM observations WHERE metric_id=? AND seeded=0 AND value!=?", (m["id"], cur["value"]))["a"] or ""
+        _, n = db.run("UPDATE observations SET label=? WHERE metric_id=? AND seeded=0 AND value=? AND as_of>? AND label IS NULL", (now_label, m["id"], cur["value"], last_other))
+        labelled += n or 0
+    return {"added": added, "dated": dated, "labelled": labelled, "found": len(res.get("history") or []), "notes": (res.get("notes") or "")[:300], "usage": run.get("usage"), "steps": len(run["steps"])}
 
 
 def _work(did, q):
@@ -145,6 +154,7 @@ def _work(did, q):
             return
         run = agent.create(q, on_step=lambda st: _set(did, steps=steps + st))
         res = run["result"]
+        again = None
         steps = steps + run["steps"]
         m = {"id": None, "title": (res or {}).get("title") or q[:60], "question": q, "unit": (res or {}).get("unit") or "", "kind": "direct"}
         checks, value, hist = recipes._verify(m, res, run["pages"])
@@ -164,6 +174,9 @@ def _work(did, q):
                     hist.append(h)
             checks.append({"name": "A second run looked only for its past", "ok": True, "detail": f"{len(hist)} past values could be read in the pages they cite."})
             past_note = past_note or ((again["result"] or {}).get("notes") or "")
+        every_page = run["pages"] | ((again or {}).get("pages") or {})
+        for h in hist:  # a label is kept only when the page the point was read on carries its words
+            h["label"] = core.clean_label(h.get("label"), recipes._page_for(h.get("url"), every_page))
         if value is not None and hist and plan.get("running_total"):
             hist, ok, total = recipes.running_total(hist, value)
             checks.append({"name": "The rounds add up to the total", "ok": ok, "detail": f"{len(hist)} dated rounds add up to {total:g}; the total read is {value:g}."})
@@ -184,7 +197,7 @@ def _work(did, q):
                 f"## History\n{r['History'] or 'Observed from the day this number was created.'}\n\n## Update\n{r['Update'] or 'Once a day.'}\n\n## Checks\n{r['Checks'] or CHECKS}\n")
         db.run("UPDATE drafts SET title=? WHERE id=?", (m["title"], did))
         _set(did, "ready", value=value, unit=m["unit"], quote=res["quote"], url=res["evidence_url"], history=hist, running=bool(plan.get("running_total")), plan=plan, body=body,
-             value_date=_dated(res.get("value_date")),
+             value_date=_dated(res.get("value_date")), value_label=core.clean_label(res.get("value_label"), recipes._page_for(res.get("evidence_url"), run["pages"])),
              no_past="" if hist else (past_note or "Two runs found no earlier value stated with a date."), **report)
     except Exception as e:
         print("creation failed:", did, type(e).__name__, str(e)[:200])
@@ -232,16 +245,18 @@ def publish(u, did):
             json.dumps({k: p.get(k) for k in ("checks", "notes", "steps", "model", "usage")} | {"adopted": True, "created": True})))
     m = core.metric(mid)
     core.record_direct(m, {"value": p["value"], "evidence_url": p["url"], "quote": p["quote"]}, "created")
+    if p.get("value_label"):
+        db.run("UPDATE observations SET label=? WHERE metric_id=?", (p["value_label"], mid))
     today = db.now()[:10]
     since = p.get("value_date")
     if since and since < today and not any(h["date"] >= since for h in p.get("history") or []):
         # the value belongs to an earlier day (the end of its period, the day of the event): it is filed there, and today's reading only confirms it
-        db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,1)",
-               (mid, p["value"], since + "T00:00:00Z", p["url"], "source_history", "recipe v1: the date this value belongs to"))
+        db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version,label) VALUES(?,?,?,?,?,0,?,1,?)",
+               (mid, p["value"], since + "T00:00:00Z", p["url"], "source_history", "recipe v1: the date this value belongs to", p.get("value_label")))
     for h in p.get("history") or []:
         if h["date"] < today:
-            db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,1)",
-                   (mid, h["value"], h["date"] + "T00:00:00Z", h.get("url"), "source_history", "recipe v1" + (": running total of the rounds" if p.get("running") else "")))
+            db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version,label) VALUES(?,?,?,?,?,0,?,1,?)",
+                   (mid, h["value"], h["date"] + "T00:00:00Z", h.get("url"), "source_history", "recipe v1" + (": running total of the rounds" if p.get("running") else ""), h.get("label")))
     core.follow(u["id"], mid)
     db.run("UPDATE drafts SET status='published', metric_id=? WHERE id=?", (mid, did))
     return core.metric(mid)

@@ -254,6 +254,7 @@ You are given a request in a person's words. You decide how to do the research; 
 - Prefer the subject's own page or filing, then a primary report of the event, then a reputable database. Prefer a page with a stable address that will still state the value next month.
 - The past. This is the reason Tally exists: anyone can ask a search engine for today's figure, and nobody else keeps how it got here. So rebuilding the past is not optional and is where most of your effort goes. Find every earlier value stated with a date, each with the page that states it. Look where it naturally lives: the source's own table, changelog or earlier filings; dated announcements of each change; an API with dates; archived copies of the same page (list them with https://web.archive.org/cdx/search/cdx?url=<page>&output=json&collapse=timestamp:6 and read a copy with https://web.archive.org/web/<timestamp>/<page>). Aim for the whole life of the number, not the last year. Report the values themselves; never fill in between two of them, and never estimate.
 - For history taken from a long document, add to each point the "quote": the table row or sentence, copied from the passage, that states it.
+- Add "label" to a point when its page names the event that set the value: a few words, as the page puts it ("Series F", "price cut with the 4.5 launch", "FY2025 annual report"). Leave it out when the page names none; never make one up. Give today's value its own label in value_label on the same terms.
 - When the source publishes a table or a series of past values, take all of it: the series is the number, and today's value is only its last row.
 - value_date: the date today's value belongs to. A figure for a period (a quarter, a year, an academic year) belongs to the last day of that period; a figure set by an event (a round, a price change) belongs to the day of the event. Leave it empty only for a figure that is simply read as it stands today (a live count, a current price with no known change date).
 - If the number truly has no past (it came into existence days ago), say so in no_past_reason with what you checked. A number with no past and no such reason is sent back to be researched again.
@@ -285,7 +286,7 @@ def create(question, on_step=None, max_iterations=24):
     @beta_tool
     def submit(found: bool, title: str = "", unit: str = "", value: float = 0, quote: str = "", evidence_url: str = "", history_json: str = "[]",
                source: str = "", read: str = "", history: str = "", update: str = "", checks: str = "", update_json: str = "{}", no_past_reason: str = "", notes: str = "",
-               value_date: str = "") -> str:
+               value_date: str = "", value_label: str = "") -> str:
         """Hand back the number and the recipe that keeps it alive. Call exactly once, at the end.
 
         Args:
@@ -295,7 +296,7 @@ def create(question, on_step=None, max_iterations=24):
             value: Today's value as a plain number (343000000, not "343M").
             quote: Short text copied from the fetched page that states the value.
             evidence_url: Address of the fetched page the quote came from.
-            history_json: JSON list of past values: [{"date": "YYYY-MM-DD", "value": number, "url": "page that states it"}]. Use the first day of the month when only the month is known. "[]" when none.
+            history_json: JSON list of past values: [{"date": "YYYY-MM-DD", "value": number, "url": "page that states it", "label": "event that set it, if the page names one"}]. Use the first day of the month when only the month is known. "[]" when none.
             source: Recipe section: where the value is read from, and the fallback search.
             read: Recipe section: exactly how to read today's value.
             history: Recipe section: how the past was rebuilt and how to extend it.
@@ -305,6 +306,7 @@ def create(question, on_step=None, max_iterations=24):
             no_past_reason: Only when history_json is empty: why this number has no past, and where you looked. Empty otherwise.
             notes: Two or three sentences for the person who asked: what you found, what is uncertain, what you could not find.
             value_date: YYYY-MM-DD the value belongs to (period end, or the day of the event that set it). Empty for a figure simply read as it stands today.
+            value_label: A few words naming the event that set today's value, as its page puts it ("Series F"). Empty when the page names none.
         """
         try:
             plan = json.loads(update_json or "{}")
@@ -312,7 +314,7 @@ def create(question, on_step=None, max_iterations=24):
         except json.JSONDecodeError:
             plan = {}
         out.update({"found": bool(found), "on_topic": True, "title": title.strip()[:80], "unit": unit.strip()[:24], "value": float(value) if found else None, "quote": quote[:500],
-                    "evidence_url": evidence_url[:500], "history": _history(history_json), "notes": notes[:900], "plan": plan, "no_past_reason": no_past_reason.strip()[:600], "value_date": value_date.strip()[:10],
+                    "evidence_url": evidence_url[:500], "history": _history(history_json), "notes": notes[:900], "plan": plan, "no_past_reason": no_past_reason.strip()[:600], "value_date": value_date.strip()[:10], "value_label": value_label.strip()[:60],
                     "recipe": {"Source": source.strip()[:1500], "Read": read.strip()[:1500], "History": history.strip()[:1500], "Update": update.strip()[:800], "Checks": checks.strip()[:1200]}})
         return "recorded"
 
@@ -374,6 +376,8 @@ Find every earlier value of this same number that a page states with a date. Wor
 
 One point per date, the value as it was then, with the address of the page you read it on. For a point taken from a long document, add "quote": the table row or sentence that states it. Use the first day of the month when only the month is known. Never fill in between two points and never estimate: a value that is not readable on the page you cite is discarded by a program afterwards. If after all four places there is nothing, say exactly what you tried.
 
+Add "label" to a point when its page names the event that set the value: a few words, as the page puts it ("Series F", "price cut with the 4.5 launch", "FY2025 annual report"). Leave it out when the page names none; never make one up. Give today's value its label in value_label on the same terms.
+
 Also find the date today's value belongs to (value_date): the last day of the period it reports, or the day of the event that set it, as a page states it.
 
 Call submit exactly once."""
@@ -385,15 +389,16 @@ def backfill(metric, value, source_url, on_step=None, max_iterations=24):
     search, fetch, get_json, grep = _toolbox(pages, steps, metric.get("id"), on_step, max_iterations)
 
     @beta_tool
-    def submit(history_json: str = "[]", notes: str = "", value_date: str = "") -> str:
+    def submit(history_json: str = "[]", notes: str = "", value_date: str = "", value_label: str = "") -> str:
         """Hand back the past values. Call exactly once, at the end.
 
         Args:
-            history_json: JSON list: [{"date": "YYYY-MM-DD", "value": number, "url": "page that states it"}]. "[]" only if nothing could be found.
+            history_json: JSON list: [{"date": "YYYY-MM-DD", "value": number, "url": "page that states it", "label": "event that set it, if the page names one"}]. "[]" only if nothing could be found.
             notes: What you found, or exactly what you tried when nothing was found.
+            value_label: A few words naming the event that set today's value, as its page puts it ("Series F"). Empty when the page names none.
             value_date: YYYY-MM-DD that today's value belongs to, when a page states it: the last day of its period, or the day of the event that set it. Empty when it is simply the figure as it stands today.
         """
-        out.update({"history": _history(history_json), "notes": notes[:900], "value_date": value_date.strip()[:10]})
+        out.update({"history": _history(history_json), "notes": notes[:900], "value_date": value_date.strip()[:10], "value_label": value_label.strip()[:60]})
         return "recorded"
 
     user = f"Number: {metric['title']}\nQuestion it answers: {metric['question']}\nUnit: {metric.get('unit') or 'none'}\nToday's value: {value:g}\nRead today from: {source_url}"
