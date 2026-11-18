@@ -224,8 +224,33 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 <a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/changes">What changed</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
 
+_PATHS = {"at": 0.0, "by_id": {}, "by_path": {}}
+
+
+def paths(force=False):
+    """Every number's page address, both ways: /c/<whose it is>/<what it measures>, for example /c/microsoft/quarterly-net-income.
+    When two numbers would share an address, the newer one's ends with its id. Each address is also written down, so that
+    after a title changes the old address can still lead to the page. Worked out again at most once a minute."""
+    import time
+    if force or time.time() - _PATHS["at"] > 60:
+        by_id, by_path = {}, {}
+        for m in db.q("SELECT id, title, company FROM metrics ORDER BY id"):
+            sub, title = subject(m), m["title"] or ""
+            p = f'/c/{slug(sub)}/{slug(title[len(sub) + 3:] if title.startswith(sub + " · ") else title)}'
+            if p in by_path:
+                p += f'-{m["id"]}'
+            by_id[m["id"]], by_path[p] = p, m["id"]
+        kept = {r["path"]: r["metric_id"] for r in db.q("SELECT path, metric_id FROM paths")}
+        for p, i in by_path.items():
+            if kept.get(p) != i:
+                db.run("INSERT OR REPLACE INTO paths(path, metric_id) VALUES(?,?)", (p, i))
+        _PATHS.update(at=time.time(), by_id=by_id, by_path=by_path)
+    return _PATHS
+
+
 def number_path(m):
-    return f"/n/{m['id']}/{slug(m['title'])}"
+    """The address of a number's page. /n/<id> is the fallback, and always redirects to the page."""
+    return paths()["by_id"].get(m["id"]) or paths(True)["by_id"].get(m["id"]) or f"/n/{m['id']}"
 
 
 def subject_path(name):
@@ -507,7 +532,7 @@ def changes_page(rows, path="/changes", heading="What changed", intro="Numbers o
             items += f'{"</ul>" if last else ""}<h2>{esc(d)}</h2><ul class="rows">'
             last = d
         a, note = change_line(c)
-        items += f'<li><span style="font:inherit;color:inherit;white-space:normal"><a href="/n/{c["metric_id"]}"><b>{esc(c["title"])}</b></a> &nbsp;{esc(a)}{" · " + esc(note) if note else ""}</span><span>{esc(c["at"][11:16])} UTC</span></li>'
+        items += f'<li><span style="font:inherit;color:inherit;white-space:normal"><a href="{number_path({"id": c["metric_id"]})}"><b>{esc(c["title"])}</b></a> &nbsp;{esc(a)}{" · " + esc(note) if note else ""}</span><span>{esc(c["at"][11:16])} UTC</span></li>'
     items += "</ul>" if last else '<p class="q">Nothing has moved yet.</p>'
     body = (f'<h1 style="margin-top:22px">{esc(heading)}</h1><p class="q">{esc(intro)} <a href="{esc(path.rstrip("/").replace("/changes", "") or "")}/feed.xml">Subscribe to the feed</a>.</p>{items}'
             '<div class="cta"><a class="btn" href="/app?setup=1">Get this for the companies you watch</a></div>')
@@ -521,7 +546,7 @@ def atom(rows, title, self_path):
            f'<link rel="self" href="{SITE}{esc(self_path)}"/><link href="{SITE}/changes"/><updated>{updated}</updated>')
     for c in rows:
         a, note = change_line(c)
-        out += (f'<entry><id>{SITE}/n/{c["metric_id"]}#c{c["id"]}</id><title>{esc(c["title"])}: {esc(a)}</title><link href="{SITE}/n/{c["metric_id"]}"/>'
+        out += (f'<entry><id>{SITE}/n/{c["metric_id"]}#c{c["id"]}</id><title>{esc(c["title"])}: {esc(a)}</title><link href="{SITE}{number_path({"id": c["metric_id"]})}"/>'
                 f'<updated>{c["at"]}</updated><summary>{esc(note)}</summary></entry>')
     return out + "</feed>"
 

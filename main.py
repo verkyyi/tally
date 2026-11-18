@@ -83,7 +83,7 @@ async def count_visit(request: Request, call_next):
                 db.run("INSERT INTO visits(day,path,ref,n) VALUES(?,?,?,1) ON CONFLICT(day,path,ref) DO UPDATE SET n=n+1",
                        (db.now()[:10], "*data" if path.endswith((".json", ".md", ".csv")) else "*" + path[1:], "bot:" + bot))
         elif request.method == "GET" and response.status_code == 200 and not path.startswith(("/api/", "/static/")) and "." not in path.rsplit("/", 1)[-1]:
-            group = next((g.rstrip("/") for g in _GROUPS if path.startswith(g)), path)
+            group = "/n" if path.startswith("/c/") and path.count("/") == 3 else next((g.rstrip("/") for g in _GROUPS if path.startswith(g)), path)  # /c/<subject>/<number> is a number's page
             ua = request.headers.get("user-agent", "")
             bot = _bot(ua)
             host = (_urlsplit(request.headers.get("referer", "")).hostname or "").lower()
@@ -699,8 +699,11 @@ def public_number(mid: int, request: Request, slug: str = "", range: str = "all"
     into = core.folded_into(m)
     if into:  # one batch of a series: the series' page has it, with every other batch
         return RedirectResponse(pp.number_path(into), status_code=301)
-    if slug != pp.slug(m["title"]):
-        return RedirectResponse(pp.number_path(m) + ("?" + request.url.query if request.url.query else ""), status_code=301)
+    return RedirectResponse(pp.number_path(m) + ("?" + request.url.query if request.url.query else ""), status_code=301)  # /n/<id> is the short permanent link
+
+
+def _number_page(m, request, range, period):
+    mid = m["id"]
     if _human(request):
         db.run("INSERT INTO views(day,metric_id,n) VALUES(?,?,1) ON CONFLICT(day,metric_id) DO UPDATE SET n=n+1", (db.now()[:10], mid))
     t = tile(m, None)
@@ -792,6 +795,25 @@ def subject_card(slug: str):
             rows = [(t["title"].split(" · ")[-1], " ".join(x for x in pp.fmt(t["value"], t["unit"]) if x)) for t in ts]
             return RawResponse(cards.board(name, rows), media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
     raise HTTPException(404, "nothing tracked under that name yet")
+
+
+@app.get("/c/{slug}/{name}")
+def public_number_page(slug: str, name: str, request: Request, range: str = "all", period: str = ""):
+    """A number's page, at /c/<whose it is>/<what it measures>. An address the number used to have leads to its current one."""
+    path = f"/c/{slug}/{name}"
+    mid = pp.paths()["by_path"].get(path)
+    m = core.metric(mid) if mid else None
+    query = "?" + request.url.query if request.url.query else ""
+    if not m:
+        old = db.one("SELECT metric_id FROM paths WHERE path=?", (path,))
+        m = core.metric(old["metric_id"]) if old else None
+        if not m or pp.number_path(m) == path:
+            raise HTTPException(404, "no such number")
+        return RedirectResponse(pp.number_path(m) + query, status_code=301)
+    into = core.folded_into(m)
+    if into:  # one batch of a series: the series' page has it, with every other batch
+        return RedirectResponse(pp.number_path(into), status_code=301)
+    return _number_page(m, request, range, period)
 
 
 @app.get("/numbers")
