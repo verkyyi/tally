@@ -78,6 +78,10 @@ h1{font-size:clamp(28px,4.4vw,40px);line-height:1.1;letter-spacing:-.03em;margin
 blockquote{margin:0;border-left:3px solid var(--accent);padding:2px 0 2px 14px;color:#475467}
 ul.rows{list-style:none;margin:0;padding:0}ul.rows li{padding:9px 2px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:14px}
 ul.rows li span{font:13px var(--mono);color:var(--mute);white-space:nowrap}
+.chip{font:600 12px var(--mono);letter-spacing:0;padding:2px 7px;border-radius:999px;margin-left:8px;white-space:nowrap;vertical-align:4px}.chip.up{color:#0a8f5b;background:#e7f6ef}.chip.down{color:#d92d20;background:#fdecea}
+.m .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px}.dot.ok{background:#0a8f5b}.dot.late{background:#b7791f}.dot.off{background:#98a2b3}
+.t .m{display:flex;justify-content:space-between;gap:8px;flex-wrap:nowrap;margin-top:4px}
+.num .m>span,.t .m>span{white-space:nowrap}.num .m>span:last-child,.t .m>span:last-child{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
 .t{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;text-decoration:none}
 .t:hover{border-color:var(--accent)}.t b{display:block;font-size:14px}.t .v{font-size:26px;font-weight:700;letter-spacing:-.03em;margin-top:6px}
@@ -98,7 +102,7 @@ ul.rows li span{font:13px var(--mono);color:var(--mute);white-space:nowrap}
 .num:hover{border-color:var(--accent)}.num b{font-size:15px;font-weight:600;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
 .num b i{font:11px var(--mono);font-style:normal;color:var(--accent);background:#eaf0ff;border-radius:999px;padding:2px 8px;white-space:nowrap}
 .num .v{font-size:30px;font-weight:700;letter-spacing:-.035em;line-height:1.1;font-variant-numeric:tabular-nums}.num .v small{font:12px var(--mono);font-weight:400;color:var(--mute);letter-spacing:0;margin-left:6px}
-.num .m{font:12px var(--mono);color:var(--mute);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:auto}
+.num .m{font:12px var(--mono);color:var(--mute);display:flex;justify-content:space-between;gap:8px;flex-wrap:nowrap;margin-top:auto}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
 ol.steps{margin:0;padding-left:22px;font-size:14px;color:#344054}ol.steps li{padding:2px 0;word-break:break-word}ol.steps li.chk{list-style:none;margin-left:-22px;color:var(--ink)}
 .run{margin-top:16px}.phases{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;padding:0;list-style:none}
@@ -228,10 +232,50 @@ def subject_path(name):
     return f"/c/{slug(name)}"
 
 
+def _utc(iso):
+    try:
+        return datetime.strptime((iso or "")[:19].replace(" ", "T").rstrip("Z"), "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        try:
+            return datetime.strptime((iso or "")[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
+
+
+def move_chip(pts, unit):
+    """The last time the value moved, as a small label beside it: which way, by how much, and when. Empty when it never moved."""
+    pts = [p for p in pts or [] if p.get("value") is not None]
+    for i in range(len(pts) - 1, 0, -1):
+        new, old = pts[i]["value"], pts[i - 1]["value"]
+        if new == old:
+            continue
+        d, at, now = new - old, _utc(pts[i].get("at") or pts[i].get("as_of")), datetime.now(timezone.utc)
+        pct = abs(d) / abs(old) * 100 if old else 0
+        size = fmt(abs(d), unit)[0] if pct < 1 else f"{pct:.1f}%" if pct < 10 else f"{pct:,.0f}%"
+        days = (now.date() - at.date()).days if at else None
+        on = "" if at is None else "today" if days <= 0 else "yesterday" if days == 1 else at.strftime("%b %-d") if at.year == now.year else at.strftime("%b %Y")
+        return f'<span class="chip {"up" if d > 0 else "down"}">{"▲" if d > 0 else "▼"} {esc(size)}{" · " + on if on else ""}</span>'
+    return ""
+
+
+def fresh(checked, failures=0, every=None):
+    """How current a number is, for the foot of its card: a dot and a few words. Green when it was read on schedule,
+    amber when a read is overdue, grey when the source could not be read on the last few tries."""
+    at, now = _utc(checked), datetime.now(timezone.utc)
+    if (failures or 0) >= 2:
+        return f'<span><span class="dot off"></span>not readable for {failures} days</span>'
+    if at is None:
+        return '<span><span class="dot off"></span>not read yet</span>'
+    h = (now - at).total_seconds() / 3600
+    ago = "just now" if h < 1 else f"{int(h)}h ago" if h < 24 else "yesterday" if h < 48 else f"{int(h // 24)}d ago"
+    due = {"week": 7, "month": 30}.get(every, 1) * 24
+    return f'<span><span class="dot {"ok" if h <= due * 2 + 12 else "late"}"></span>read {ago}</span>'
+
+
 def tile_link(t):
     txt, unit = fmt(t["value"], t["unit"])
-    v = f'<div class="v">{esc(txt)}<small>{esc(unit)}</small></div>' if txt else '<div class="v" style="font-size:16px;color:#667085;font-weight:500">no value yet</div>'
-    return f'<a class="t" href="{number_path(t)}"><b>{esc(t["title"])}</b>{v}<div class="m">{"live" if t["live"] else "delayed"} · tracked by {t["followers"]}</div></a>'
+    v = f'<div class="v">{esc(txt)}<small>{esc(unit)}</small>{move_chip(t.get("spark"), t["unit"])}</div>' if txt else '<div class="v" style="font-size:16px;color:#667085;font-weight:500">no value yet</div>'
+    return f'<a class="t" href="{number_path(t)}"><b>{esc(t["title"])}</b>{v}<div class="m">{fresh(t.get("last_checked"), t.get("read_failures"), t.get("every"))}<span>{"" if t["live"] else "delayed · "}tracked by {t["followers"]}</span></div></a>'
 
 
 def _thin(pts, n=420):
@@ -340,8 +384,8 @@ def landing_card(m, t, pts, rising=False):
     svg = chart(pts, t["unit"], 300, 78, card=True, step=core.stepped(m), bars=core.by_period(m, pts)).replace('role="img" aria-label="History chart"', 'aria-hidden="true"')
     src = "archived pricing pages" if m["title"].lower().endswith("plan price") else "funding announcements" if core.round_kind(m) else (
         "its entries, each with a link" if m["kind"] == "count" else re.sub(r"^www\.", "", (m.get("source_url") or "").split("/")[2]) if (m.get("source_url") or "").count("/") >= 2 else "its source")
-    return (f'<a class="num" href="{number_path(m)}"><b>{esc(m["title"])}{"<i>in the news</i>" if rising else ""}</b><div class="v">{esc(txt)}<small>{esc(unit)}</small></div>{svg}'
-            f'<div class="m"><span>since {esc(pts[0]["at"][:4]) if pts else ""}</span><span>source: {esc(src)}</span></div></a>')
+    return (f'<a class="num" href="{number_path(m)}"><b>{esc(m["title"])}{"<i>in the news</i>" if rising else ""}</b><div class="v">{esc(txt)}<small>{esc(unit)}</small>{move_chip(pts, t["unit"])}</div>{svg}'
+            f'<div class="m">{fresh(m.get("last_checked_at"), m.get("read_failures"), core.update_plan(m).get("every"))}<span>{esc(src)}</span></div></a>')
 
 
 def landing_compare(a, ta, b, tb, kind):

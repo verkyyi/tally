@@ -262,7 +262,7 @@ def tile(m, u=None, ids="unset"):
     bi = db.one("SELECT muted FROM board_items WHERE user=? AND metric_id=?", (u["id"], mid)) if u else None
     base = {"id": mid, "title": m["title"], "question": m["question"], "kind": m["kind"], "unit": m["unit"], "followers": followers,
             "monitor": bool(m["telem_monitor_id"]), "muted": bool(bi and bi["muted"]), "on_board": bi is not None, "live": live,
-            "curated": bool(m.get("curated"))}
+            "curated": bool(m.get("curated")), "read_failures": m.get("read_failures") or 0, "every": core.update_plan(m).get("every")}
     if not live:
         # Delayed: the last reading that is at least a day old, or the first reading if the metric is newer than that.
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")

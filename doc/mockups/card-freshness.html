@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Card freshness options</title>
+<style>
+:root{--ink:#0e1320;--mute:#667085;--line:#e1e4ea;--card:#fff;--bg:#f6f7f9;--blue:#2f5bff;--up:#0a8f5b;--down:#d92d20;--amber:#b7791f;--grey:#98a2b3}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:32px 20px 60px}
+h1{font-size:24px;margin:0 0 4px}h2{font-size:18px;margin:38px 0 2px}p.n{color:var(--mute);margin:0 0 14px;max-width:72ch}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.num{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px 12px;display:flex;flex-direction:column;gap:6px}
+.num b{font-weight:600;font-size:14px}.v{font-size:30px;font-weight:650;letter-spacing:-.02em;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.v small{font-size:13px;color:var(--mute);font-weight:500;letter-spacing:0}
+svg{width:100%;height:56px;display:block}
+.m{display:flex;justify-content:space-between;gap:8px;color:var(--mute);font-size:12px;flex-wrap:wrap}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.ok{background:var(--up)}.late{background:var(--amber)}.off{background:var(--grey)}
+.up{color:var(--up)}.down{color:var(--down)}
+.chip{font-size:12px;font-weight:600;padding:2px 7px;border-radius:999px;letter-spacing:0}
+.chip.up{background:#e7f6ef}.chip.down{background:#fdecea}.chip.flat{background:#f0f2f5;color:var(--mute)}
+.line2{font-size:13px;color:var(--mute)}.line2 strong{color:var(--ink);font-weight:600}
+.tag{font-size:11px;color:var(--mute);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.rec{display:inline-block;background:var(--blue);color:#fff;font-size:11px;font-weight:600;border-radius:6px;padding:2px 7px;margin-left:8px;vertical-align:3px}
+table{border-collapse:collapse;font-size:13px;margin-top:8px}td,th{border-bottom:1px solid var(--line);padding:6px 14px 6px 0;text-align:left}th{color:var(--mute);font-weight:500}
+</style></head><body><main>
+<h1>How live is a card, and what last changed</h1>
+<p class="n">Three ways to show it. Every option uses the same three sample cards: a number that moves daily, one that moves a few times a year, and one whose last read failed. Values are samples.</p>
+
+<h2>A · One status line in the footer</h2>
+<p class="n">Smallest change. The footer says when Tally last read the source and when the value last moved. The source name moves to the number's page.</p>
+<div class="cards">
+ <div class="num"><b>LangChain · GitHub stars</b><div class="v">128,412<small>stars</small></div>
+  <svg viewBox="0 0 300 56"><polyline fill="none" stroke="#1c3c3c" stroke-width="2" points="0,50 40,44 80,39 120,33 160,27 200,21 240,14 300,6"/></svg>
+  <div class="m"><span><span class="dot ok"></span>read 2h ago</span><span>last change: <span class="up">+86</span> today</span></div></div>
+ <div class="num"><b>Anthropic · latest valuation</b><div class="v">$183B<small>USD</small></div>
+  <svg viewBox="0 0 300 56"><polyline fill="none" stroke="#d97757" stroke-width="2" points="0,52 70,52 70,44 140,44 140,30 220,30 220,8 300,8"/></svg>
+  <div class="m"><span><span class="dot ok"></span>read today</span><span>last change: <span class="up">+$121.5B</span> on Sep 2</span></div></div>
+ <div class="num"><b>Cohere · employees</b><div class="v">812<small>employees</small></div>
+  <svg viewBox="0 0 300 56"><polyline fill="none" stroke="#39594d" stroke-width="2" points="0,40 60,36 120,30 180,26 240,24 300,22"/></svg>
+  <div class="m"><span><span class="dot off"></span>last read 4 days ago</span><span>last change: <span class="down">−14</span> on Oct 30</span></div></div>
+</div>
+
+<h2>B · Change next to the value, freshness in the footer <span class="rec">my pick</span></h2>
+<p class="n">The last change sits beside the number, where the eye already is: how much and when. The footer keeps the source and adds a dot with the last read. Green means read on schedule, amber means overdue, grey means the source could not be read.</p>
+<div class="cards">
+ <div class="num"><b>LangChain · GitHub stars</b><div class="v">128,412<small>stars</small><span class="chip up">▲ 86 · today</span></div>
+  <svg viewBox="0 0 300 56"><polyline fill="none" stroke="#1c3c3c" stroke-width="2" points="0,50 40,44 80,39 120,33 160,27 200,21 240,14 300,6"/></svg>
+  <div class="m"><span><span class="dot ok"></span>read 2h ago · daily</span><span>github.com</span></div></div>
+ <div class="num"><b>Anthropic · latest valuation</b><div class="v">$183B<small>USD</small><span class="chip up">▲ 198% · Sep 2</span></div>
+  <svg viewBox="0 0 300 56"><polyline fill="none" stroke="#d97757" stroke-width="2" points="0,52 70,52 70,44 140,44 140,30 220,30 220,8 300,8"/></svg>
+  <div class="m"><span><span class="dot ok"></span>read today · changes with each round</span><span>funding announcements</span></div></div>
+ <div class="num"><b>Cohere · employees</b><div class="v">812<small>employees</small><span class="chip down">▼ 14 · Oct 30</span></div>
+  <svg viewBox="0 0 300 56"><polyline fill="none" stroke="#39594d" stroke-width="2" points="0,40 60,36 120,30 180,26 240,24 300,22"/></svg>
+  <div class="m"><span><span class="dot off"></span>could not be read since Nov 14</span><span>linkedin.com</span></div></div>
+</div>
+
+<h2>C · A sentence under the value</h2>
+<p class="n">Most explicit, and the easiest to quote or for an agent to read. Takes one more line of height per card.</p>
+<div class="cards">
+ <div class="num"><b>LangChain · GitHub stars</b><div class="v">128,412<small>stars</small></div>
+  <div class="line2">Up <strong class="up">86</strong> since yesterday · read 2 hours ago</div>
+  <svg viewBox="0 0 300 56"><polyline fill="none" stroke="#1c3c3c" stroke-width="2" points="0,50 40,44 80,39 120,33 160,27 200,21 240,14 300,6"/></svg>
+  <div class="m"><span>since 2022</span><span>github.com</span></div></div>
+ <div class="num"><b>Anthropic · latest valuation</b><div class="v">$183B<small>USD</small></div>
+  <div class="line2">Was <strong>$61.5B</strong> until Sep 2 · read today, unchanged for 77 days</div>
+  <svg viewBox="0 0 300 56"><polyline fill="none" stroke="#d97757" stroke-width="2" points="0,52 70,52 70,44 140,44 140,30 220,30 220,8 300,8"/></svg>
+  <div class="m"><span>since 2021</span><span>funding announcements</span></div></div>
+ <div class="num"><b>Cohere · employees</b><div class="v">812<small>employees</small></div>
+  <div class="line2">Down <strong class="down">14</strong> on Oct 30 · not read since Nov 14</div>
+  <svg viewBox="0 0 300 56"><polyline fill="none" stroke="#39594d" stroke-width="2" points="0,40 60,36 120,30 180,26 240,24 300,22"/></svg>
+  <div class="m"><span>since 2023</span><span>linkedin.com</span></div></div>
+</div>
+
+<h2>What each option needs</h2>
+<table>
+<tr><th></th><th>A</th><th>B</th><th>C</th></tr>
+<tr><td>Extra height per card</td><td>none</td><td>none</td><td>one line</td></tr>
+<tr><td>Keeps the source on the card</td><td>no</td><td>yes</td><td>yes</td></tr>
+<tr><td>Shows a failed read clearly</td><td>dot only</td><td>dot and words</td><td>words</td></tr>
+<tr><td>Readable without colour</td><td>partly</td><td>yes (arrows)</td><td>yes</td></tr>
+</table>
+<p class="n" style="margin-top:14px">All three use data Tally already stores: the time of the last read, the read schedule, failed reads, and the record of changes.</p>
+</main></body></html>
