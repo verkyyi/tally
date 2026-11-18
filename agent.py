@@ -76,8 +76,16 @@ FILINGS = """Official filings first. When the company files with a securities re
 - Prefer the filing over a news article that quotes it. Use news only for what filings do not state."""
 
 
-def _toolbox(pages, steps, mid, on_step=None):
-    """The tools every run has: search the web, read a page, read an API. Each call is logged as a step, so a run can be shown as it happens."""
+def _toolbox(pages, steps, mid, on_step=None, limit=None):
+    """The tools every run has: search the web, read a page, read an API. Each call is logged as a step, so a run can be shown as it happens.
+    limit is how many rounds the run is allowed: close to it, every tool result ends with a reminder to hand in what has been found,
+    because a run that is still researching when it runs out hands in nothing at all."""
+    def near(text):
+        if limit and len(steps) >= limit - 6:
+            return text + ("\n\n[You are almost out of steps. Call submit now with what you have found. An incomplete history is fine; "
+                           "running out without calling submit loses everything.]")
+        return text
+
     def log(tool, arg):
         steps.append({"tool": tool, "arg": arg})
         if on_step:
@@ -100,7 +108,7 @@ def _toolbox(pages, steps, mid, on_step=None):
             return f"search failed: {str(e)[:200]}"
         for r in results:
             pages[r["url"]] = (pages.get(r["url"], "") + " " + r["title"] + " " + r["summary"]).strip()
-        return json.dumps([{"title": r["title"], "url": r["url"], "summary": r["summary"][:600]} for r in results[:6]])
+        return near(json.dumps([{"title": r["title"], "url": r["url"], "summary": r["summary"][:600]} for r in results[:6]]))
 
     @beta_tool
     def fetch(url: str) -> str:
@@ -120,7 +128,7 @@ def _toolbox(pages, steps, mid, on_step=None):
         if not rows:
             return "the page returned no readable text"
         pages[url] = rows[0]["content"]
-        return rows[0]["content"][:20000]
+        return near(rows[0]["content"][:20000])
 
     @beta_tool
     def get_json(url: str) -> str:
@@ -139,7 +147,7 @@ def _toolbox(pages, steps, mid, on_step=None):
         if r.status_code != 200:
             return f"the endpoint answered {r.status_code}"
         pages[url] = r.text[:400000]
-        return r.text[:20000]
+        return near(r.text[:20000])
 
     @beta_tool
     def grep(url: str, pattern: str) -> str:
@@ -175,7 +183,7 @@ def _toolbox(pages, steps, mid, on_step=None):
         except _re.error:
             hits = list(_re.finditer(_re.escape(pattern), text, _re.I))
         if not hits:
-            return f"no match in {len(text):,} characters. Try a shorter phrase or another wording of the row label."
+            return near(f"no match in {len(text):,} characters. Try a shorter phrase or another wording of the row label.")
         out, last = [], -10000
         for h in hits:
             if h.start() - last < 900:
@@ -184,7 +192,7 @@ def _toolbox(pages, steps, mid, on_step=None):
             out.append(f"[at {h.start():,}] …{text[max(0, h.start() - 350): h.end() + 1100]}…")
             if len(out) == 8:
                 break
-        return f"{len(hits)} matches in {len(text):,} characters; {len(out)} passages:\n\n" + "\n\n".join(out)
+        return near(f"{len(hits)} matches in {len(text):,} characters; {len(out)} passages:\n\n" + "\n\n".join(out))
 
     return search, fetch, get_json, grep
 
@@ -213,7 +221,7 @@ def _history(history_json):
 def run_recipe(metric, recipe_text, max_iterations=12, on_step=None):
     """Have the agent follow a recipe once. Returns {"result": dict or None, "pages": {url: text}, "steps": [...], "usage": {...}, "model": str}."""
     pages, steps, out = {}, [], {}
-    search, fetch, get_json, grep = _toolbox(pages, steps, metric.get("id"), on_step)
+    search, fetch, get_json, grep = _toolbox(pages, steps, metric.get("id"), on_step, max_iterations)
 
     @beta_tool
     def submit(found: bool, on_topic: bool = True, value: float = 0, quote: str = "", evidence_url: str = "", history_json: str = "[]", notes: str = "") -> str:
@@ -270,7 +278,7 @@ Work efficiently: a handful of searches and page reads is typical; go further on
 def create(question, on_step=None, max_iterations=24):
     """Have the agent research a requested number and write the recipe that keeps it alive. Returns {"result", "pages", "steps", "usage", "model"}."""
     pages, steps, out = {}, [], {}
-    search, fetch, get_json, grep = _toolbox(pages, steps, None, on_step)
+    search, fetch, get_json, grep = _toolbox(pages, steps, None, on_step, max_iterations)
 
     @beta_tool
     def submit(found: bool, title: str = "", unit: str = "", value: float = 0, quote: str = "", evidence_url: str = "", history_json: str = "[]",
@@ -329,7 +337,7 @@ Hand back 25 to 40 numbers through submit, most interesting first. Call submit e
 def scout(company, max_iterations=40):
     """Have the agent survey the open web for the numbers about a company worth recording. Returns {"result": {"numbers": [...], "notes"}, "steps", "usage", "model"}."""
     pages, steps, out = {}, [], {}
-    search, fetch, get_json, grep = _toolbox(pages, steps, None)
+    search, fetch, get_json, grep = _toolbox(pages, steps, None, None, max_iterations)
 
     @beta_tool
     def submit(numbers_json: str, notes: str = "") -> str:
@@ -368,7 +376,7 @@ Call submit exactly once."""
 def backfill(metric, value, source_url, on_step=None, max_iterations=24):
     """A run that does nothing but look for a number's earlier values. Returns {"result": {"history", "notes"}, "pages", "steps", ...}."""
     pages, steps, out = {}, [], {}
-    search, fetch, get_json, grep = _toolbox(pages, steps, metric.get("id"), on_step)
+    search, fetch, get_json, grep = _toolbox(pages, steps, metric.get("id"), on_step, max_iterations)
 
     @beta_tool
     def submit(history_json: str = "[]", notes: str = "") -> str:
