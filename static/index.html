@@ -88,6 +88,8 @@ svg.i{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .chips{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .chip-i{display:inline-flex;gap:4px;align-items:center;font:12px var(--mono);white-space:nowrap}
 .chip-i.acc{color:var(--accent)}
+.mv{font:600 12px var(--mono);letter-spacing:0;padding:2px 7px;border-radius:999px;margin-left:8px;white-space:nowrap;vertical-align:4px}.mv.up{background:#e7f6ef}.mv.down{background:#fdecea}
+.fd{display:inline-block;width:7px;height:7px;border-radius:50%}.fd.ok{background:var(--up)}.fd.late{background:#b7791f}.fd.off{background:var(--seed)}
 .foot button{padding:4px 9px;font-size:12px}
 .badge{position:absolute;top:-8px;right:12px;background:var(--accent);color:#fff;font:600 10px var(--mono);padding:2px 7px;border-radius:9px}
 .pending{border-style:dashed;color:var(--mute);display:flex;align-items:center;justify-content:center;min-height:190px;font:15px var(--display);text-align:center;cursor:default}
@@ -354,17 +356,31 @@ function spark(pts){
 }
 const ico=(n,cls="")=>`<svg class="i ${cls}"><use href="#i-${n}"/></svg>`;
 const short=s=>String(s||"").replace(/ ago$/,"").replace(/^in /,"");
+function moveChip(t){ // the last time the value moved: which way, by how much, and when
+  const p=(t.spark||[]).filter(o=>o.value!=null&&!o.seeded);
+  for(let i=p.length-1;i>0;i--){const x=p[i].value-p[i-1].value; if(!x) continue;
+    const pct=p[i-1].value?Math.abs(x)/Math.abs(p[i-1].value)*100:0, at=new Date(p[i].as_of), now=new Date();
+    const size=pct<1?num(Math.abs(x)):pct<10?pct.toFixed(1)+"%":Math.round(pct).toLocaleString("en-US")+"%";
+    const days=Math.floor((Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())-Date.UTC(at.getUTCFullYear(),at.getUTCMonth(),at.getUTCDate()))/864e5);
+    const on=isNaN(at)?"":days<=0?"today":days==1?"yesterday":at.toLocaleDateString("en-US",at.getUTCFullYear()==now.getUTCFullYear()?{month:"short",day:"numeric",timeZone:"UTC"}:{month:"short",year:"numeric",timeZone:"UTC"});
+    return [`<span class="mv ${x>0?"up":"down"}">${x>0?"▲":"▼"} ${size}${on?" · "+on:""}</span>`,p[i-1].value]}
+  return null}
+function freshDot(t){ // green: read on schedule; amber: a read is overdue; grey: the source could not be read
+  if((t.read_failures||0)>=2) return `<span class="chip-i" title="The source could not be read for ${t.read_failures} days"><span class="fd off"></span>not readable</span>`;
+  if(!t.last_checked) return "";
+  const h=(Date.now()-new Date(t.last_checked))/36e5, due=({week:7,month:30}[t.every]||1)*24;
+  return `<span class="chip-i" title="Read ${ago(t.last_checked)}"><span class="fd ${h<=due*2+12?"ok":"late"}"></span>${short(ago(t.last_checked))}</span>`}
 function tileHTML(t){
   const v=val(t.value,t.unit); let d='<span class="flat">&nbsp;</span>';
-  if(t.live&&t.value!=null&&t.previous!=null){const x=t.value-t.previous;
-    d=`<span class="${x>0?"up":"down"}">${x>0?"▲ +":"▼ −"}${num(Math.abs(x))}</span> <span class="flat">from ${num(t.previous)}</span>`}
+  const mv=t.live&&t.value!=null?moveChip(t):null;
+  if(mv) d=`<span class="flat">from ${num(mv[1])}</span>`;
   if(!t.live) d=`<span class="flat">delayed · as of ${ago(t.as_of)}</span>`;
   return `<div class="tile${t.muted?" muted":""}${t.live?"":" delayed"}${S.flash==t.id?" flash":""}" data-id="${t.id}">
     ${t.new_entries?`<span class="badge">${t.new_entries} NEW</span>`:""}
     <h3><span>${esc(t.title)}</span>${t.live?"":'<span class="kind late">delayed</span>'}</h3>
-    ${v?`<div class="val">${v.text}<small>${esc(v.unit)}</small></div>`:`<div class="val none">no value yet</div>`}
+    ${v?`<div class="val">${v.text}<small>${esc(v.unit)}</small>${mv?mv[0]:""}</div>`:`<div class="val none">no value yet</div>`}
     <div class="delta">${d}</div>${spark(t.spark)}
-    <div class="foot"><span class="chips">${t.live&&t.last_checked?`<span class="chip-i" title="Checked ${ago(t.last_checked)}">${ico("clock")}${short(ago(t.last_checked))}</span>`:""}${
+    <div class="foot"><span class="chips">${t.live?freshDot(t):""}${
       t.live&&t.next_check?`<span class="chip-i" title="Next automatic check ${until(t.next_check)}">${ico("radar")}${short(until(t.next_check))}</span>`:t.monitor?`<span class="chip-i" title="Checked automatically">${ico("radar")}</span>`:""}<span class="chip-i" title="Tracked by ${t.followers}">${ico("people")}${t.followers}</span>${
       t.curated?`<span class="chip-i acc" title="Verified method">${ico("seal")}</span>`:""}</span>
     ${t.live?"":`<button class="ghost golive" data-id="${t.id}">Go live</button>`}</div></div>`;
