@@ -344,8 +344,26 @@ def jump_held(m, ex):
     return True
 
 
+def _belongs_to(ex, prev):
+    """The earlier day a newly read value belongs to (the end of its period, the day of its event), when the reader found
+    one stated and the quote itself carries that year. None otherwise: the value is then dated by the day it was read."""
+    d = (ex.get("as_of") or "") if isinstance(ex.get("as_of"), str) else ""
+    try:
+        datetime.strptime(d, "%Y-%m-%d")
+    except ValueError:
+        return None
+    if not (prev["as_of"][:10] < d < db.now()[:10]) or d[:4] not in (ex.get("quote") or ""):
+        return None
+    return d
+
+
 def record_direct(m, ex, origin):
     prev = latest_obs(m["id"])
+    if prev and prev["value"] != ex["value"]:
+        since = _belongs_to(ex, prev)
+        if since:  # a new figure is filed under its own date; the reading below, dated today, confirms it
+            db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)",
+                   (m["id"], ex["value"], since + "T00:00:00Z", ex["evidence_url"], "source_history", "the date this value belongs to, as the page states it", m.get("recipe_version")))
     db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)",
            (m["id"], ex["value"], db.now(), ex["evidence_url"], origin, ex.get("quote"), m.get("recipe_version")))
     if prev and prev["value"] != ex["value"]:

@@ -67,6 +67,7 @@ Return {"value": number or null, "unit": string, "as_of": "YYYY-MM-DD", "evidenc
 - quote is the short text on the page that states the value. evidence_url is the URL of the page it came from.
 - When several pages state a value, prefer the subject's own official page (its pricing page, its repository, its store listing) over blog posts and third-party sites, and use the currency that page shows.
 - quote is one short plain phrase, not a table row.
+- as_of is the date the value belongs to, only when the page states it: the last day of the period a figure reports ("three months ended September 30, 2026" is 2026-09-30), or the day of the event that set it. Otherwise null. Never today's date, never a guess.
 - Use only what the pages state. If the value is not there (for example the plan says "Contact sales"), return {"value": null}. Never guess."""
 
 EXTRACT_COUNT = """You read search results and fetched pages and list the distinct items that answer the question, one entry per item (one job posting, one product launch).
