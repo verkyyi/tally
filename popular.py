@@ -12,7 +12,7 @@ import interest
 HERE = os.path.dirname(__file__)
 NUMBERS = ["valuation", "funding", "latest_round"]
 # Listed companies are left out: their value is a market price that moves every minute and needs a different source.
-PUBLIC = {"cloudflare", "datadog", "snowflake", "waymo", "nvidia", "amd", "google", "apple", "microsoft", "meta", "amazon", "tesla"}
+PUBLIC = {"cloudflare", "datadog", "snowflake", "waymo", "nvidia", "amd", "google", "apple", "microsoft", "meta", "amazon", "tesla", "figma"}
 MARK = "*popular"  # a row in the interest table remembering when the daily addition last ran
 
 

@@ -1260,7 +1260,7 @@ TEMPLATES = json.load(open(os.path.join(HERE, "templates.json")))
 
 STARTERS = [("Cursor", "company"), ("Lovable", "company"), ("Y Combinator", "accelerator"), ("Linear", "company"), ("LangChain", "company"), ("Tavily", "company"),
             ("Supabase", "company"), ("PostHog", "company")]
-BLURBS = [("total funding raised", "{} raised"), ("open engineering roles", "{} open roles"), ("github stars", "{} GitHub stars"), ("latest valuation", "valued at {}"),
+BLURBS = [("total funding raised", "{} raised"), ("open engineering roles", "{} open roles"), ("github stars", "{} GitHub stars"), ("latest valuation", "valued at {}"), ("valuation at ipo", "valued at {} at its IPO"),
           ("launches this quarter", "{} launches this quarter"), ("pypi downloads, weekly", "{} PyPI downloads a week"), ("npm downloads, weekly", "{} npm downloads a week")]
 
 
