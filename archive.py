@@ -29,7 +29,7 @@ def _get(url, params=None):
 
 
 def snapshots(url, since=2018, limit=18, per_year=2):
-    """One archived copy per half-year (or per quarter with per_year=4), oldest first: [(date 'YYYY-MM-DD', archived url)]."""
+    """One archived copy per half-year (per quarter with per_year=4, per month with 12), oldest first: [(date 'YYYY-MM-DD', archived url)]."""
     r = _get(CDX, {"url": url, "output": "json", "fl": "timestamp", "filter": ["statuscode:200", "mimetype:text/html"], "collapse": "timestamp:6", "from": str(since)})
     if r is None:
         return []
@@ -56,14 +56,14 @@ def page_text(archived_url):
 
 STARS = (re.compile(r'id="repo-stars-counter-star"[^>]*title="([\d,]+)"'), re.compile(r'aria-label="([\d,]+) users? starred this repository"'),
          re.compile(r'class="social-count js-social-count"[^>]*>\s*([\d,]+)\s*<'))
-STARS_TEXT = ("From archived copies of the repository's page kept by the Internet Archive (web.archive.org), four a year: the exact star count each copy showed. "
+STARS_TEXT = ("From archived copies of the repository's page kept by the Internet Archive (web.archive.org), up to one a month: the exact star count each copy showed. "
               "From the day Tally started reading it, the count comes from GitHub's API once a day.")
 
 
 def stars_history(repo, now):
     """[(date, stars, archived url)]: the exact count each archived copy of the repository page carried in its markup. No model is involved."""
     out = []
-    for day, url in snapshots(f"https://github.com/{repo}", since=2012, limit=48, per_year=4):
+    for day, url in snapshots(f"https://github.com/{repo}", since=2012, limit=120, per_year=12):
         r = _get(re.sub(r"/web/(\d+)/", r"/web/\1id_/", url, count=1))
         hit = next((mt for mt in (p.search(r.text) for p in STARS) if mt), None) if r is not None else None
         if not hit:
@@ -74,7 +74,7 @@ def stars_history(repo, now):
     return out
 
 
-ROLES_TEXT = ("From archived copies of the company's public job board (Greenhouse) kept by the Internet Archive, four a year: the postings each copy listed, "
+ROLES_TEXT = ("From archived copies of the company's public job board (Greenhouse) kept by the Internet Archive, up to one a month: the postings each copy listed, "
               "counted by their own links. For one team, the postings under that team's heading on the board.")
 TEAM = {"engineering": re.compile(r"engineer|infrastructure|platform|security|data|machine learning|research", re.I), "sales": re.compile(r"sales|account|revenue|go.to.market|gtm|partnerships|business development", re.I)}
 _BOARD = re.compile(r"<h([1-6])[^>]*>(.*?)</h\1>|/jobs/(\d{6,})", re.S)
@@ -96,7 +96,7 @@ def roles_history(slug, team=None):
     """[(date, open roles, archived url)] from both addresses Greenhouse has used for a company's board."""
     out = {}
     for base in ("https://boards.greenhouse.io/", "https://job-boards.greenhouse.io/"):
-        for day, url in snapshots(base + slug, since=2015, limit=48, per_year=4):
+        for day, url in snapshots(base + slug, since=2015, limit=96, per_year=12):
             r = _get(re.sub(r"/web/(\d+)/", r"/web/\1id_/", url, count=1))
             total = board_count(r.text) if r is not None else 0
             if total:  # an archived error page or an empty shell lists nothing: that is a missing copy, not zero roles
@@ -124,7 +124,8 @@ def history(m):
     if app:  # the rating is read from Apple's lookup API today; its past is on the archived App Store page of the same app
         src = f"https://apps.apple.com/us/app/id{app.group(1)}"
     out = []
-    for day, url in snapshots(src):
+    priced = (m.get("title") or "").lower().endswith("price")  # a price holds until it is changed: more copies date each change more closely
+    for day, url in (snapshots(src, limit=40, per_year=4) if priced else snapshots(src)):
         text = page_text(url)
         if len(text) < 200:
             continue

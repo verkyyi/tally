@@ -112,6 +112,27 @@ def _weekly(days):
     return out
 
 
+def pypi_log(package):
+    """Weekly downloads of a package for the years the PyPI statistics site no longer keeps: [(sunday, n, url, note)].
+    PyPI publishes a log of every download; ClickHouse keeps a public copy of it, counted per day back to 2016. Mirrors
+    are left out the way the statistics site leaves them out, and the two agree to within about half a percent on the
+    days both have. Empty when the copy cannot be reached: the recent 180 days still come from the statistics site."""
+    name = re.sub(r"[-_.]+", "-", package.lower())
+    if not re.fullmatch(r"[a-z0-9-]+", name):
+        return []
+    sql = (f"SELECT date, sum(count) FROM pypi.pypi_downloads_per_day_by_version_by_installer_by_type WHERE project='{name}' "
+           "AND installer NOT IN ('bandersnatch','z3c.pypimirror','Artifactory','devpi') GROUP BY date ORDER BY date FORMAT TSV")
+    try:
+        r = httpx.post("https://sql-clickhouse.clickhouse.com/?user=demo", content=sql, timeout=120, headers={"User-Agent": "tally-catalog"})
+        if r.status_code != 200:
+            raise RuntimeError(f"answered {r.status_code}")
+        days = [(a, int(b)) for a, b in (line.split("\t") for line in r.text.strip().splitlines() if "\t" in line)]
+    except Exception as e:
+        print("pypi log not read:", package, str(e)[:100])
+        return []
+    return [(d, n, f"https://clickpy.clickhouse.com/dashboard/{name}", "weekly downloads, from PyPI's public download log (ClickHouse copy)") for d, n in _weekly(days)]
+
+
 def history(spec):
     """The number's past, from the source's own records: [(YYYY-MM-DD, value, source url, note)]. Empty when the source keeps none."""
     from datetime import date, timedelta
@@ -125,9 +146,10 @@ def history(spec):
                 days += [(x["day"], x["downloads"]) for x in d["downloads"]]
                 start = end + timedelta(days=1)
             return [(d, n, f"https://www.npmjs.com/package/{p[2]}", "weekly downloads, npm registry") for d, n in _weekly(days)]
-        if p[1] == "pypi":  # the public statistics keep 180 days
+        if p[1] == "pypi":  # the public statistics keep 180 days; the years before come from the download log itself
             d = _get(f"https://pypistats.org/api/packages/{p[2]}/overall?mirrors=false", ttl=3600)["data"]
-            return [(d, n, f"https://pypistats.org/packages/{p[2]}", "weekly downloads, PyPI statistics") for d, n in _weekly([(x["date"], x["downloads"]) for x in d])]
+            recent = [(d, n, f"https://pypistats.org/packages/{p[2]}", "weekly downloads, PyPI statistics") for d, n in _weekly([(x["date"], x["downloads"]) for x in d])]
+            return [o for o in pypi_log(p[2]) if not recent or o[0] < recent[0][0]] + recent
         if p[1] == "sec":
             return sec_points(spec)
         if p[1] == "yc" and p[2] in ("tags", "industries"):
