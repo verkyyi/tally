@@ -369,11 +369,20 @@ def _line(ts, vs, X, Y, step):
 VAGUE_LABELS = {"private", "round", "funding round", "venture round", "funding", "update", "unknown", "other", "n/a", "undisclosed", "price change"}
 
 
+def _short(label, n=30):
+    """A label cut to fit beside a chart line: whole words, then an ellipsis. The full text is in the table and on hover."""
+    label = re.sub(r"\s*\(.*$", "", label).strip() or label  # a bracketed aside is the first thing to go
+    if len(label) <= n:
+        return label
+    return label[:n].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+
+
 def _events(pts, limit=5):
     """The steps worth naming on a chart: points where the value changed and whose event has a name. The latest one always,
     then the largest moves in value, at most `limit`, so a long history stays readable. Returns indexes into pts."""
-    named = [i for i in range(1, len(pts)) if pts[i]["value"] != pts[i - 1]["value"] and pts[i].get("label") and pts[i]["label"].strip().lower() not in VAGUE_LABELS]
-    if pts and pts[0].get("label") and pts[0]["label"].strip().lower() not in VAGUE_LABELS:
+    clear = lambda p: bool(p.get("label")) and p["label"].strip().lower() not in VAGUE_LABELS and not p["label"].lower().startswith(("archived", "as of "))
+    named = [i for i in range(1, len(pts)) if pts[i]["value"] != pts[i - 1]["value"] and clear(pts[i])]
+    if pts and clear(pts[0]):
         named.insert(0, 0)
     if len(named) <= limit:
         return named
@@ -466,7 +475,7 @@ def chart(pts, unit, w=820, h=280, card=False, versions=(), step=False, other=No
                 continue
             placed.append((tx, ty))
             named += (f'<text x="{tx:.1f}" y="{ty:.1f}" text-anchor="{"end" if right else "start"}" font-size="11" font-weight="600" fill="#0e1320" '
-                      f'stroke="#fff" stroke-width="3" paint-order="stroke">{esc(pts[i]["label"][:28])}</text>')
+                      f'stroke="#fff" stroke-width="3" paint-order="stroke">{esc(_short(pts[i]["label"]))}</text>')
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" role="img" aria-label="History chart" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" '
             f'style="width:100%;height:auto;display:block">{marks}{grid}<path d="{area}" fill="#2f5bff" fill-opacity="{".05" if vs2 else ".09"}"/>'
             f'<path d="{line}" fill="none" stroke="#2f5bff" stroke-width="2" stroke-linejoin="round"/><circle cx="{X(ts[-1]):.1f}" cy="{Y(vs[-1]):.1f}" r="4" fill="#2f5bff"/>{second}{named}</svg>')
