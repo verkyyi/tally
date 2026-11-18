@@ -366,9 +366,26 @@ def _line(ts, vs, X, Y, step):
     return d
 
 
-def chart(pts, unit, w=820, h=280, card=False, versions=(), step=False, other=None, bars=False):
+VAGUE_LABELS = {"private", "round", "funding round", "venture round", "funding", "update", "unknown", "other", "n/a", "undisclosed", "price change"}
+
+
+def _events(pts, limit=5):
+    """The steps worth naming on a chart: points where the value changed and whose event has a name. The latest one always,
+    then the largest moves in value, at most `limit`, so a long history stays readable. Returns indexes into pts."""
+    named = [i for i in range(1, len(pts)) if pts[i]["value"] != pts[i - 1]["value"] and pts[i].get("label") and pts[i]["label"].strip().lower() not in VAGUE_LABELS]
+    if pts and pts[0].get("label") and pts[0]["label"].strip().lower() not in VAGUE_LABELS:
+        named.insert(0, 0)
+    if len(named) <= limit:
+        return named
+    size = lambda i: abs(pts[i]["value"] - pts[i - 1]["value"]) if i else 0  # the moves that are large on the chart, not large in percent
+    keep = {named[-1]} | set(sorted(named[:-1], key=size, reverse=True)[:limit - 1])
+    return sorted(keep)
+
+
+def chart(pts, unit, w=820, h=280, card=False, versions=(), step=False, other=None, bars=False, events=False):
     """A real chart: area and line over time, three value gridlines, year marks. pts: [{at, value, origin}], oldest first.
-    other: (pts, unit, step) draws a second series; it shares the value axis when the units match, else it gets its own on the right."""
+    other: (pts, unit, step) draws a second series; it shares the value axis when the units match, else it gets its own on the right.
+    events: name the steps whose event is known (a round, a price change) beside the line."""
     from datetime import datetime as _dt
     stamp = lambda ps: [_dt.strptime(p["at"][:10], "%Y-%m-%d").timestamp() for p in ps]
     pts = _thin([p for p in pts if p.get("value") is not None])
@@ -436,9 +453,23 @@ def chart(pts, unit, w=820, h=280, card=False, versions=(), step=False, other=No
         if L <= x <= w - R:
             marks += (f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{T}" y2="{h - B}" stroke="#d92d20" stroke-dasharray="3 3"/>'
                       f'<text x="{x - 4:.1f}" y="{T + 10}" text-anchor="end" font-size="10" fill="#d92d20">{esc(label)}</text>')
+    named = ""
+    if events and not card and not vs2:
+        placed = []  # (x, y) of the labels already drawn: one that would sit on top of another is left to the table below
+        for i in reversed(_events(pts)):
+            x, y = X(ts[i]), Y(vs[i])
+            right = x > w - R - 120
+            tx, ty = (x - 7 if right else x + 7), max(T + 10, y - 8)
+            tip = f'{pts[i]["label"]} · {" ".join(z for z in fmt(vs[i], unit) if z)} · {_dt.fromtimestamp(ts[i]).strftime("%b %Y")}'
+            named += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" fill="#fff" stroke="#2f5bff" stroke-width="2"><title>{esc(tip)}</title></circle>'
+            if any(abs(tx - px) < 110 and abs(ty - py) < 20 for px, py in placed):
+                continue
+            placed.append((tx, ty))
+            named += (f'<text x="{tx:.1f}" y="{ty:.1f}" text-anchor="{"end" if right else "start"}" font-size="11" font-weight="600" fill="#0e1320" '
+                      f'stroke="#fff" stroke-width="3" paint-order="stroke">{esc(pts[i]["label"][:28])}</text>')
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" role="img" aria-label="History chart" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" '
             f'style="width:100%;height:auto;display:block">{marks}{grid}<path d="{area}" fill="#2f5bff" fill-opacity="{".05" if vs2 else ".09"}"/>'
-            f'<path d="{line}" fill="none" stroke="#2f5bff" stroke-width="2" stroke-linejoin="round"/><circle cx="{X(ts[-1]):.1f}" cy="{Y(vs[-1]):.1f}" r="4" fill="#2f5bff"/>{second}</svg>')
+            f'<path d="{line}" fill="none" stroke="#2f5bff" stroke-width="2" stroke-linejoin="round"/><circle cx="{X(ts[-1]):.1f}" cy="{Y(vs[-1]):.1f}" r="4" fill="#2f5bff"/>{second}{named}</svg>')
 
 
 def moved_page(cards, since, until):
@@ -756,7 +787,7 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
                 + (" Computed from the entries\' own dates where marked in the download." if any(p["origin"] == "backfill" for p in pts) else ""))
         url = SITE + number_path(m)
         body += (f'<h2 style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><span>{esc(plain_name(m))} history</span><span class="rgs">{tabs}</span></h2>'
-                 f'<div class="card" style="padding:16px 16px 8px">{chart(shown, t["unit"], versions=() if core.by_period(m, shown) else versions, step=core.stepped(m), bars=core.by_period(m, shown))}</div><p class="meta">{esc(note)}{" Red marks show where the recipe changed." if versions else ""}</p>'
+                 f'<div class="card" style="padding:16px 16px 8px">{chart(shown, t["unit"], versions=() if core.by_period(m, shown) else versions, step=core.stepped(m), bars=core.by_period(m, shown), events=True)}</div><p class="meta">{esc(note)}{" Red marks show where the recipe changed." if versions else ""}</p>'
                  f'<div class="cta" style="margin-top:14px"><a class="btn ghost" href="/n/{m["id"]}/history.csv">Download CSV</a>'
                  f'<details class="emb"><summary class="btn ghost">Embed this chart</summary><div class="embbox"><p class="meta" style="margin:0 0 6px">A live image. Paste into a README, a post or a doc.</p>'
                  f'<b>Markdown</b><pre>[![{esc(m["title"])}]({SITE}/n/{m["id"]}/chart.svg)]({url})</pre><b>HTML</b><pre>&lt;a href="{url}"&gt;&lt;img src="{SITE}/n/{m["id"]}/chart.svg" alt="{esc(m["title"])}" width="600"&gt;&lt;/a&gt;</pre>'
