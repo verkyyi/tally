@@ -1,31 +1,33 @@
 """Which pages Tally may take a figure from.
 
 Tally records what a source itself reported: a company's announcement, a filing, a price list, a registry's count, a news
-report of an event. It does not republish the contents of commercial company databases, for two reasons. Their terms
-forbid automated reading and redistribution; and many of their figures are their own estimates, which are not facts
-anyone reported and which the rule "no estimates" already keeps out. A figure found there has to be traced to the
-announcement or filing it came from, and cited to that.
+report of an event. Two kinds of page are treated differently.
 
 `status(url)` is "ok", "snippet" or "excluded":
-- excluded: never read, never cited, never in the record.
-- snippet: values already cited to it may stay on the site with their link, but are left out of the open data (files,
-  JSON, the agent tools), and nothing new is read from it.
+- excluded: a publisher's own estimate (a modelled revenue, a market-implied valuation), or a site whose terms forbid
+  automated and commercial use. An estimate is not a fact anyone reported, and the rule "no estimates" already keeps
+  it out. Never read, never cited, never in the record.
+- snippet: a company database or aggregator relaying a figure someone else announced. Its terms forbid redistribution,
+  so nothing new is read from it. A value already cited to one stays on the site, with its link, until the original
+  announcement is found and cited instead; meanwhile it is left out of the open data (files, JSON, the agent tools).
 """
 import re
 from urllib.parse import urlsplit
 
-# host (and its subdomains) -> why. Database vendors, estimate publishers and aggregators that restate them.
+# host (and its subdomains) -> why
 EXCLUDED = {
-    "tracxn.com": "company database", "cbinsights.com": "company database", "pitchbook.com": "company database", "crunchbase.com": "company database",
-    "dealroom.co": "company database", "sacra.com": "publisher's own estimates", "getlatka.com": "publisher's own estimates", "growjo.com": "publisher's own estimates",
-    "owler.com": "company database", "zoominfo.com": "company database", "rocketreach.co": "company database", "craft.co": "company database", "privco.com": "company database",
-    "clay.com": "company database", "revenuememo.com": "aggregator of others' figures", "defillama.com": "market-implied estimates", "forgeglobal.com": "market-implied estimates",
-    "equityzen.com": "market-implied estimates", "hiive.com": "market-implied estimates", "caplight.com": "market-implied estimates", "notice.co": "market-implied estimates",
-    "finance.yahoo.com": "terms forbid automated and commercial use", "leadiq.com": "company database", "apollo.io": "company database", "similarweb.com": "publisher's own estimates",
-    "explodingtopics.com": "aggregator of others' figures", "siliconvalleyinvestclub.com": "aggregator of others' figures", "statista.com": "terms forbid redistribution",
+    "sacra.com": "publisher's own estimates", "getlatka.com": "publisher's own estimates", "growjo.com": "publisher's own estimates", "similarweb.com": "publisher's own estimates",
+    "defillama.com": "market-implied estimates", "forgeglobal.com": "market-implied estimates", "equityzen.com": "market-implied estimates", "hiive.com": "market-implied estimates",
+    "caplight.com": "market-implied estimates", "notice.co": "market-implied estimates", "finance.yahoo.com": "terms forbid automated and commercial use",
 }
 ALLOWED = {"news.crunchbase.com"}  # a news desk reporting events, not the database
-SNIPPET = {"stockanalysis.com": "allows attributed snippets, forbids building a database from it"}
+SNIPPET = {
+    "tracxn.com": "company database", "cbinsights.com": "company database", "pitchbook.com": "company database", "crunchbase.com": "company database", "dealroom.co": "company database",
+    "owler.com": "company database", "zoominfo.com": "company database", "rocketreach.co": "company database", "craft.co": "company database", "privco.com": "company database",
+    "clay.com": "company database", "leadiq.com": "company database", "apollo.io": "company database", "statista.com": "terms forbid redistribution",
+    "revenuememo.com": "aggregator of others' figures", "explodingtopics.com": "aggregator of others' figures", "siliconvalleyinvestclub.com": "aggregator of others' figures",
+    "stockanalysis.com": "allows attributed snippets, forbids building a database from it",
+}
 _WAYBACK = re.compile(r"^https?://web\.archive\.org/web/\d+(?:id_|if_)?/(https?://.+)$", re.I)
 
 

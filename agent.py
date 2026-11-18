@@ -298,7 +298,7 @@ def create(question, on_step=None, max_iterations=24):
     @beta_tool
     def submit(found: bool, title: str = "", unit: str = "", value: float = 0, quote: str = "", evidence_url: str = "", history_json: str = "[]",
                source: str = "", read: str = "", history: str = "", update: str = "", checks: str = "", update_json: str = "{}", no_past_reason: str = "", notes: str = "",
-               value_date: str = "", value_label: str = "") -> str:
+               value_date: str = "", value_label: str = "", label: str = "") -> str:
         """Hand back the number and the recipe that keeps it alive. Call exactly once, at the end.
 
         Args:
@@ -319,7 +319,9 @@ def create(question, on_step=None, max_iterations=24):
             notes: Two or three sentences for the person who asked: what you found, what is uncertain, what you could not find.
             value_date: YYYY-MM-DD the value belongs to (period end, or the day of the event that set it). Empty for a figure simply read as it stands today.
             value_label: A few words naming the event that set today's value, as its page puts it ("Series F"). Empty when the page names none.
+            label: The same as value_label; either name is accepted.
         """
+        value_label = value_label or label
         try:
             plan = json.loads(update_json or "{}")
             plan = plan if isinstance(plan, dict) else {}

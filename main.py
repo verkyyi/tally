@@ -1607,6 +1607,7 @@ def _autosync():
                     core.refresh_searched()
                 lifecycle.retire_stale()
                 lifecycle.repair_due()
+                lifecycle.resource_due()
                 import indexnow
                 pinged = indexnow.flush()
                 if pinged:

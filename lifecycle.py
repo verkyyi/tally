@@ -330,7 +330,8 @@ def repair(m):
 
 def resource(m, hint):
     """Send the agent to find a better source for an existing number (an official filing instead of a news article, say).
-    The new recipe is adopted only if it passes the usual checks; the past it rebuilds replaces the past an earlier recipe rebuilt."""
+    The new recipe is adopted only if it passes the usual checks. A point of the past it rebuilds replaces the earlier recipe's point for the same month;
+    earlier points it found no replacement for are kept."""
     import agent
     run = agent.create(m["question"] + " " + hint)
     res = run["result"]
@@ -354,13 +355,41 @@ def resource(m, hint):
            (res["evidence_url"], secs.get("Read"), recipes._search_line(secs.get("Source", "")), json.dumps(plan), ver, db.now(), m["id"]))
     core.record_direct(core.metric(m["id"]), {"value": res["value"], "evidence_url": res["evidence_url"], "quote": res["quote"]}, "agent")
     if hist:
-        db.run("DELETE FROM observations WHERE metric_id=? AND origin='source_history' AND quote LIKE 'recipe v%'", (m["id"],))
         today = db.now()[:10]
-        for h in hist:
+        for h in hist:  # a point of the earlier past is replaced only by a new point for the same month; the rest of that past stays until it is replaced too
+            if h["date"] < today:
+                db.run("DELETE FROM observations WHERE metric_id=? AND origin='source_history' AND quote LIKE 'recipe v%' AND substr(as_of,1,7)=?", (m["id"], h["date"][:7]))
             if h["date"] < today and not db.one("SELECT 1 x FROM observations WHERE metric_id=? AND as_of=?", (m["id"], h["date"] + "T00:00:00Z")):
                 db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)",
                        (m["id"], h["value"], h["date"] + "T00:00:00Z", h.get("url"), "source_history", f"recipe v{ver}" + (": " + h["quote"][:200] if h.get("quote") else ""), ver))
     return "re-sourced", len(hist)
+
+
+RESOURCE_HINT = ("Cite the place this figure was first reported: the company's own announcement or page, a filing, or a news report of the event. "
+                 "Company databases, estimate publishers and aggregators cannot be used.")
+
+
+def resource_due(limit=1, every_days=7):
+    """Move numbers off the sources Tally no longer reads, a few at a time: the agent looks for where the figure was first
+    reported and, if it finds it, the number is cited to that from then on. Nothing is removed when it does not: the value
+    stays as it is, with its old link, and the number is tried again in a week. Returns how many were tried."""
+    import os
+    import agent
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=every_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    due = [m for m in db.q("SELECT * FROM metrics WHERE kind='direct' AND COALESCE(skill,'') NOT LIKE 'free|%' AND source_url IS NOT NULL AND (repaired_at IS NULL OR repaired_at<?) ORDER BY repaired_at",
+                           (cutoff,)) if not sources.readable(m["source_url"])][:limit]
+    for m in due:
+        db.run("UPDATE metrics SET repaired_at=? WHERE id=?", (db.now(), m["id"]))
+        was, agent.MODEL = agent.MODEL, os.environ.get("BATCH_AGENT_MODEL", "claude-sonnet-5-5")  # routine upkeep runs on the cheaper model
+        try:
+            res, n = resource(m, RESOURCE_HINT)
+            print("re-source:", m["id"], m["title"], "|", res[:80], "| history", n)
+        except Exception as e:
+            print("re-source failed:", m["id"], m["title"], type(e).__name__, str(e)[:120])
+        finally:
+            agent.MODEL = was
+    return len(due)
 
 
 def repair_due(limit=1):
