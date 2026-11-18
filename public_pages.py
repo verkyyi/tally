@@ -286,9 +286,13 @@ def move_chip(pts, unit):
 
 
 def seam(a, b):
-    """True where a number's past, taken from its source's records, meets Tally's own first reading. A difference there is
-    two sources disagreeing, not the number moving, so it is never reported as a change."""
-    return a.get("origin") == "source_history" and b.get("origin") != "source_history"
+    """True where a number's past, taken from its source's records, meets Tally's own first reading more than eight days
+    later. A difference across that gap cannot be dated (and is often two sources disagreeing), so it is never reported
+    as a change. A source that keeps daily or weekly records leaves no such gap."""
+    if a.get("origin") != "source_history" or b.get("origin") == "source_history":
+        return False
+    x, y = _utc(a.get("at") or a.get("as_of")), _utc(b.get("at") or b.get("as_of"))
+    return x is None or y is None or (y - x).days > 8
 
 
 def last_move(pts):

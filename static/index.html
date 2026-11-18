@@ -359,7 +359,7 @@ const short=s=>String(s||"").replace(/ ago$/,"").replace(/^in /,"");
 function moveChip(t){ // the last time the value moved: which way, by how much, and when
   const p=(t.spark||[]).filter(o=>o.value!=null&&!o.seeded);
   for(let i=p.length-1;i>0;i--){const x=p[i].value-p[i-1].value; if(!x) continue;
-    if(p[i-1].origin=="source_history"&&p[i].origin!="source_history") return null; // the source's past meeting Tally's first reading is not a move
+    if(p[i-1].origin=="source_history"&&p[i].origin!="source_history"&&!(new Date(p[i].as_of)-new Date(p[i-1].as_of)<=8*864e5)) return null; // the source's past meeting Tally's first reading is not a move
     const pct=p[i-1].value?Math.abs(x)/Math.abs(p[i-1].value)*100:0, at=new Date(p[i].as_of), now=new Date();
     const size=pct<1?num(Math.abs(x)):pct<10?pct.toFixed(1)+"%":Math.round(pct).toLocaleString("en-US")+"%";
     const days=Math.floor((Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())-Date.UTC(at.getUTCFullYear(),at.getUTCMonth(),at.getUTCDate()))/864e5);
