@@ -83,6 +83,53 @@ def resume(minutes=90):
     return n
 
 
+def _dated(text):
+    """A YYYY-MM-DD date that is real and not in the future, or None."""
+    from datetime import datetime
+    try:
+        return text if text and datetime.strptime(text, "%Y-%m-%d") and text <= db.now()[:10] else None
+    except (ValueError, TypeError):
+        return None
+
+
+def deepen(m, max_iterations=28):
+    """Send the agent back for one number's past, and for the date its present value belongs to. New points are held to
+    the same standard as at creation: each must be readable in the page it cites. Nothing already in the record is
+    changed: a point is added only for a month that has none, and only before Tally's own first reading.
+    Returns {"added", "dated", "found", "notes"}."""
+    import agent
+    cur = core.latest_obs(m["id"])
+    if not cur:
+        return {"added": 0, "dated": None, "found": 0, "notes": "no value yet"}
+    run = agent.backfill(m, cur["value"], m.get("source_url") or cur.get("evidence_url") or "", max_iterations=max_iterations)
+    res = run["result"] or {}
+    today = db.now()[:10]
+    first_live = (db.one("SELECT MIN(as_of) a FROM observations WHERE metric_id=? AND origin!='source_history' AND seeded=0", (m["id"],))["a"] or today)[:10]
+    months = {r["mo"] for r in db.q("SELECT DISTINCT substr(as_of,1,7) mo FROM observations WHERE metric_id=? AND seeded=0 AND value IS NOT NULL", (m["id"],))}
+    total = bool(core.update_plan(m).get("running_total"))
+    added, good = 0, []
+    for h in sorted(res.get("history") or [], key=lambda x: x["date"]):
+        page = recipes._page_for(h.get("url"), run["pages"])
+        if not (_dated(h["date"]) and h["date"] < first_live and core.supported(h["value"], page) and (len(page) < recipes.LONG or recipes._quoted(h["value"], h.get("quote"), page))):
+            continue
+        if total and (h["value"] > cur["value"] or (good and h["value"] < good[-1]["value"])):
+            continue  # a running total never falls and never exceeds what it is today
+        good.append(h)
+        if h["date"][:7] not in months:
+            db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)",
+                   (m["id"], h["value"], h["date"] + "T00:00:00Z", h.get("url"), "source_history", "found on a second research pass", m.get("recipe_version")))
+            months.add(h["date"][:7])
+            added += 1
+    since = _dated(res.get("value_date"))
+    dated = None
+    last_hist = db.one("SELECT value, as_of FROM observations WHERE metric_id=? AND origin='source_history' AND seeded=0 ORDER BY as_of DESC, id DESC LIMIT 1", (m["id"],))
+    if since and since < first_live and last_hist and last_hist["value"] != cur["value"] and since > last_hist["as_of"][:10]:
+        db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,?)",
+               (m["id"], cur["value"], since + "T00:00:00Z", cur.get("evidence_url"), "source_history", "the date this value belongs to, found on a second research pass", m.get("recipe_version")))
+        dated = since
+    return {"added": added, "dated": dated, "found": len(res.get("history") or []), "notes": (res.get("notes") or "")[:300], "usage": run.get("usage"), "steps": len(run["steps"])}
+
+
 def _work(did, q):
     """The creation itself. The agent decides how to research the number and writes the recipe that keeps it alive;
     this function only checks what it hands back against the pages it read."""
@@ -137,6 +184,7 @@ def _work(did, q):
                 f"## History\n{r['History'] or 'Observed from the day this number was created.'}\n\n## Update\n{r['Update'] or 'Once a day.'}\n\n## Checks\n{r['Checks'] or CHECKS}\n")
         db.run("UPDATE drafts SET title=? WHERE id=?", (m["title"], did))
         _set(did, "ready", value=value, unit=m["unit"], quote=res["quote"], url=res["evidence_url"], history=hist, running=bool(plan.get("running_total")), plan=plan, body=body,
+             value_date=_dated(res.get("value_date")),
              no_past="" if hist else (past_note or "Two runs found no earlier value stated with a date."), **report)
     except Exception as e:
         print("creation failed:", did, type(e).__name__, str(e)[:200])
@@ -185,6 +233,11 @@ def publish(u, did):
     m = core.metric(mid)
     core.record_direct(m, {"value": p["value"], "evidence_url": p["url"], "quote": p["quote"]}, "created")
     today = db.now()[:10]
+    since = p.get("value_date")
+    if since and since < today and not any(h["date"] >= since for h in p.get("history") or []):
+        # the value belongs to an earlier day (the end of its period, the day of the event): it is filed there, and today's reading only confirms it
+        db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,1)",
+               (mid, p["value"], since + "T00:00:00Z", p["url"], "source_history", "recipe v1: the date this value belongs to"))
     for h in p.get("history") or []:
         if h["date"] < today:
             db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version) VALUES(?,?,?,?,?,0,?,1)",
