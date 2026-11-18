@@ -856,6 +856,8 @@ def _moved_this_week(limit=36):
         before = [p for p in pts if p["at"] <= cut]
         if not before or not pts or pts[-1]["value"] == before[-1]["value"] or pts[-1]["at"] <= cut:
             continue
+        if any(pp.seam(a, b) and a["value"] != b["value"] for a, b in zip(pts, pts[1:]) if b["at"] > cut):
+            continue  # its past from the source and Tally's first reading disagree: that is not a move
         old, new = before[-1]["value"], pts[-1]["value"]
         pct = abs(new - old) / abs(old) * 100 if old else 0
         steps = core.stepped(m)

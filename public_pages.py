@@ -274,6 +274,8 @@ def move_chip(pts, unit):
         new, old = pts[i]["value"], pts[i - 1]["value"]
         if new == old:
             continue
+        if seam(pts[i - 1], pts[i]):
+            return ""
         d, at, now = new - old, _utc(pts[i].get("at") or pts[i].get("as_of")), datetime.now(timezone.utc)
         pct = abs(d) / abs(old) * 100 if old else 0
         size = fmt(abs(d), unit)[0] if pct < 1 else f"{pct:.1f}%" if pct < 10 else f"{pct:,.0f}%"
@@ -283,10 +285,18 @@ def move_chip(pts, unit):
     return ""
 
 
+def seam(a, b):
+    """True where a number's past, taken from its source's records, meets Tally's own first reading. A difference there is
+    two sources disagreeing, not the number moving, so it is never reported as a change."""
+    return a.get("origin") == "source_history" and b.get("origin") != "source_history"
+
+
 def last_move(pts):
-    """The last two readings that differ: (earlier point, later point), or None when the value never moved."""
+    """The last two readings that differ: (earlier point, later point), or None when the value never moved or the only
+    difference is a seam."""
     pts = [p for p in pts or [] if p.get("value") is not None]
-    return next(((pts[i - 1], pts[i]) for i in range(len(pts) - 1, 0, -1) if pts[i]["value"] != pts[i - 1]["value"]), None)
+    mv = next(((pts[i - 1], pts[i]) for i in range(len(pts) - 1, 0, -1) if pts[i]["value"] != pts[i - 1]["value"]), None)
+    return None if mv and seam(*mv) else mv
 
 
 def fresh(checked, failures=0, every=None):
