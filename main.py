@@ -537,9 +537,16 @@ def _number_or_404(mid):
 
 
 @app.get("/n/{mid}.json")
-def number_json(mid: int):
+def number_json(mid: int, on: str = ""):
+    """A number as data. With ?on=YYYY-MM-DD it also says what the record held on that day."""
     fetched("json", mid)
-    return JSONResponse(pp.number_data(*_number_or_404(mid)), headers=OPEN)
+    m, t, pts = _number_or_404(mid)
+    d = pp.number_data(m, t, pts)
+    if on:
+        if not _on_day(on):
+            raise HTTPException(422, "on must be a past or present date, YYYY-MM-DD")
+        d["on"] = core.value_on(m, pts, on) | {"unit": d["unit"], "attribution": d["attribution"]}
+    return JSONResponse(d, headers=OPEN)
 
 
 @app.get("/n/{mid}.md")
@@ -610,6 +617,15 @@ def _mcp_number(args, history=False):
     return d
 
 
+def _mcp_on(args):
+    day = _on_day(str(args.get("date") or ""))
+    if not day:
+        raise ValueError("date must be a past or present day, YYYY-MM-DD")
+    d = _mcp_number(args)
+    m = core.metric(d["id"])
+    return {"id": d["id"], "title": d["title"], "unit": d["unit"], "page": d["page"] + "?on=" + day} | core.value_on(m, _public_series(m, tile(m, None)), day) | {"license": "CC BY 4.0", "attribution": d["attribution"]}
+
+
 def _mcp_search(args):
     q = str(args["query"])
     r = suggest(q)
@@ -654,6 +670,9 @@ MCP_TOOLS = {
                     "description": "The dated past values of one number, oldest first, each with the page it was read from. Use it for trends, growth rates and 'what was it on a given date'.",
                     "schema": {"type": "object", "properties": _ID | {"since": {"type": "string", "description": "Only values on or after this date, YYYY-MM-DD."},
                                                                       "limit": {"type": "integer", "description": "How many of the latest points to return (default 200, at most 1000)."}}}},
+    "get_value_on": {"title": "Get a number's value on a date", "run": _mcp_on,
+                     "description": "What a number was on a given past day, from the record: the last value on or before that day, the date it was recorded, what set it when known (for example a funding round), its source, and when it next changed. Nothing is interpolated. Use it for questions like 'what was X's valuation in March 2025'.",
+                     "schema": {"type": "object", "properties": _ID | {"date": {"type": "string", "description": "The day to look up, YYYY-MM-DD."}}, "required": ["date"]}},
     "get_company": {"title": "Get a company's numbers", "run": _mcp_company,
                     "description": "Every number Tally keeps about one company, project, sector or investor, each with its current value and id.",
                     "schema": {"type": "object", "properties": {"name": {"type": "string", "description": "The name, for example 'Anthropic', 'Stripe', 'LangChain', or a stock ticker."}}, "required": ["name"]}},
@@ -681,7 +700,12 @@ a number with no quotable source reads "no value yet".
 ## For agents: the record as tools (Model Context Protocol)
 
 Connect an MCP client to {pp.SITE}/mcp (streamable HTTP, no key, read-only). Tools: search_numbers, get_number, get_history,
-get_company, what_moved_this_week. In Claude Code: `claude mcp add --transport http tally {pp.SITE}/mcp`
+get_value_on, get_company, what_moved_this_week. In Claude Code: `claude mcp add --transport http tally {pp.SITE}/mcp`
+
+## A number on a past date
+
+Add ?on=YYYY-MM-DD to a number's JSON address ({pp.SITE}/n/<id>.json?on=2025-03-01) or to its page. The answer is the last value on or
+before that day, with the date it was recorded, its source, and when it next changed. Nothing is filled in between readings.
 
 ## The whole record in two files
 - One row per number, with its current value and source: {pp.SITE}/data/numbers.csv
@@ -791,6 +815,14 @@ def public_number(mid: int, request: Request, slug: str = "", range: str = "all"
     return RedirectResponse(pp.number_path(m) + ("?" + request.url.query if request.url.query else ""), status_code=301)  # /n/<id> is the short permanent link
 
 
+def _on_day(text):
+    """A YYYY-MM-DD day that is real and not in the future, or None."""
+    try:
+        return text if text and datetime.strptime(text, "%Y-%m-%d") and text <= db.now()[:10] else None
+    except (ValueError, TypeError):
+        return None
+
+
 def _number_page(m, request, range, period):
     mid = m["id"]
     if _human(request):
@@ -813,7 +845,10 @@ def _number_page(m, request, range, period):
     related = [tile(core.metric(i), None) for i in pp.groups().get(sub, []) if i != mid]
     live = recipes.live(m)
     versions = [(r["created_at"], f"v{r['version']}") for r in db.q("SELECT version, created_at FROM recipes WHERE metric_id=? AND version>1 AND status IN ('live','superseded') ORDER BY version", (mid,))]
-    return HTMLResponse(pp.number_page(m, t, ev, related, _public_series(m, t), range if range in ("90d", "1y", "5y", "all") else "all", live, versions, _comparable(m), per, _rank_of(mid)))
+    series = _public_series(m, t)
+    day = _on_day(request.query_params.get("on"))
+    return HTMLResponse(pp.number_page(m, t, ev, related, series, range if range in ("90d", "1y", "5y", "all") else "all", live, versions, _comparable(m), per, _rank_of(mid),
+                                       asked=core.value_on(m, series, day) if day else None))
 
 
 def _comparable(m, limit=8):

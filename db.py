@@ -48,6 +48,7 @@ def conn() -> sqlite3.Connection:
 
 
 MIGRATIONS = [
+    "ALTER TABLE observations ADD COLUMN label TEXT",  # a few words naming the event that set this value ("Series F"), when its page names one
     "ALTER TABLE metrics ADD COLUMN curated INTEGER DEFAULT 0",
     "ALTER TABLE metrics ADD COLUMN template_id TEXT",
     "ALTER TABLE metrics ADD COLUMN skill TEXT",

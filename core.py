@@ -943,7 +943,7 @@ def backfill_free(m):
 
 def series(mid, upto=None):
     """Every real reading of a number, oldest first: [{at, value, origin, url}]. Simulated points are never included."""
-    rows = db.q("SELECT as_of, value, origin, evidence_url, recipe_version, quote FROM observations WHERE metric_id=? AND value IS NOT NULL AND seeded=0 ORDER BY as_of, id", (mid,))
+    rows = db.q("SELECT as_of, value, origin, evidence_url, recipe_version, quote, label FROM observations WHERE metric_id=? AND value IS NOT NULL AND seeded=0 ORDER BY as_of, id", (mid,))
     meta = db.one("SELECT period, title FROM metrics WHERE id=?", (mid,)) or {}
     per = meta.get("period")
     if reported_by_period(meta):  # a quarter's total read again every day is still one quarter: keep each value once
@@ -958,7 +958,48 @@ def series(mid, upto=None):
             last[period_span(per, r["as_of"])[0]] = r
         if len(last) >= 2:
             rows = [last[k] for k in sorted(last)]
-    return [{"at": r["as_of"], "value": r["value"], "origin": r["origin"], "url": r["evidence_url"], "version": r["recipe_version"], "note": r["quote"]} for r in rows if not upto or r["as_of"] <= upto]
+    return [{"at": r["as_of"], "value": r["value"], "origin": r["origin"], "url": r["evidence_url"], "version": r["recipe_version"], "note": r["quote"], "label": r.get("label")} for r in rows if not upto or r["as_of"] <= upto]
+
+
+def clean_label(text, page=None):
+    """A point's event label as it may be stored: a few plain words, or None. When the page it was read from is given,
+    at least half of the label's words must be on that page: a label is a name the source uses, not a description of ours."""
+    t = re.sub(r"\s+", " ", str(text or "")).strip(" .\"'")[:60]
+    if len(t) < 3:
+        return None
+    if page is not None:
+        words = [w for w in re.findall(r"[a-z0-9]+", t.lower()) if len(w) >= 2]
+        low = page.lower()
+        if not words or sum(1 for w in words if w in low) * 2 < len(words):
+            return None
+    return t
+
+
+def value_on(m, pts, day):
+    """What the record says a number was on a given day (YYYY-MM-DD), without filling anything in: the last point on or
+    before that day, with how that point relates to the day asked about. pts is the number's series, oldest first."""
+    if not pts:
+        return {"date": day, "value": None, "why": "This number has no value yet."}
+    before = [p for p in pts if p["at"][:10] <= day]
+    if not before:
+        return {"date": day, "value": None, "why": f"The record of this number starts on {pts[0]['at'][:10]}."}
+    p = before[-1]
+    first = p
+    for q in reversed(before):  # the day this value was first recorded
+        if q["value"] != p["value"]:
+            break
+        first = q
+    after = next((q for q in pts if q["at"][:10] > day and q["value"] != p["value"]), None)
+    gap = (datetime.strptime(day, "%Y-%m-%d") - datetime.strptime(p["at"][:10], "%Y-%m-%d")).days
+    if reported_by_period(m):
+        how = f"The latest period reported by then ended on {first['at'][:10]}."
+    elif stepped(m):
+        how = f"The value set on {first['at'][:10]} still held." if after or gap == 0 else f"The value set on {first['at'][:10]} is the latest on record."
+    else:
+        how = "Recorded on that day." if gap == 0 else f"The nearest earlier reading, from {p['at'][:10]} ({gap} day{'s' if gap != 1 else ''} before). Nothing is filled in between readings."
+    return {"date": day, "value": p["value"], "recorded_on": p["at"][:10], "since": first["at"][:10], "days_before": gap, "how": how, "label": first.get("label") or p.get("label"),
+            "source": first.get("url") or p.get("url") or (m.get("source_url") if p["origin"] != "source_history" else None),
+            "next_change": {"date": after["at"][:10], "value": after["value"]} if after else None}
 
 
 def refresh_free(limit=3, older_than_hours=20):

@@ -153,7 +153,8 @@ def number_data(m, t, pts):
             "as_of": (t.get("as_of") or last.get("at") or "")[:10] or None, "source": last.get("url") or m.get("source_url"),
             "page": url, "recipe": f"{SITE}/n/{m['id']}/recipe", "csv": f"{SITE}/n/{m['id']}/history.csv", "chart_image": f"{SITE}/n/{m['id']}/chart.svg",
             "license": "CC BY 4.0", "license_url": LICENSE_URL, "attribution": f"Tally, {url}",
-            "history": [{"date": p["at"][:10], "value": p["value"], "kind": KINDS.get(p["origin"], "read by Tally"), "source": p.get("url") or (m.get("source_url") if p["origin"] != "source_history" else None)} for p in pts]}
+            "history": [{"date": p["at"][:10], "value": p["value"], "kind": KINDS.get(p["origin"], "read by Tally"), "source": p.get("url") or (m.get("source_url") if p["origin"] != "source_history" else None)}
+                        | ({"label": p["label"]} if p.get("label") else {}) for p in pts]}
 
 
 def citation(m, t, pts):
@@ -659,7 +660,31 @@ def ld_json(*things):
     return json.dumps(list(things)).replace("</", "<\\/")
 
 
-def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(), compare=(), per=None, rank=None):
+def on_box(m, pts, asked):
+    """The value on a day someone asks about, and the box to ask with. asked: core.value_on's answer, or None."""
+    if len(pts) < 2:
+        return ""
+    first, today = pts[0]["at"][:10], datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    out = ""
+    if asked:
+        nice = when(asked["date"] + "T00:00:00Z") or asked["date"]
+        if asked.get("value") is None:
+            out = f'<div class="meta" id="on" style="color:var(--ink)"><b>On {esc(nice)}:</b> no value. {esc(asked.get("why") or "")}</div>'
+        else:
+            txt, unit = fmt(asked["value"], m.get("unit"))
+            src = asked.get("source") or ""
+            host = re.sub(r"^www\.", "", src.split("/")[2]) if src.count("/") >= 2 else ""
+            nxt = asked.get("next_change")
+            out = (f'<div class="meta" id="on" style="color:var(--ink);font-size:15px"><b>On {esc(nice)}: {esc(txt)}{" " + esc(unit) if unit else ""}</b>'
+                   f'{" · " + esc(asked["label"]) if asked.get("label") else ""}<br><span style="color:var(--mute)">{esc(asked["how"])}'
+                   + (f' It next changed on {esc(when(nxt["date"] + "T00:00:00Z") or nxt["date"])}, to {esc(" ".join(x for x in fmt(nxt["value"], m.get("unit")) if x))}.' if nxt else "")
+                   + (f' Source: <a href="{esc(src)}" rel="nofollow noopener">{esc("web.archive.org copy" if host == "web.archive.org" else host)}</a>.' if host else "") + "</span></div>")
+    return out + (f'<form method="get" action="{number_path(m)}#on" class="meta" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label for="ond">What was it on</label>'
+                  f'<input id="ond" type="date" name="on" min="{first}" max="{today}" value="{esc((asked or {}).get("date") or "")}" required style="font:inherit;padding:4px 8px;border:1px solid var(--line);border-radius:8px">'
+                  '<button type="submit" style="font:inherit;padding:4px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);cursor:pointer">Show</button></form>')
+
+
+def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(), compare=(), per=None, rank=None, asked=None):
     """m: metric row, t: the signed-out tile, ev: the signed-out evidence dict (may be locked), pts: the full series."""
     txt, unit = fmt(per["value"] if per and not per["current"] else t["value"], t["unit"])
     sub = subject(m)
@@ -694,7 +719,9 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     if txt and now_shown:
         mv = last_move(pts)
         body += (f'<div class="meta">{fresh(m.get("last_checked_at"), m.get("read_failures"), core.read_every(m))}'
-                 + (f' · last change: {esc(fmt(mv[0]["value"], t["unit"])[0])} → {esc(fmt(mv[1]["value"], t["unit"])[0])} on {esc(when(mv[1]["at"]) or mv[1]["at"][:10])}' if mv else " · has not changed since Tally began reading it") + "</div>")
+                 + (f' · last change: {esc(fmt(mv[0]["value"], t["unit"])[0])} → {esc(fmt(mv[1]["value"], t["unit"])[0])} on {esc(when(mv[1]["at"]) or mv[1]["at"][:10])}{" (" + esc(mv[1]["label"]) + ")" if mv[1].get("label") else ""}' if mv else " · has not changed since Tally began reading it") + "</div>")
+    if txt and now_shown:
+        body += on_box(m, list(pts), asked)
     body += (f'<div class="meta">{"As of " + asof if asof else "Not read yet"} · followed by {t["followers"]} <span id="follownote" style="margin-left:6px"></span></div>'
              '<div class="signin" id="signin" hidden></div>'
              + share_bar(number_path(m), f'{m["title"]}: {txt + (" " + unit if unit else "") if txt else "no value yet"}, with its history and source') + '</div>')
@@ -783,7 +810,7 @@ def points_table(m, pts, limit=40):
     kinds = KINDS
     runs = []  # readings that repeat the same value from the same page are one row: first day to last day
     for p in pts:
-        key = (p["value"], p.get("url") or "", p["origin"] == "source_history")
+        key = (p["value"], p.get("url") or "", p["origin"] == "source_history", p.get("label") or "")
         if runs and runs[-1]["key"] == key:
             runs[-1]["to"] = p["at"]
         else:
@@ -799,7 +826,7 @@ def points_table(m, pts, limit=40):
         src = f'<a href="{esc(url)}" rel="nofollow noopener">{esc("web.archive.org copy" if host == "web.archive.org" else host)}</a>' if host else ("the entries below" if m["kind"] == "count" else "")
         note = p.get("note") if p["origin"] == "source_history" and p.get("note") and not str(p.get("note")).startswith("recipe v") else ""
         note = (str(p["note"]).split(": ", 1)[1][:140] if str(p.get("note") or "").startswith("recipe v") and ": " in str(p["note"]) and "running total" not in str(p["note"]) else note)
-        rows += (f'<tr><td>{span}</td><td>{esc(" ".join(x for x in fmt(p["value"], m.get("unit")) if x))}</td>'
+        rows += (f'<tr><td>{span}</td><td>{esc(" ".join(x for x in fmt(p["value"], m.get("unit")) if x))}{"<br><span style=color:#667085>" + esc(p["label"]) + "</span>" if p.get("label") else ""}</td>'
                  f'<td>{src}<span style="color:#667085"> · {esc(note or kinds.get(p["origin"], "read by Tally"))}</span></td></tr>')
     more = f'<p class="meta">{len(runs) - limit} earlier rows are in the <a href="/n/{m["id"]}/history.csv">CSV</a>, each with its source.</p>' if len(runs) > limit else ""
     return f'<h2>Where each point comes from</h2><div style="overflow-x:auto"><table class="pts"><tr><th>When</th><th>Value</th><th>Source</th></tr>{rows}</table></div>{more}'
