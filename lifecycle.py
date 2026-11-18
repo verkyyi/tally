@@ -65,6 +65,24 @@ def start(u, question, wait=False):
     return did
 
 
+def resume(minutes=90):
+    """Pick up the creations a restart cut short. The research runs on a thread inside the server, so a restart (every
+    deploy is one) kills it and leaves its draft saying "working" for ever, with the person's page still waiting.
+    A recent one is started again from the top; an old one is closed with a reason. Returns how many were restarted."""
+    import threading
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    n = 0
+    for d in db.q("SELECT id, question, created_at FROM drafts WHERE status='working'"):
+        if d["created_at"] >= cutoff:
+            _set(d["id"], steps=[{"tool": "look", "arg": "The server restarted while this was being researched; starting again"}])
+            threading.Thread(target=_work, args=(d["id"], d["question"]), daemon=True).start()
+            n += 1
+        else:
+            _set(d["id"], "failed", reasons=["The research was interrupted by a server restart. Ask for the number again."])
+    return n
+
+
 def _work(did, q):
     """The creation itself. The agent decides how to research the number and writes the recipe that keeps it alive;
     this function only checks what it hands back against the pages it read."""

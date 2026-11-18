@@ -1577,6 +1577,12 @@ def _autosync():
 
 if os.environ.get("TALLY_AUTOSYNC", "1") != "0":
     threading.Thread(target=_autosync, daemon=True).start()
+    try:
+        _resumed = lifecycle.resume()
+        if _resumed:
+            print("creations restarted after a restart:", _resumed)
+    except Exception as e:  # never keep the server from starting
+        print("could not resume creations:", str(e)[:120])
 
 
 # ---------- billing (Stripe Checkout) ----------
