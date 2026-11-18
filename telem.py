@@ -77,6 +77,11 @@ def robots_ok(url):
         return True
 
 
+def may_read(url):
+    """True when Tally may read new values from this page: its source is one Tally uses, and its site does not ask crawlers to stay out."""
+    return bool(url) and sources.readable(url) and robots_ok(url)
+
+
 def _direct(url, max_chars):
     """The page read straight from its own site, or None when it refuses, is not text, or comes back nearly empty (a page built by script)."""
     import agent

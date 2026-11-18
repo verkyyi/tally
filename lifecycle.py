@@ -18,6 +18,7 @@ import core
 import db
 import recipes
 import sources
+import telem
 
 PER_DAY = {"free": 1, "pro": 20}   # attempts per person per day: each one runs a search and an agent, whether or not it works
 SITE_PER_DAY = 50
@@ -366,7 +367,7 @@ def resource(m, hint):
 
 
 RESOURCE_HINT = ("Cite the place this figure was first reported: the company's own announcement or page, a filing, or a news report of the event. "
-                 "Company databases, estimate publishers and aggregators cannot be used.")
+                 "Company databases, estimate publishers, aggregators and sites that ask crawlers to stay out cannot be used.")
 
 
 def resource_due(limit=1, every_days=7):
@@ -378,7 +379,7 @@ def resource_due(limit=1, every_days=7):
     from datetime import datetime, timedelta, timezone
     cutoff = (datetime.now(timezone.utc) - timedelta(days=every_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     due = [m for m in db.q("SELECT * FROM metrics WHERE kind='direct' AND COALESCE(skill,'') NOT LIKE 'free|%' AND source_url IS NOT NULL AND (repaired_at IS NULL OR repaired_at<?) ORDER BY repaired_at",
-                           (cutoff,)) if not sources.readable(m["source_url"])][:limit]
+                           (cutoff,)) if not telem.may_read(m["source_url"])][:limit]
     for m in due:
         db.run("UPDATE metrics SET repaired_at=? WHERE id=?", (db.now(), m["id"]))
         was, agent.MODEL = agent.MODEL, os.environ.get("BATCH_AGENT_MODEL", "claude-sonnet-5-5")  # routine upkeep runs on the cheaper model

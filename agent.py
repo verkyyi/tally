@@ -124,6 +124,8 @@ def _toolbox(pages, steps, mid, on_step=None, limit=None):
             return "refused: only public https pages can be read"
         if not sources.readable(url):
             return sources.REFUSED.format(why=sources.why(url))
+        if not telem.robots_ok(url):
+            return "refused: this site's robots.txt asks crawlers not to read that page. Find the figure on a page that may be read."
         try:
             rows = [p for p in telem.fetch([url], mid, fresh=True) if p["ok"]]
         except Exception as e:
@@ -169,6 +171,8 @@ def _toolbox(pages, steps, mid, on_step=None, limit=None):
             return "refused: only public https pages can be read"
         if not sources.readable(url):
             return sources.REFUSED.format(why=sources.why(url))
+        if not telem.robots_ok(url):
+            return "refused: this site's robots.txt asks crawlers not to read that page. Find the figure on a page that may be read."
         if url not in pages or len(pages[url]) < 30000:
             try:
                 r = httpx.get(url, timeout=60, follow_redirects=True, headers={"User-Agent": "tally-catalog", "Accept": "text/html,application/xhtml+xml"})

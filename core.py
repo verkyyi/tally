@@ -668,8 +668,8 @@ def refresh_searched(limit=2, older_than_hours=22):
     import sources
     for m in db.q("SELECT id, title, source_url, last_checked_at, check_interval_s FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%' AND (telem_monitor_id IS NULL OR ?) "
                   "ORDER BY last_checked_at", (0 if telem.monitors() else 1,)):  # with no monitoring service every number is read here
-        if not sources.readable(m["source_url"]):
-            continue  # its source is one Tally no longer reads: it waits to be re-sourced (lifecycle.resource_due), and is not marked as failing
+        if m["source_url"] and not telem.may_read(m["source_url"]):
+            continue  # its source is one Tally does not read (a database, or a site that asks crawlers to stay out): it waits to be re-sourced (lifecycle.resource_due), and is not marked as failing
         days = pace_now.get(m["id"], 1)
         if m["check_interval_s"] != days * 86400:  # kept on the number, so its card can tell a read that is late from one that is on schedule
             db.run("UPDATE metrics SET check_interval_s=? WHERE id=?", (days * 86400, m["id"]))
