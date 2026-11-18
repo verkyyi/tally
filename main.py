@@ -406,7 +406,7 @@ def suggest(q: str = ""):
     for m in hits[:7]:
         t = tile(m, None)
         txt, unit = pp.fmt(t["value"], t["unit"])
-        out.append({"title": m["title"], "value": (txt + (" " + unit if unit else "")) if txt else "no value yet", "path": pp.number_path(m)})
+        out.append({"id": m["id"], "title": m["title"], "value": (txt + (" " + unit if unit else "")) if txt else "no value yet", "path": pp.number_path(m)})
     return {"numbers": out, "total": len(hits), "boards": [{"name": n + (f" ({tick[n]})" if n in tick else ""), "count": c, "path": pp.subject_path(n)} for n, c in boards]}
 
 
@@ -574,11 +574,95 @@ def search_json(q: str = ""):
     fetched("search")
     asked(q, "agent", len(r["numbers"]) + len(r.get("boards", [])))
     for n in r["numbers"]:
-        mid = n["path"].split("/")[2]
+        mid = n["id"]
         n.update(page=pp.SITE + n["path"], json=f"{pp.SITE}/n/{mid}.json", csv=f"{pp.SITE}/n/{mid}/history.csv")
     for b in r.get("boards", []):
         b.update(page=pp.SITE + b["path"], json=f"{pp.SITE}{b['path']}.json")
     return JSONResponse(r | {"license": "CC BY 4.0"}, headers=OPEN)
+
+
+# ---------- for agents: the same record as tools (Model Context Protocol, at /mcp) ----------
+
+def _mcp_number(args, history=False):
+    mid = args.get("id")
+    if mid is None and args.get("page"):  # the page address works too, whole or from /c/ on
+        page = str(args["page"]).split("?")[0].split("#")[0]
+        path = "/" + (page.split("://", 1)[-1].split("/", 1)[-1] if "://" in page or page.startswith(("tallycatalog.com", "www.")) else page).strip("/")
+        mid = pp.paths()["by_path"].get(path)
+    m = core.metric(int(mid)) if mid is not None and str(mid).lstrip("-").isdigit() else None
+    if m and core.folded_into(m):
+        m = core.folded_into(m)
+    if not m:
+        raise ValueError("No such number. Use search_numbers to find its id.")
+    t = tile(m, None)
+    pts = _public_series(m, t)
+    d = pp.number_data(m, t, pts)
+    hist = d.pop("history")
+    mv = pp.last_move(pts)
+    d.update(history_points=len(hist), first_date=hist[0]["date"] if hist else None, json=f"{pp.SITE}/n/{m['id']}.json",
+             last_change={"from": mv[0]["value"], "to": mv[1]["value"], "date": mv[1]["at"][:10]} if mv else None, last_read=(m.get("last_checked_at") or "")[:10] or None)
+    if history:
+        since, limit = str(args.get("since") or ""), max(1, min(int(args.get("limit") or 200), 1000))
+        rows = [h for h in hist if h["date"] >= since]
+        return {"id": d["id"], "title": d["title"], "unit": d["unit"], "page": d["page"], "points": len(rows), "returned": min(len(rows), limit),
+                "note": f"Only the latest {limit} points are returned; the whole history is at {d['csv']}" if len(rows) > limit else None,
+                "history": rows[-limit:], "license": "CC BY 4.0", "attribution": d["attribution"]}
+    return d
+
+
+def _mcp_search(args):
+    q = str(args["query"])
+    r = suggest(q)
+    asked(q, "agent", len(r["numbers"]) + len(r.get("boards", [])))
+    return {"numbers": [{"id": n["id"], "title": n["title"], "value": n["value"], "page": pp.SITE + n["path"]} for n in r["numbers"]], "total": r.get("total", 0),
+            "companies": [{"name": b["name"], "numbers": b["count"], "page": pp.SITE + b["path"]} for b in r.get("boards", [])],
+            "note": None if r["numbers"] or r.get("boards") else "Nothing in the record matches. Try the company name alone, or fewer words."}
+
+
+def _mcp_company(args):
+    want = pp.slug(str(args["name"]))
+    al = db.one("SELECT subject FROM aliases WHERE alias=?", (str(args["name"]).lower().strip(),))
+    for name, ids in pp.groups().items():
+        if pp.slug(name) == want or (al and al["subject"] == name):
+            out = []
+            for i in ids:
+                m = core.metric(i)
+                t = tile(m, None)
+                txt, unit = pp.fmt(t["value"], t["unit"])
+                out.append({"id": i, "title": m["title"], "value": t["value"], "unit": m.get("unit") or "", "shown_as": (txt + (" " + unit if unit else "")) if txt else None,
+                            "as_of": (t.get("as_of") or "")[:10] or None, "page": pp.SITE + pp.number_path(m)})
+            return {"name": name, "page": pp.SITE + pp.subject_path(name), "numbers": out, "license": "CC BY 4.0"}
+    raise ValueError("Nothing is tracked under that name. Use search_numbers to see what there is.")
+
+
+def _mcp_week(args):
+    cards, since, until = _moved_this_week()
+    return {"from": since.strftime("%Y-%m-%d"), "to": until.strftime("%Y-%m-%d"), "page": pp.SITE + "/this-week",
+            "moved": [{"id": c["m"]["id"], "title": c["m"]["title"], "value": c["t"]["value"], "unit": c["m"].get("unit") or "",
+                       "change": _re.sub(r"<[^>]+>", "", c["chip"]).replace(" · this week", "").strip(), "page": pp.SITE + pp.number_path(c["m"])} for c in cards]}
+
+
+_ID = {"id": {"type": "integer", "description": "The number's id, from search_numbers."}, "page": {"type": "string", "description": "Or the number's page address on tallycatalog.com."}}
+MCP_TOOLS = {
+    "search_numbers": {"title": "Search numbers", "run": _mcp_search,
+                       "description": "Find numbers in the Tally record by words, for example 'anthropic valuation', 'openai revenue', 'langchain stars', 'cursor plan price'. Returns each match with its id, current value and page, and any company whose name matches.",
+                       "schema": {"type": "object", "properties": {"query": {"type": "string", "description": "A company or project name, optionally with what to measure."}}, "required": ["query"]}},
+    "get_number": {"title": "Get a number", "run": _mcp_number,
+                   "description": "One number's current value with its date, the page it was read from, when it last changed and by how much, and where its history and chart are. Cite the 'page' address when you use the value.",
+                   "schema": {"type": "object", "properties": _ID}},
+    "get_history": {"title": "Get a number's history", "run": lambda a: _mcp_number(a, history=True),
+                    "description": "The dated past values of one number, oldest first, each with the page it was read from. Use it for trends, growth rates and 'what was it on a given date'.",
+                    "schema": {"type": "object", "properties": _ID | {"since": {"type": "string", "description": "Only values on or after this date, YYYY-MM-DD."},
+                                                                      "limit": {"type": "integer", "description": "How many of the latest points to return (default 200, at most 1000)."}}}},
+    "get_company": {"title": "Get a company's numbers", "run": _mcp_company,
+                    "description": "Every number Tally keeps about one company, project, sector or investor, each with its current value and id.",
+                    "schema": {"type": "object", "properties": {"name": {"type": "string", "description": "The name, for example 'Anthropic', 'Stripe', 'LangChain', or a stock ticker."}}, "required": ["name"]}},
+    "what_moved_this_week": {"title": "What moved this week", "run": _mcp_week,
+                             "description": "The numbers whose value changed in the last seven days: funding rounds, valuations and prices first, then the biggest moves.",
+                             "schema": {"type": "object", "properties": {}}},
+}
+import mcp_server
+app.include_router(mcp_server.router(MCP_TOOLS, lambda name: fetched("mcp:" + name)))
 
 
 LLMS = f"""# Tally
@@ -593,6 +677,11 @@ a number with no quotable source reads "no value yet".
 - Search: {pp.SITE}/search.json?q=anthropic+valuation  (numbers and boards matching the words, each with its value and addresses)
 - Everything about one company or sector: {pp.SITE}/c/anthropic.json
 - The whole catalog as a site map: {pp.SITE}/sitemap.xml
+
+## For agents: the record as tools (Model Context Protocol)
+
+Connect an MCP client to {pp.SITE}/mcp (streamable HTTP, no key, read-only). Tools: search_numbers, get_number, get_history,
+get_company, what_moved_this_week. In Claude Code: `claude mcp add --transport http tally {pp.SITE}/mcp`
 
 ## The whole record in two files
 - One row per number, with its current value and source: {pp.SITE}/data/numbers.csv
@@ -1197,7 +1286,7 @@ def add_metric(body: AddMetric, request: Request):
     try:
         r = lifecycle.state(u, lifecycle.start(u, body.question, wait=True))
         if r["status"] == "matched":
-            mid = int(r["path"].split("/")[2])
+            mid = pp.paths()["by_path"][r["path"]]
             core.follow(u["id"], mid)
             return {"metric": tile(core.metric(mid), u), "matched": True, "path": r["path"]}
         if r["status"] != "ready":
