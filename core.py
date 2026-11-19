@@ -147,7 +147,7 @@ def roll_periods():
 
 
 ROUND_KINDS = {"total funding raised": "funding", "latest round size": "latest_round", "latest valuation": "valuation",
-               "valuation at ipo": "valuation"}  # a listed company has no "latest" valuation: its record ends at the price it went public at
+               "valuation at ipo": "valuation", "valuation at acquisition": "valuation"}  # a listed company has no "latest" valuation: its record ends at the price it went public at
 
 
 def round_kind(m):
