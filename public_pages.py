@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import brand
 import core
 import db
+import publication
 
 SITE = "https://tallycatalog.com"
 CUR = {"usd": "$", "eur": "€", "gbp": "£"}
@@ -170,6 +171,7 @@ def number_data(m, t, pts):
             "as_of": (t.get("as_of") or last.get("at") or "")[:10] or None, "source": last.get("url") or m.get("source_url"),
             "page": url, "recipe": f"{SITE}/n/{m['id']}/recipe", "csv": f"{SITE}/n/{m['id']}/history.csv", "chart_image": f"{SITE}/n/{m['id']}/chart.svg",
             "license": "CC BY 4.0", "license_url": LICENSE_URL, "license_scope": LICENSE_SCOPE, "attribution": f"Tally, {url}",
+            **publication.status(m["id"]),
             "history": [{"date": p["at"][:10], "value": p["value"], "kind": KINDS.get(p["origin"], "read by Tally"), "source": p.get("url") or (m.get("source_url") if p["origin"] != "source_history" else None)}
                         | ({"label": p["label"]} if p.get("label") else {}) for p in pts]}
 
@@ -187,6 +189,8 @@ def citation(m, t, pts):
 def number_text(m, t, pts):
     """The number as plain text (Markdown), for an agent that reads pages rather than JSON."""
     txt, unit = fmt(t["value"], t["unit"])
+    if publication.pending(m["id"]):
+        return f'# {m["title"]}\n\n**Pending verification**\n\n{publication.PENDING[m["id"]]["reason"]} Original records are retained; no current value or comparison is published.\n'
     rows = "\n".join(f'| {p["at"][:10]} | {p["value"]:.12g} | {KINDS.get(p["origin"], "read by Tally")} | {p.get("url") or ""} |' for p in pts[-200:])
     return (f'# {m["title"]}\n\n{m["question"]}\n\n**{txt or "no value yet"}{" " + unit if unit and txt else ""}**'
             f'{", as of " + (when(t.get("as_of") or t.get("last_checked")) or "") if txt else ""}\n\n'
@@ -337,7 +341,7 @@ def fresh(checked, failures=0, every=None):
 
 def tile_link(t):
     txt, unit = fmt(t["value"], t["unit"])
-    v = f'<div class="v">{esc(txt)}<small>{esc(unit)}</small>{move_chip(t.get("spark"), t["unit"])}</div>' if txt else '<div class="v" style="font-size:16px;color:#667085;font-weight:500">no value yet</div>'
+    v = f'<div class="v">{esc(txt)}<small>{esc(unit)}</small>{move_chip(t.get("spark"), t["unit"])}</div>' if txt else f'<div class="v" style="font-size:16px;color:#667085;font-weight:500">{esc(t.get("publication_label", "no value yet"))}</div>'
     return f'<a class="t" href="{number_path(t)}"><b>{esc(t["title"])}</b>{v}<div class="m">{fresh(t.get("last_checked"), t.get("read_failures"), t.get("every"))}<span>{"" if t["live"] else "delayed · "}tracked by {t["followers"]}</span></div></a>'
 
 
@@ -552,7 +556,7 @@ def compare_page(a, b, ta, tb, pa, pb, others=()):
     def key(m, t, pts, colour):
         txt, unit = fmt(t["value"], t["unit"])
         return (f'<a class="t" href="{number_path(m)}"><b>{logo_img(subject(m), 20)}{esc(m["title"])}<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{colour};margin-left:8px;vertical-align:middle"></span></b>'
-                f'<div class="v">{esc(txt or "no value yet")}<small>{esc(unit)}</small></div><div class="m">{len(pts):,} points{" since " + when(pts[0]["at"]) if pts else ""}</div></a>')
+                f'<div class="v">{esc(txt or t.get("publication_label", "no value yet"))}<small>{esc(unit)}</small></div><div class="m">{len(pts):,} points{" since " + when(pts[0]["at"]) if pts else ""}</div></a>')
     va, vb = fmt(ta["value"], ta["unit"]), fmt(tb["value"], tb["unit"])
     title = f'{a["title"]} vs {b["title"]} | Tally'
     desc = (f'{a["title"]} ({va[0] or "no value yet"}{" " + va[1] if va[1] else ""}) compared with {b["title"]} ({vb[0] or "no value yet"}{" " + vb[1] if vb[1] else ""}), '
@@ -578,10 +582,12 @@ def card_svg(m, t, pts):
     txt, unit = fmt(t["value"], t["unit"])
     inner = chart(pts, t["unit"], 600, 150, card=True, step=core.stepped(m), bars=core.by_period(m, pts))
     inner = inner[inner.index(">") + 1:inner.rindex("</svg>")] if inner else '<text x="24" y="150" font-size="13" fill="#667085">History appears after the next check.</text>'
+    if publication.pending(m["id"]):
+        inner = '<text x="24" y="80" font-size="13" fill="#667085">Original records retained for review. No current value published.</text>'
     since = when(pts[0]["at"]) if pts else None
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="260" viewBox="0 0 600 260" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">'
             f'<rect width="600" height="260" rx="14" fill="#fff" stroke="#e1e4ea"/><text x="24" y="36" font-size="15" font-weight="600" fill="#0e1320">{esc(m["title"][:64])}</text>'
-            f'<text x="24" y="76" font-size="34" font-weight="700" fill="#0e1320">{esc(txt or "no value yet")}<tspan font-size="13" font-weight="400" fill="#667085" dx="8">{esc(unit)}</tspan></text>'
+            f'<text x="24" y="76" font-size="34" font-weight="700" fill="#0e1320">{esc(txt or t.get("publication_label", "no value yet"))}<tspan font-size="13" font-weight="400" fill="#667085" dx="8">{esc(unit)}</tspan></text>'
             f'<g transform="translate(0,84)">{inner}</g>'
             f'<text x="24" y="246" font-size="11" fill="#667085">{esc("since " + since if since else "")}</text>'
             f'<text x="576" y="246" font-size="11" fill="#2f5bff" text-anchor="end" font-weight="600">tallycatalog.com</text></svg>')
@@ -615,6 +621,8 @@ def day(iso):
 def changes_page(rows, path="/changes", heading="What changed", intro="Numbers on Tally that moved recently. Each links to its evidence."):
     items, last = "", None
     for c in rows:
+        if not publication.visible_change(c):
+            continue
         if c.get("kind") in ("entity_added", "value_changed") and not core.is_major(c["kind"], c.get("before"), c.get("after"), c.get("metric_kind", "direct")):
             continue
         d = day(c["at"])
@@ -635,6 +643,8 @@ def atom(rows, title, self_path):
     out = (f'<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom"><title>{esc(title)}</title><id>{SITE}{esc(self_path)}</id>'
            f'<link rel="self" href="{SITE}{esc(self_path)}"/><link href="{SITE}/changes"/><updated>{updated}</updated>')
     for c in rows:
+        if not publication.visible_change(c):
+            continue
         if c.get("kind") in ("entity_added", "value_changed") and not core.is_major(c["kind"], c.get("before"), c.get("after"), c.get("metric_kind", "direct")):
             continue
         a, note = change_line(c)
@@ -753,18 +763,22 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     sub = subject(m)
     asof = when(t.get("as_of") or t.get("last_checked"))
     told = story(m, pts) if txt and not (per and not per["current"]) else ""
-    val = txt + (" " + unit if unit else "") if txt else "no value yet"
+    val = txt + (" " + unit if unit else "") if txt else t.get("publication_label", "no value yet")
     pts = list(pts)
     stamp = pts[-1]["at"] if pts and core.reported_by_period(m) else (t.get("as_of") or t.get("last_checked") or "")  # a quarter's figure is dated by its quarter, not by when it was read
     title = (f'{plain_name(m)} history: {val} ({datetime.strptime(stamp[:10], "%Y-%m-%d").strftime("%b %Y")}) | Tally' if told and asof
              else f'{m["title"]}: {val} | Tally')
     desc = (f'{m["question"]} {txt}{" " + unit if unit else ""}{", as of " + asof if asof else ""}. {told or "Tracked on Tally with its source and history."}'[:300] if txt
             else f'{m["question"]} Tally is tracking this and will show the value with its source as soon as one is found.')
+    if publication.pending(m["id"]):
+        desc = publication.LABEL + ". " + publication.PENDING[m["id"]]["reason"]
     lede = f'<p class="lede">{esc(told)}</p>' if told else ""
     now_shown = not (per and not per["current"])  # a past period's page shows that period, not the latest move
     body = f'<div class="crumb"><a href="/numbers">Numbers</a> / <a href="{subject_path(sub)}">{esc(sub)}</a></div><h1>{esc(m["title"])}</h1><p class="q">{esc(m["question"])}</p>{lede}<div class="card">'
-    body += ('<div class="valrow">' + (f'<div class="val">{esc(txt)}<small>{esc(unit)}</small>{move_chip(pts, t["unit"]) if now_shown else ""}</div>' if txt else '<div class="none">No value yet. Tally does not guess.</div>')
+    body += ('<div class="valrow">' + (f'<div class="val">{esc(txt)}<small>{esc(unit)}</small>{move_chip(pts, t["unit"]) if now_shown else ""}</div>' if txt else ('<div class="none">Pending verification</div>' if publication.pending(m["id"]) else '<div class="none">No value yet. Tally does not guess.</div>'))
              + f'<button class="follow" type="button" data-follow="{m["id"]}" aria-pressed="false">Follow</button></div>')
+    if publication.pending(m["id"]):
+        body += f'<p class="meta">{esc(publication.PENDING[m["id"]]["reason"])} Original records and recipe trials are retained for review. Current value, history chart and comparisons are withheld; no replacement value is inferred. <a href="/corrections">Correction record</a>.</p>'
     if per:
         tabs = "".join(f'<a href="{number_path(m)}{"" if i == 0 else "?period=" + k[:7]}" class="rg{" on" if on else ""}">{esc(lab)}</a>' for i, (k, lab, on) in enumerate(per["tabs"]))
         body += f'<div class="meta" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><b style="color:var(--ink)">{esc(per["label"])}{" so far" if per["current"] else ""}</b><span class="rgs" style="flex-wrap:wrap">{tabs}</span></div>'
@@ -785,7 +799,7 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
                  + (f' · last change: {esc(fmt(mv[0]["value"], t["unit"])[0])} → {esc(fmt(mv[1]["value"], t["unit"])[0])} on {esc(when(mv[1]["at"]) or mv[1]["at"][:10])}{" (" + esc(mv[1]["label"]) + ")" if mv[1].get("label") else ""}' if mv else " · has not changed since Tally began reading it") + "</div>")
     if txt and now_shown:
         body += on_box(m, list(pts), asked)
-    body += (f'<div class="meta">{"As of " + asof if asof else "Not read yet"} · followed by {t["followers"]} <span id="follownote" style="margin-left:6px"></span></div>'
+    body += (f'<div class="meta">{publication.LABEL if publication.pending(m["id"]) else "As of " + asof if asof else "Not read yet"} · followed by {t["followers"]} <span id="follownote" style="margin-left:6px"></span></div>'
              '<div class="signin" id="signin" hidden></div>'
              + share_bar(number_path(m), f'{m["title"]}: {txt + (" " + unit if unit else "") if txt else "no value yet"}, with its history and source') + '</div>')
     pts = list(pts)
@@ -1142,7 +1156,9 @@ def recipe_page(m, t, live, hist, editable):
     rows = ""
     for r in hist:
         st = {"live": '<b style="color:#0a8f5b">live</b>', "superseded": "adopted earlier", "rejected": '<span style="color:#d92d20">not adopted</span>'}[r["status"]]
-        restore = f' · <a href="#" class="rv" data-v="{r["version"]}">restore</a>' if r["status"] == "superseded" else ""
+        if publication.pending(m["id"]) and r["status"] == "live":
+            st = "retained · Pending verification"
+        restore = f' · <a href="#" class="rv" data-v="{r["version"]}">restore</a>' if r["status"] == "superseded" and not publication.pending(m["id"]) else ""
         why = ""
         if r["status"] == "rejected" and r.get("trial_json"):
             import json
@@ -1182,8 +1198,10 @@ document.addEventListener("click",async ev=>{const a=ev.target.closest(".rv"); i
   const r=await fetch("/api/recipes/"+MID+"/revert",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({version:+a.dataset.v})}), j=await r.json();
   if(r.ok) location.reload(); else {const p=document.createElement("p"); p.className="meta"; p.style.color="#d92d20"; p.textContent=j.detail||"Sign in to restore a version."; a.closest("ul").after(p)} });
 </script>""" % m["id"]
+    if publication.pending(m["id"]):
+        form = '<p class="q">Pending verification. This retained recipe and its trial are historical evidence, not a verified current reading. Recipe publication is paused during review.</p>'
     body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / <a href="{number_path(m)}">{esc(m["title"])}</a> / Recipe</div><h1>Recipe: {esc(m["title"])}</h1>'
-            f'<p class="q">{esc(m["question"])} Today: <b>{esc(txt or "no value yet")}{" " + esc(unit) if unit and txt else ""}</b>. This is version {live["version"]}.</p>'
+            f'<p class="q">{esc(m["question"])} Today: <b>{esc(txt or t.get("publication_label", "no value yet"))}{" " + esc(unit) if unit and txt else ""}</b>. This is version {live["version"]}.</p>'
             f'<div class="card recipe">{render_recipe(live["body"])}</div>{made_by(live)}{form}'
             f'<h2>Versions</h2><ul class="rows">{rows}</ul>'
             f'<div class="cta"><a class="btn ghost" href="{number_path(m)}">Back to the number</a></div>{js}')

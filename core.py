@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 import db
+import publication
 import evidence
 import llm
 import telem
@@ -206,6 +207,8 @@ def post_webhook(url, text):
 
 def notify(mid, before, after, kind, note):
     """Tell everyone who follows this number and has alerts on. Runs off the request thread; a failed post is dropped."""
+    if publication.pending(mid):
+        return
     m = metric(mid)
     hooks = [r["webhook_url"] for r in db.q("SELECT u.webhook_url FROM users u JOIN board_items b ON b.user=u.id WHERE b.metric_id=? AND b.muted=0 AND u.webhook_url IS NOT NULL", (mid,))]
     if not m or not hooks or not is_major(kind, before, after, m["kind"]):
@@ -358,6 +361,9 @@ def jump_held(m, ex):
 
 
 def record_direct(m, ex, origin):
+    if publication.pending(m["id"]):
+        evidence.hold(m, ex, publication.LABEL)
+        return False
     if not evidence.finite(ex.get("value")):
         evidence.hold(m, ex, "Invalid numeric value")
         return False
@@ -614,6 +620,8 @@ def pace(create_max=4, tick_max=3):
 
 
 def run_now(mid):
+    if publication.pending(mid):
+        return {"value": None, "changed": False, "found": False} | publication.status(mid)
     m = metric(mid)
     if m["kind"] == "direct":
         ex = resolve_direct(m, fresh=True)
@@ -680,6 +688,8 @@ def refresh_searched(limit=2, older_than_hours=22):
     import sources
     for m in db.q("SELECT id, title, source_url, last_checked_at, check_interval_s FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|%' AND (telem_monitor_id IS NULL OR ?) "
                   "ORDER BY last_checked_at", (0 if telem.monitors() else 1,)):  # with no monitoring service every number is read here
+        if publication.pending(m["id"]):
+            continue
         if m["source_url"] and not telem.may_read(m["source_url"]):
             continue  # its source is one Tally does not read (a database, or a site that asks crawlers to stay out): it waits to be re-sourced (lifecycle.resource_due), and is not marked as failing
         days = pace_now.get(m["id"], 1)
@@ -715,7 +725,7 @@ def charted_ids():
 def retire(mid, to_path):
     """Take a number out of the record for good, leaving its address pointing at `to_path`."""
     m = metric(mid)
-    if not m:
+    if not m or publication.pending(mid):
         return False
     db.run("INSERT OR REPLACE INTO gone(id,title,to_path,at) VALUES(?,?,?,?)", (mid, m["title"], to_path, db.now()))
     for t in ("observations", "entries", "changes", "board_items", "recipes", "views", "feedback", "telem_calls"):
@@ -787,6 +797,8 @@ def sync_metric(m):
     """Page through the Telem monitor's change feed from the stored cursor.
     value_changed -> observation on a direct metric. entity_added -> ledger entry on a count metric
     (only entities the monitor's agent qualified, deduped by URL and by title). run -> last checked."""
+    if publication.pending(m["id"]):
+        return 0
     mid, cursor, added = m["id"], m["monitor_cursor"] or 0, 0
     # A curated or skill-backed number, and any sum/avg/max, is never taken from the monitor's own reading:
     # the monitor only says "something moved", and the stored recipe is run again to get the value.
@@ -958,6 +970,8 @@ def backfill_free(m):
 
 def series(mid, upto=None):
     """Every real reading of a number, oldest first: [{at, value, origin, url}]. Simulated points are never included."""
+    if publication.pending(mid):
+        return []  # publication only: raw observations remain available for audit
     rows = db.q("SELECT as_of, value, origin, evidence_url, recipe_version, quote, label FROM observations WHERE metric_id=? AND value IS NOT NULL AND seeded=0 ORDER BY as_of, id", (mid,))
     meta = db.one("SELECT period, title FROM metrics WHERE id=?", (mid,)) or {}
     per = meta.get("period")
@@ -993,6 +1007,8 @@ def clean_label(text, page=None):
 def value_on(m, pts, day):
     """What the record says a number was on a given day (YYYY-MM-DD), without filling anything in: the last point on or
     before that day, with how that point relates to the day asked about. pts is the number's series, oldest first."""
+    if publication.pending(m["id"]):
+        return {"date": day, "value": None, "why": publication.LABEL + ": original readings are retained for review."} | publication.status(m["id"])
     if not pts:
         return {"date": day, "value": None, "why": "This number has no value yet."}
     before = [p for p in pts if p["at"][:10] <= day]
@@ -1057,6 +1073,8 @@ def reject_change(user, cid):
 
 
 def feedback(user, mid, action):
+    if publication.pending(mid) and action == "wrong_source":
+        return {"resolved": False} | publication.status(mid)
     m = metric(mid)
     if action != "mute":
         db.run("INSERT INTO feedback(metric_id,change_id,user,action,at) VALUES(?,?,?,?,?)", (mid, None, user, action, db.now()))

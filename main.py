@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 import core
 import db
+import publication
 import telem
 import public_pages as pp
 import free_sources
@@ -263,6 +264,9 @@ def tile(m, u=None, ids="unset"):
     base = {"id": mid, "title": m["title"], "question": m["question"], "kind": m["kind"], "unit": m["unit"], "followers": followers,
             "monitor": bool(m["telem_monitor_id"]), "muted": bool(bi and bi["muted"]), "on_board": bi is not None, "live": live,
             "curated": bool(m.get("curated")), "read_failures": m.get("read_failures") or 0, "every": core.read_every(m)}
+    if publication.pending(mid):
+        return base | publication.status(mid) | {"value": None, "previous": None, "spark": [], "as_of": None,
+                "last_checked": m.get("last_checked_at"), "source_url": None, "new_entries": 0, "next_check": None, "monitor": False, "every": None}
     if not live:
         # Delayed: the last reading that is at least a day old, or the first reading if the metric is newer than that.
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -406,7 +410,7 @@ def suggest(q: str = ""):
     for m in hits[:7]:
         t = tile(m, None)
         txt, unit = pp.fmt(t["value"], t["unit"])
-        out.append({"id": m["id"], "title": m["title"], "value": (txt + (" " + unit if unit else "")) if txt else "no value yet", "path": pp.number_path(m)})
+        out.append({"id": m["id"], "title": m["title"], "value": (txt + (" " + unit if unit else "")) if txt else t.get("publication_label", "no value yet"), "path": pp.number_path(m)})
     return {"numbers": out, "total": len(hits), "boards": [{"name": n + (f" ({tick[n]})" if n in tick else ""), "count": c, "path": pp.subject_path(n)} for n, c in boards]}
 
 
@@ -469,7 +473,7 @@ def recipe_state(mid: int, request: Request):
         raise HTTPException(404, "no such number")
     u = viewer(request)
     live = recipes.live(m)
-    return {"version": live["version"], "body": live["body"], "left": recipes.trials_left(u) if u else 0, "editable": not free_sources.is_free(m)}
+    return {"version": live["version"], "body": live["body"], "left": recipes.trials_left(u) if u else 0, "editable": not free_sources.is_free(m) and not publication.pending(mid)} | publication.status(mid)
 
 
 @app.post("/api/recipes/{mid}")
@@ -752,7 +756,7 @@ def number_card(mid: int):
     pts = pp._thin(_public_series(m, t), 200)
     txt, unit = pp.fmt(t["value"], t["unit"])
     sub = f'since {pp.when(pts[0]["at"])}' if len(pts) >= 2 else ""
-    return RawResponse(cards.number(m["title"], txt, unit, pts, step=core.stepped(m), bars=core.by_period(m, pts), sub=sub), media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
+    return RawResponse(cards.number(m["title"], t.get("publication_label") or txt, "" if publication.pending(mid) else unit, pts, step=core.stepped(m), bars=core.by_period(m, pts), sub=sub), media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.get("/n/{mid}/chart.svg")
@@ -853,7 +857,7 @@ def _number_page(m, request, range, period):
         cond, vals = core.period_sql(m, pick)
         ev = {"entries": db.q("SELECT title,url,date,value FROM entries WHERE metric_id=? AND held_out=0" + cond + " ORDER BY COALESCE(date, first_seen_at) DESC, id DESC", (mid,) + vals)}
     else:
-        ev = {"observation": core.latest_obs(mid)}
+        ev = {"observation": None if publication.pending(mid) else core.latest_obs(mid)}
     sub = pp.subject(m)
     related = [tile(core.metric(i), None) for i in pp.groups().get(sub, []) if i != mid]
     live = recipes.live(m)
@@ -965,7 +969,7 @@ def _major_changes(ids, limit=80):
         return []
     rows = db.q("SELECT c.id, c.metric_id, c.before, c.after, c.kind, c.note, c.at, m.title, m.kind AS metric_kind, m.unit FROM changes c JOIN metrics m ON m.id=c.metric_id "
                 f"WHERE c.metric_id IN ({','.join('?' * len(ids))}) AND COALESCE(c.status,'accepted')='accepted' ORDER BY c.at DESC, c.id DESC LIMIT 400", tuple(ids))
-    return [c for c in rows if core.is_major(c["kind"], c["before"], c["after"], c["metric_kind"])][:limit]
+    return [c for c in rows if publication.visible_change(c) and core.is_major(c["kind"], c["before"], c["after"], c["metric_kind"])][:limit]
 
 
 def _public_ids():
@@ -1205,7 +1209,7 @@ def robots():
 
 @app.get("/corrections")
 def public_corrections():
-    return HTMLResponse(pp.corrections_page(db.q("SELECT * FROM corrections ORDER BY at DESC, id DESC LIMIT 500")))
+    return HTMLResponse(pp.corrections_page(publication.corrections() + db.q("SELECT * FROM corrections ORDER BY at DESC, id DESC LIMIT 500")))
 
 
 @app.get("/privacy")
@@ -1246,7 +1250,7 @@ def search(request: Request, q: str = ""):
             hay = " ".join([m["title"] or "", m["question"] or "", m.get("company") or "", m.get("unit") or ""]).lower()
             if _matches(words, hay):
                 t = tile(m, u, ids)
-                found.append({k: t[k] for k in ("id", "title", "question", "kind", "unit", "value", "followers", "live", "on_board", "curated")})
+                found.append({k: t[k] for k in ("id", "title", "question", "kind", "unit", "value", "followers", "live", "on_board", "curated")} | publication.status(m["id"]))
     found.sort(key=lambda t: -t["followers"])
     pack = None
     if text and looks_like_company(text):
@@ -1311,7 +1315,7 @@ def catalog(request: Request, q: str = "", sort: str = ""):
         hay = (m["title"] + " " + m["question"]).lower()
         if all(w in hay for w in words):
             t = tile(m, u, ids)
-            out.append({k: t[k] for k in ("id", "title", "question", "kind", "unit", "value", "followers", "last_checked", "monitor", "live", "on_board", "curated")})
+            out.append({k: t[k] for k in ("id", "title", "question", "kind", "unit", "value", "followers", "last_checked", "monitor", "live", "on_board", "curated")} | publication.status(m["id"]))
     if sort == "popular":
         last = {r["metric_id"]: r["at"] for r in db.q("SELECT metric_id, MAX(at) at FROM changes WHERE COALESCE(status,'accepted')='accepted' GROUP BY metric_id")}
         out.sort(key=lambda t: (-t["followers"], last.get(t["id"]) or ""), reverse=False)
@@ -1508,6 +1512,8 @@ def evidence(mid: int, request: Request):
            "trace": db.q("SELECT endpoint, providers_json, latency_ms, est_cost, at FROM telem_calls WHERE metric_id=? AND endpoint!='monitors.changes' ORDER BY id DESC LIMIT 10", (mid,)),
            "trace_summary": trace_summary(mid),
            "changes": db.q("SELECT * FROM changes WHERE metric_id=? AND COALESCE(status,'accepted')='accepted' ORDER BY at DESC, id DESC LIMIT 30", (mid,))}
+    out["changes"] = [c for c in out["changes"] if publication.visible_change(c)]
+    out.update(publication.status(mid))
     if m["kind"] == "count":
         new_ids = {c["entry_id"] for c in out["changes"] if c["entry_id"]}
         cond, vals = core.period_sql(m)
@@ -1516,7 +1522,7 @@ def evidence(mid: int, request: Request):
             e["is_new"] = e["id"] in new_ids
         out["entries"] = es
     else:
-        out["observation"] = core.latest_obs(mid)
+        out["observation"] = None if publication.pending(mid) else core.latest_obs(mid)
     return out
 
 
@@ -1563,7 +1569,7 @@ def changes(request: Request, since: str | None = None):
         sql += "AND c.at>=? "
         args.append(since)
     rows = db.q(sql + "ORDER BY c.at DESC, c.id DESC LIMIT 200", args)
-    return {"changes": [c for c in rows if ids is None or c["metric_id"] in ids]}
+    return {"changes": [c for c in rows if publication.visible_change(c) and (ids is None or c["metric_id"] in ids)]}
 
 
 @app.get("/api/traces")

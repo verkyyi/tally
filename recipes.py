@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import core
 import db
+import publication
 import free_sources
 
 SECTIONS = ("Source", "Read", "History", "Update", "Checks")
@@ -197,6 +198,8 @@ def with_round_history(m):
 
 def revise(u, m, body, note, again=False):
     """Try a revised recipe and adopt it if the trial verifies. Returns the trial report."""
+    if publication.pending(m["id"]):
+        raise ValueError("Pending verification: retained recipe is paused until the evidence review is resolved.")
     import agent
     body = (body or "").strip()[:8000]
     secs = parse(body)

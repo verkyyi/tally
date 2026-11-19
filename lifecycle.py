@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 
 import core
 import db
+import publication
 import evidence
 import recipes
 import sources
@@ -295,6 +296,8 @@ def repair(m):
     """The fallback when the plain daily read keeps failing. First the agent follows the recipe as it stands; it is more capable
     than the cheap reader and often gets the value from the same source. If that fails too, it researches the number afresh and
     writes a new recipe and update plan, adopted only if it passes the usual checks. Returns "read", "repaired" or "failed"."""
+    if publication.pending(m["id"]):
+        return "pending verification"
     import agent
     db.run("UPDATE metrics SET repaired_at=? WHERE id=?", (db.now(), m["id"]))
     passed = lambda checks: all(c["ok"] for c in checks)  # every required check is binding
@@ -336,6 +339,8 @@ def resource(m, hint):
     """Send the agent to find a better source for an existing number (an official filing instead of a news article, say).
     The new recipe is adopted only if it passes the usual checks. A point of the past it rebuilds replaces the earlier recipe's point for the same month;
     earlier points it found no replacement for are kept."""
+    if publication.pending(m["id"]):
+        return "kept pending verification", 0
     import agent
     run = agent.create(m["question"] + " " + hint)
     res = run["result"]

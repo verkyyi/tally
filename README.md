@@ -72,3 +72,24 @@ Recipe repair, replacement and restoration must pass every required check. Monit
 notifications trigger verified reads, rather than directly supplying direct values.
 Structured public API adapters keep their existing deterministic extraction path.
 No migration rewrites historical observations or sends corrections/alerts.
+
+### Publication holds
+
+`publication.py` records the explicitly reviewed holds for Tavily headcount (235)
+and Profound employee count (314). Their public current values, comparisons,
+charts and scalar exports are withheld as **Pending verification**; the original
+observations, quotes, dates, changes and recipe trials stay in SQLite unchanged.
+The correction log explains each hold. Routine reads, recipe adoption and
+automatic retirement are paused for these two IDs only. Other metrics, including
+Tavily npm downloads, continue normally. Fresh email and webhook alerts cannot
+publish a held metric; changes 490 and 495 remain excluded independently of the
+temporary holds.
+
+These are publication controls, not replacement values. To release a hold, first
+review current evidence and comparability, then remove only that ID from
+`publication.PENDING` in a reviewed code change. Do not restore the old LinkedIn
+number, delete observations, or remove the invalid-change exclusions as a shortcut.
+A code rollback restores the previous behavior without a database restore (and
+would make the misleading readings visible again). Deployment uses a verified
+SQLite backup and records the prior revision/configuration hashes; it does not
+rewrite production configuration or historical data.

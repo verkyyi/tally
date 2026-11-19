@@ -379,7 +379,7 @@ function tileHTML(t){
   return `<div class="tile${t.muted?" muted":""}${t.live?"":" delayed"}${S.flash==t.id?" flash":""}" data-id="${t.id}">
     ${t.new_entries?`<span class="badge">${t.new_entries} NEW</span>`:""}
     <h3><span>${esc(t.title)}</span>${t.live?"":'<span class="kind late">delayed</span>'}</h3>
-    ${v?`<div class="val">${v.text}<small>${esc(v.unit)}</small>${mv?mv[0]:""}</div>`:`<div class="val none">no value yet</div>`}
+    ${v?`<div class="val">${v.text}<small>${esc(v.unit)}</small>${mv?mv[0]:""}</div>`:`<div class="val none">${esc(t.publication_label||"no value yet")}</div>`}
     <div class="delta">${d}</div>${spark(t.spark)}
     <div class="foot"><span class="chips">${t.live?freshDot(t):""}${
       t.live&&t.next_check?`<span class="chip-i" title="Next automatic check ${until(t.next_check)}">${ico("radar")}${short(until(t.next_check))}</span>`:t.monitor?`<span class="chip-i" title="Checked automatically">${ico("radar")}</span>`:""}<span class="chip-i" title="Tracked by ${t.followers}">${ico("people")}${t.followers}</span>${
@@ -449,7 +449,7 @@ async function loadCatalog(){
   const r=await api("/api/catalog?q="+encodeURIComponent($("#cq").value.trim())), ms=r.metrics;
   $("#ccount").textContent=`${ms.length} of ${r.total} metrics`;
   $("#ctable").innerHTML=ms.length?`<table><tr><th>Metric</th><th>Value</th><th></th><th>Tracked by</th><th></th></tr>${ms.map(m=>{const v=val(m.value,m.unit);
-    return `<tr data-id="${m.id}" style="cursor:pointer"><td><b>${esc(m.title)}</b><div class="when">${esc(m.question)}</div></td><td style="font-family:var(--mono);white-space:nowrap">${v?v.text+" "+esc(v.unit):"no value yet"}</td>
+    return `<tr data-id="${m.id}" style="cursor:pointer"><td><b>${esc(m.title)}</b><div class="when">${esc(m.question)}</div></td><td style="font-family:var(--mono);white-space:nowrap">${v?v.text+" "+esc(v.unit):esc(m.publication_label||"no value yet")}</td>
     <td><span class="kind ${m.live?"live":"late"}">${m.live?"● live":"delayed"}</span></td><td>${m.followers}</td>
     <td>${m.on_board?'<span class="when">on your board</span>':`<button class="ghost followbtn" data-id="${m.id}">Add to board</button>`}</td></tr>`}).join("")}</table>`
     :'<div class="empty">Nothing in the catalog matches. Ask for it above and Tally will start tracking it.</div>';
@@ -464,10 +464,10 @@ async function openPanel(id){
   const m=e.metric, v=val(m.value,m.unit); let d="";
   if(m.live&&m.value!=null&&m.previous!=null){const x=m.value-m.previous; d=`<span class="${x>0?"up":"down"}">${x>0?"▲ +":"▼ −"}${num(Math.abs(x))}</span> <span class="flat">from ${num(m.previous)}</span>`}
   let h=`<div class="ph"><button class="ghost x">×</button><h2 style="display:flex;align-items:center;gap:10px">${logoTag(m.title.split(" · ")[0],28)}<span>${esc(m.title)}</span></h2><div class="q">${esc(m.question)}</div>
-    <div class="hero"><div class="val${v?"":" none"}">${v?v.text+`<small>${esc(v.unit)}</small>`:"no value yet"}</div><div class="hd">${d}</div><div class="hs">${m.live?spark(m.spark):""}</div></div>
+    <div class="hero"><div class="val${v?"":" none"}">${v?v.text+`<small>${esc(v.unit)}</small>`:esc(m.publication_label||"no value yet")}</div><div class="hd">${d}</div><div class="hs">${m.live?spark(m.spark):""}</div></div>
     <div class="pmeta">${m.live?`<span>${ico("clock")}checked ${ago(m.last_checked)}</span>`:`<span>delayed value, as of ${ago(m.as_of)}</span>`}${
       m.live&&m.next_check?`<span>${ico("radar")}${/^in /.test(until(m.next_check))?"next check "+until(m.next_check):"check due"}</span>`:m.monitor?`<span>${ico("radar")}auto-check on</span>`:""}<span>${ico("people")}tracked by ${m.followers}</span></div>
-    ${m.live?`<button class="runp">Check now</button>`:""} <a class="when" href="/n/${m.id}" target="_blank" style="margin-left:10px">Public page ↗</a> <a class="when" href="/n/${m.id}/recipe" target="_blank" style="margin-left:8px">Recipe ↗</a></div>`;
+    ${m.live&&!m.publication_status?`<button class="runp">Check now</button>`:""} <a class="when" href="/n/${m.id}" target="_blank" style="margin-left:10px">Public page ↗</a> <a class="when" href="/n/${m.id}/recipe" target="_blank" style="margin-left:8px">Recipe ↗</a></div>`;
   if(e.locked){
     h+=`<div class="pbody"><p style="color:#475467;margin-top:0">This metric is delayed for you. The live number, its source and quote, the full list of entries and the change history are part of ${S.me.user?"Pro, or pick it as one of your live catalog metrics":"a signed-in account"}.</p>
       ${S.me.user?`<button class="pro" id="pup">See plans</button>`:`<button id="pin2">Sign in with Google</button>`}
@@ -478,7 +478,7 @@ async function openPanel(id){
     if(m.kind=="direct"){
       const o=e.observation; ev=o?`${o.quote?`<q>${esc(o.quote)}</q>`:""}
         <dl class="kv" style="margin-top:10px"><dt>Source</dt><dd><a href="${esc(o.evidence_url||m.source_url)}" target="_blank">${esc(o.evidence_url||m.source_url)}</a>${o.seeded?'<span class="tag seeded">seeded</span>':""}</dd>
-        <dt>Read</dt><dd>${ago(o.as_of)}</dd></dl>`:"<p class='psub'>No value found on any source yet. Tally never guesses.</p>";
+        <dt>Read</dt><dd>${ago(o.as_of)}</dd></dl>`:(m.publication_label?`<p class="psub"><b>${esc(m.publication_label)}</b>. ${esc(m.publication_reason)} Original records are retained for review.</p>`:"<p class='psub'>No value found on any source yet. Tally never guesses.</p>");
     } else {
       const es=[...e.entries].sort((x,y)=>(y.is_new?1:0)-(x.is_new?1:0)), red={sum:"summed",avg:"averaged",max:"the largest is taken"}[e.reducer];
       ev=`<p class="psub">${es.length} ${es.length==1?"entry":"entries"}, each stored once by its link${red?", "+red:""}.</p><ul class="rows one">${es.map(x=>`<li class="${x.is_new?"new":""}">
@@ -523,7 +523,7 @@ async function followMetric(id){ await api(`/api/metrics/${id}/follow`,{}); toas
 /* ---------- one search box ---------- */
 let tplNames=null, sugT=null;
 const sugRow=(act,arg,main,sub,btn)=>`<div class="srow" data-act="${act}" data-arg="${esc(arg)}"><div><b>${main}</b>${sub?`<div class="when">${sub}</div>`:""}</div><span class="sbtn">${btn}</span></div>`;
-function catRow(m){const v=val(m.value,m.unit); return sugRow(m.on_board?"open":"follow",m.id,esc(m.title),`${v?v.text+" "+esc(v.unit):"no value yet"} · tracked by ${m.followers}${m.live?"":" · delayed"}`,m.on_board?"On your board":"Follow")}
+function catRow(m){const v=val(m.value,m.unit); return sugRow(m.on_board?"open":"follow",m.id,esc(m.title),`${v?v.text+" "+esc(v.unit):esc(m.publication_label||"no value yet")} · tracked by ${m.followers}${m.live?"":" · delayed"}`,m.on_board?"On your board":"Follow")}
 // What an angel or pre-seed investor looks for first: funding, hiring, launches, batches. Prices and ratings come last.
 const INV=[[/fund|raised|round|valuation/i,5],[/\byc\b|batch|accelerator/i,4],[/roles|hiring|headcount/i,4],[/launch/i,3],[/stars/i,1],[/price|plan|rating/i,0]];
 const invScore=m=>{const r=INV.find(x=>x[0].test(m.title)); return r?r[1]:2};
@@ -577,7 +577,7 @@ async function showResults(){
     found=CAT.map(m=>[score(m),m]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]||invScore(b[1])-invScore(a[1])||b[1].followers-a[1].followers).map(x=>x[1]);
   let h="";
   if(found.length) h+=`<div class="shead">In the catalog${found.length>7?" · "+found.length+" matches":""}</div>`+found.slice(0,7).map(m=>{const v=val(m.value,m.unit);
-    return sugRow(m.on_board?"open":"follow",m.id,hl(m.title,words),`${v?v.text+" "+esc(v.unit):"no value yet"} · tracked by ${m.followers}${m.live?"":" · delayed"}`,m.on_board?"On your board":"Follow")}).join("");
+    return sugRow(m.on_board?"open":"follow",m.id,hl(m.title,words),`${v?v.text+" "+esc(v.unit):esc(m.publication_label||"no value yet")} · tracked by ${m.followers}${m.live?"":" · delayed"}`,m.on_board?"On your board":"Follow")}).join("");
   if(found.filter(m=>!m.on_board).length>1&&isCompany(q)) h+=sugRow("followall",found.filter(m=>!m.on_board).slice(0,8).map(m=>m.id).join(","),`Follow all ${Math.min(found.filter(m=>!m.on_board).length,8)} for “${esc(q)}”`,"already tracked in the catalog: arrives at once, nothing to look up again","Follow all");
   let names=[];
   if(!ent&&q.length>=2){const l=q.toLowerCase(); names=entities().filter(e=>e.name.toLowerCase().startsWith(l)||(e.alias||"").toLowerCase().startsWith(l)||e.name.toLowerCase().split(/\s+/).some(w=>w.startsWith(l))).slice(0,5);

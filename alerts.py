@@ -13,6 +13,7 @@ from urllib.parse import quote
 
 import core
 import db
+import publication
 
 SITE = "https://tallycatalog.com"
 SENDER = os.environ.get("TALLY_MAIL_FROM", "Tally <alerts@tallycatalog.com>")
@@ -55,11 +56,11 @@ def send(to, subject, text, html):
 
 def _moves(uid, since):
     """What moved on the numbers this person follows, newest first."""
-    rows = db.q("SELECT c.metric_id, c.before, c.after, c.kind, c.note, c.at, m.title, m.kind AS metric_kind, m.unit FROM changes c JOIN metrics m ON m.id=c.metric_id "
+    rows = db.q("SELECT c.id, c.metric_id, c.before, c.after, c.kind, c.note, c.at, m.title, m.kind AS metric_kind, m.unit FROM changes c JOIN metrics m ON m.id=c.metric_id "
                 "JOIN board_items b ON b.metric_id=c.metric_id AND b.user=? AND b.muted=0 WHERE c.at>? AND COALESCE(c.status,'accepted')='accepted' ORDER BY c.at DESC LIMIT 200", (uid, since))
     seen, out = set(), []
     for c in rows:
-        if core.is_major(c["kind"], c["before"], c["after"], c["metric_kind"]) and c["metric_id"] not in seen:
+        if publication.visible_change(c) and core.is_major(c["kind"], c["before"], c["after"], c["metric_kind"]) and c["metric_id"] not in seen:
             seen.add(c["metric_id"])  # one line per number: its latest move
             out.append(c)
     return out
