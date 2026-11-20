@@ -33,6 +33,7 @@ import interest
 import cards
 import popular
 import lifecycle
+import demand
 import alerts
 
 HERE = os.path.dirname(__file__)
@@ -402,6 +403,12 @@ def _matches(words, hay):
 COMMON_WORDS = {"now", "net", "ma", "v", "hd", "dis", "ko", "coin", "mu", "ant", "meta", "uber", "shop", "cost", "amd", "ibm"} - {"amd", "ibm", "uber"}
 
 
+def _in_record(q):
+    """True when a search for these words finds a number or a company today."""
+    r = suggest(q)
+    return bool(r["numbers"] or r["boards"])
+
+
 @app.get("/api/suggest")
 def suggest(q: str = ""):
     """Numbers matching what was typed, for the search box on every public page: each with its current value and its page."""
@@ -436,7 +443,11 @@ def suggest(q: str = ""):
         t = tile(m, None)
         txt, unit = pp.fmt(t["value"], t["unit"])
         out.append({"id": m["id"], "title": m["title"], "value": (txt + (" " + unit if unit else "")) if txt else t.get("publication_label", "no value yet"), "path": pp.number_path(m)})
-    return {"numbers": out, "total": len(hits), "boards": versus + [{"name": n + (f" ({tick[n]})" if n in tick else ""), "count": c, "path": pp.subject_path(n)} for n, c in boards]}
+    wanted = None
+    if not out and not versus and not boards and demand.wellformed(q):  # nothing found, and it reads like a number: say what happens next
+        n = demand.count(q)
+        wanted = f"asked {n} times · Tally looks up what people keep asking for" if n >= 2 else "Tally looks up what people keep asking for"
+    return {"numbers": out, "total": len(hits), "wanted": wanted, "boards": versus + [{"name": n + (f" ({tick[n]})" if n in tick else ""), "count": c, "path": pp.subject_path(n)} for n, c in boards]}
 
 
 @app.get("/track")
@@ -1648,6 +1659,10 @@ def _autosync():
                 n = alerts.flush()
                 if n:
                     print("alert emails sent:", n)
+                if os.environ.get("TALLY_DEMAND", "1") != "0":
+                    looked = demand.due(_in_record, lambda q: lifecycle.create_curated(q)[:2])
+                    if looked:
+                        print("demand, looked up:", looked, flush=True)
                 added = popular.daily()
                 if added:
                     print("popular, added today:", added)
