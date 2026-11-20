@@ -9,6 +9,7 @@ Access tiers
 import env  # noqa: F401  loads .env first
 import json
 import os
+import re
 import secrets
 import threading
 import time
@@ -376,10 +377,26 @@ def _stem(w):
     return w[:-3] + "y" if w.endswith("ies") and len(w) > 4 else w[:-1] if w.endswith("s") and not w.endswith("ss") and len(w) > 3 else w
 
 
+# Other words people use for the same kind of number: any of them in the text counts as the word typed.
+_SAME = [("employee", "employees", "headcount", "staff", "workforce", "people", "team", "work", "works"), ("valuation", "valued", "worth", "value"),
+         ("funding", "raised", "raise", "funds", "investment"), ("revenue", "revenues", "sales", "income", "arr"), ("price", "pricing", "cost", "costs", "priced"),
+         ("stars", "star", "stargazers"), ("downloads", "download", "installs"), ("jobs", "roles", "openings", "postings", "hiring", "job"),
+         ("users", "user", "customers", "subscribers"), ("latest", "current", "now", "today", "recent"), ("vs", "versus", "compared")]
+SAME = {w: set(g) for g in _SAME for w in g}
+FILLER |= {"which", "who", "when", "was", "were", "its", "their", "there", "to", "on", "by", "and", "or", "it", "did", "per", "as", "with", "latest", "current", "recent", "most", "recently", "reported", "today", "now", "total", "company"}
+
+
+def _words(q):
+    """What was typed, as plain words: "Hume.ai's valuation?" -> hume, ai, valuation."""
+    return [w for w in re.split(r"[^a-z0-9+#]+", re.sub(r"['’]s\b", "", " ".join(q.lower().split())[:160])) if w]
+
+
 def _matches(words, hay):
-    """Every meaningful word typed is in the text, give or take a plural: "profound employees" finds "Profound · employee count"."""
+    """Every meaningful word typed is in the text, give or take a plural or another word for the same thing:
+    "profound employees" and "how many people work at Profound" both find "Profound · employee count"."""
+    words = [x for w in words for x in _words(w)] or words
     keep = [w for w in words if w not in FILLER] or words
-    return all(w in hay or _stem(w) in hay for w in keep)
+    return all(any(v in hay or _stem(v) in hay for v in SAME.get(w, {w}) | {w}) for w in keep)
 
 
 COMMON_WORDS = {"now", "net", "ma", "v", "hd", "dis", "ko", "coin", "mu", "ant", "meta", "uber", "shop", "cost", "amd", "ibm"} - {"amd", "ibm", "uber"}
@@ -400,6 +417,14 @@ def suggest(q: str = ""):
     tick = {r["subject"]: r["alias"].upper() for r in db.q("SELECT alias, subject FROM aliases WHERE kind='ticker'")}
     # a company, sector or investor whose name matches: its page lists every number tracked about it
     boards = sorted(((n, len(ids)) for n, ids in pp.groups().items() if len(ids) >= 2 and all(w in n.lower() for w in words)), key=lambda x: (x[0].lower() != " ".join(words), not x[0].lower().startswith(words[0]), -x[1]))[:3]
+    versus = []  # "openai vs anthropic" is a page of its own: the two side by side
+    low = [w.lower() for w in raw]
+    cut = next((i for i, w in enumerate(low) if w in ("vs", "vs.", "versus")), None)
+    if cut and cut < len(low) - 1:
+        names = {n.lower(): n for n, ids in pp.groups().items() if len(ids) >= 2}
+        left, right = names.get(" ".join(low[:cut])), names.get(" ".join(low[cut + 1:]))
+        if left and right and left != right:
+            versus = [{"name": f"{left} vs {right}", "count": 2, "path": pp.versus_path(left, right)}]
     hits = []
     for m in db.q(f"SELECT * FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id"):
         hay = " ".join([m["title"] or "", m["question"] or "", m.get("company") or "", m.get("unit") or ""]).lower()
@@ -411,7 +436,7 @@ def suggest(q: str = ""):
         t = tile(m, None)
         txt, unit = pp.fmt(t["value"], t["unit"])
         out.append({"id": m["id"], "title": m["title"], "value": (txt + (" " + unit if unit else "")) if txt else t.get("publication_label", "no value yet"), "path": pp.number_path(m)})
-    return {"numbers": out, "total": len(hits), "boards": [{"name": n + (f" ({tick[n]})" if n in tick else ""), "count": c, "path": pp.subject_path(n)} for n, c in boards]}
+    return {"numbers": out, "total": len(hits), "boards": versus + [{"name": n + (f" ({tick[n]})" if n in tick else ""), "count": c, "path": pp.subject_path(n)} for n, c in boards]}
 
 
 @app.get("/track")

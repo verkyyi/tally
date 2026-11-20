@@ -774,7 +774,9 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
         desc = publication.LABEL + ". " + publication.PENDING[m["id"]]["reason"]
     lede = f'<p class="lede">{esc(told)}</p>' if told else ""
     now_shown = not (per and not per["current"])  # a past period's page shows that period, not the latest move
-    body = f'<div class="crumb"><a href="/numbers">Numbers</a> / <a href="{subject_path(sub)}">{esc(sub)}</a></div><h1>{esc(m["title"])}</h1><p class="q">{esc(m["question"])}</p>{lede}<div class="card">'
+    # the question answered in a sentence, where a search engine or an assistant looks for it first
+    answer = f' <b style="color:var(--ink)">{esc(val)}</b>{", as of " + esc(asof) if asof else ""}.' if txt and now_shown and not publication.pending(m["id"]) else ""
+    body = f'<div class="crumb"><a href="/numbers">Numbers</a> / <a href="{subject_path(sub)}">{esc(sub)}</a></div><h1>{esc(m["title"])}</h1><p class="q">{esc(m["question"])}{answer}</p>{lede}<div class="card">'
     body += ('<div class="valrow">' + (f'<div class="val">{esc(txt)}<small>{esc(unit)}</small>{move_chip(pts, t["unit"]) if now_shown else ""}</div>' if txt else ('<div class="none">Pending verification</div>' if publication.pending(m["id"]) else '<div class="none">No value yet. Tally does not guess.</div>'))
              + f'<button class="follow" type="button" data-follow="{m["id"]}" aria-pressed="false">Follow</button></div>')
     if publication.pending(m["id"]):
