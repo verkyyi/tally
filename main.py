@@ -935,15 +935,8 @@ def public_subject(slug: str):
 
 
 def _rivals(name, ms, limit=4):
-    """Other subjects that share the most kinds of number with this one: the ones worth putting side by side."""
-    mine = {pp.what(m).lower() for m in ms.values()}
-    score = {}
-    for other, ids in pp.groups().items():
-        if other != name:
-            n = len(mine & {pp.what(core.metric(i)).lower() for i in ids})
-            if n >= 3:
-                score[other] = n
-    return sorted(score, key=lambda k: -score[k])[:limit]
+    """Other subjects worth putting side by side with this one: see _closest."""
+    return _closest(name, limit)
 
 
 def _subject_rows(name):
@@ -1195,16 +1188,65 @@ def copy_board(body: CopyBoard, request: Request):
 _pairs_cache = {"at": 0.0, "rows": []}
 
 
-def _pairs(per=2):
-    """Comparison pages worth listing: each subject with the few others that share most of its kinds of number.
-    One address per pair, names in alphabetical order. Kept for an hour."""
+_alike_cache = {"at": 0.0, "rows": {}}
+# Comparisons people look for by name. Listed when the record has both sides, whatever the scoring below would pick.
+CLASSIC = [("OpenAI", "Anthropic"), ("OpenAI", "Mistral AI"), ("OpenAI", "Perplexity"), ("Anthropic", "Mistral AI"), ("Mistral AI", "Cohere"), ("Anthropic", "Cohere"),
+           ("Cursor", "Lovable"), ("Cursor", "Replit"), ("Lovable", "Replit"), ("Cursor", "Cognition"), ("Figma", "Canva"), ("Databricks", "Snowflake"),
+           ("Stripe", "Brex"), ("Stripe", "Rippling"), ("Perplexity", "Glean"), ("Hugging Face", "Mistral AI"), ("ElevenLabs", "Runway"), ("Scale AI", "Mercor"),
+           ("LangChain", "LlamaIndex"), ("Supabase", "Vercel"), ("Vercel", "Cloudflare"), ("Linear", "Notion"), ("Airtable", "Notion"), ("Zapier", "n8n"),
+           ("Groq", "Cohere"), ("Tailscale", "Cloudflare"), ("NVIDIA", "AMD"), ("Microsoft", "Alphabet"), ("Datadog", "Snowflake")]
+_HEAD = ("latest valuation", "total funding raised", "annual revenue", "github stars", "employee count", "headcount")
+
+
+def _alike():
+    """For every subject: {other: (kinds of number shared, how far apart in size)}. Size is the gap, in powers of ten, on
+    the first headline number both have, so a company is put beside ones of its own scale and not beside whichever comes
+    first in the alphabet."""
+    import math
+    if time.time() - _alike_cache["at"] < 3600 and _alike_cache["rows"]:
+        return _alike_cache["rows"]
+    groups = pp.groups()
+    kinds, head = {}, {}
+    for n, ids in groups.items():
+        ms = [core.metric(i) for i in ids]
+        kinds[n] = {pp.what(m).lower() for m in ms if m}
+        head[n] = {}
+        for m in ms:
+            k = pp.what(m).lower() if m else ""
+            if k in _HEAD and k not in head[n]:
+                v = (core.latest_obs(m["id"]) or {}).get("value")
+                if v and v > 0:
+                    head[n][k] = v
+    out = {}
+    for a in kinds:
+        out[a] = {}
+        for b in kinds:
+            shared = len(kinds[a] & kinds[b]) if a != b else 0
+            if shared >= 3:
+                gap = next((abs(math.log10(head[a][k] / head[b][k])) for k in _HEAD if k in head[a] and k in head[b]), 9.0)
+                out[a][b] = (shared, gap)
+    _alike_cache.update(at=time.time(), rows=out)
+    return out
+
+
+def _closest(name, limit, alike=None):
+    """The subjects worth putting beside this one: those it is searched against by name first, then the most alike."""
+    near = (alike or _alike()).get(name, {})
+    names = {n.lower(): n for n in pp.groups()}
+    first = [names[y.lower()] for x, y in CLASSIC + [(b, a) for a, b in CLASSIC] if x.lower() == name.lower() and y.lower() in names]
+    rest = sorted((b for b in near if b not in first), key=lambda b: (near[b][1] > 1.0, -near[b][0], near[b][1], b))
+    return (first + rest)[:limit]
+
+
+def _pairs(per=3):
+    """Comparison pages worth listing: each subject with the few others most like it, and the comparisons people search for
+    by name. One address per pair, names in alphabetical order. Kept for an hour."""
     if time.time() - _pairs_cache["at"] < 3600 and _pairs_cache["rows"]:
         return _pairs_cache["rows"]
-    kinds = {n: {pp.what(core.metric(i)).lower() for i in ids} for n, ids in pp.groups().items()}
+    alike = _alike()
     out = set()
-    for a, mine in kinds.items():
-        score = {b: len(mine & theirs) for b, theirs in kinds.items() if b != a and len(mine & theirs) >= 3}
-        for b in sorted(score, key=lambda k: (-score[k], k))[:per]:
+    for a in alike:
+        for b in _closest(a, per, alike):
             out.add(tuple(sorted((a, b), key=pp.slug)))
     _pairs_cache.update(at=time.time(), rows=sorted(out))
     return _pairs_cache["rows"]
