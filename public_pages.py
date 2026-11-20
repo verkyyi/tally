@@ -1069,7 +1069,7 @@ def versus_page(a, b, rows_a, rows_b):
     # What people search these pages for comes first in the title and the description: revenue, valuation, funding, people.
     WANT = ("run-rate revenue", "latest valuation", "valuation at ipo", "valuation at acquisition", "annual revenue", "total funding raised", "quarterly revenue", "employee count", "headcount", "github stars")
     heads = [k for k in WANT if k in both and len(by_a[k]) == 1 and len(by_b[k]) == 1 and by_a[k][0][1]["value"] is not None and by_b[k][0][1]["value"] is not None]
-    short = lambda k: re.sub(r"^(latest|total) ", "", what(by_a[k][0][0])).replace(" raised", "")  # as the record writes it: "GitHub stars"
+    short = lambda k: "valuation" if k == "latest valuation" else re.sub(r"^(latest|total) ", "", what(by_a[k][0][0])).replace(" raised", "")  # as the record writes it: "GitHub stars"
     bare = lambda rows, k: one(rows) if (rows[0][1]["unit"] or "").lower().rstrip("s") not in k else (fmt(rows[0][1]["value"], rows[0][1]["unit"])[0] or "no value yet")  # "33,341", not "33,341 stars", after "GitHub stars"
     pairs = [(short(k), bare(by_a[k], k), bare(by_b[k], k)) for k in heads]
     lead = "; ".join(f"{k}: {a} {va}, {b} {vb}" for k, va, vb in pairs[:3]) or "; ".join(x for x, _ in listed[:2])
