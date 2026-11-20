@@ -883,7 +883,9 @@ def public_compare(a: int, b: int):
     if not ma or not mb or a == b:
         raise HTTPException(404, "pick two different numbers to compare")
     ta, tb = tile(ma, None), tile(mb, None)
-    return HTMLResponse(pp.compare_page(ma, mb, ta, tb, _public_series(ma, ta), _public_series(mb, tb), [(m, s) for m, s in _comparable(ma) if m["id"] != b]))
+    # Any two numbers can be put on one chart, so these addresses are endless and thin: people may open them, search engines need not keep them.
+    return HTMLResponse(pp.compare_page(ma, mb, ta, tb, _public_series(ma, ta), _public_series(mb, tb), [(m, s) for m, s in _comparable(ma) if m["id"] != b]),
+                        headers={"X-Robots-Tag": "noindex, follow"})
 
 
 @app.get("/c/{slug}")

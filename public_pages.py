@@ -999,7 +999,7 @@ def versus_page(a, b, rows_a, rows_b):
         groups.setdefault(category(by_a[k][0][0]), []).append(k)
     body = (f'<div class="crumb"><a href="/numbers">Numbers</a> / Compare</div>'
             f'<h1 style="display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px"><span style="white-space:nowrap">{logo_img(a, 40)}{esc(a)}</span><span style="color:var(--mute);font-weight:500">vs</span><span style="white-space:nowrap">{logo_img(b, 40)}{esc(b)}</span></h1>'
-            f'<p class="q">{len(both)} kinds of number tracked for both. In each row the two bars share one scale, so their lengths compare directly; the small chart shows both histories on one axis and opens the full comparison.</p>'
+            f'<!--vslead--><p class="q">{len(both)} kinds of number tracked for both. In each row the two bars share one scale, so their lengths compare directly; the small chart shows both histories on one axis and opens the full comparison.</p>'
             f'{share_bar(versus_path(a, b), f"{a} vs {b} in numbers, each with its history and source")}')
     trs = ""  # one table for every group, so the two companies' values sit in the same two columns all the way down
     for g in GROUPS:
@@ -1033,11 +1033,27 @@ def versus_page(a, b, rows_a, rows_b):
            ".vv:hover b{color:var(--accent)}.gap{display:block;font:13px var(--display);color:var(--mute);margin-bottom:5px}.gap b{color:var(--ink);font-weight:600}</style>")
     one = lambda rows: " ".join(x for x in fmt(rows[0][1]["value"], rows[0][1]["unit"]) if x) or "no value yet"
     listed = [(f"{by_a[k][0][0]['title'].split(' · ')[-1]}: {a} {one(by_a[k])}, {b} {one(by_b[k])}", number_path(by_a[k][0][0])) for g in GROUPS if g in groups for k in sorted(groups[g])]
-    lead = "; ".join(x for x, _ in listed[:2])
+    # What people search these pages for comes first in the title and the description: revenue, valuation, funding, people.
+    WANT = ("run-rate revenue", "latest valuation", "valuation at ipo", "valuation at acquisition", "annual revenue", "total funding raised", "quarterly revenue", "employee count", "headcount", "github stars")
+    heads = [k for k in WANT if k in both and len(by_a[k]) == 1 and len(by_b[k]) == 1 and by_a[k][0][1]["value"] is not None and by_b[k][0][1]["value"] is not None]
+    short = lambda k: re.sub(r"^(latest|total) ", "", k).replace(" raised", "")
+    pairs = [(short(k), one(by_a[k]), one(by_b[k])) for k in heads]
+    lead = "; ".join(f"{k}: {a} {va}, {b} {vb}" for k, va, vb in pairs[:3]) or "; ".join(x for x, _ in listed[:2])
+    said = " ".join(f"{k[0].upper() + k[1:]}: {a} {va}, {b} {vb}." for k, va, vb in pairs[:3])
+    body = body.replace("<!--vslead-->", f'<p style="font-size:17px;margin:10px 0 6px">{esc(said)}</p>' if said else "")
     x, y = sorted((a, b), key=slug)
     ld = ld_json(item_list(f"{a} vs {b} in numbers", listed), crumbs(("Numbers", "/numbers"), (a, subject_path(a)), (f"{a} vs {b}", versus_path(x, y)))) if listed else None
     kinds = ", ".join(plain_name({"title": x.split(":")[0]}) for x, _ in listed[:4]) or "side by side"
-    return shell(f"{a} vs {b}: {kinds} | Tally"[:110],
+    title = f"{a} vs {b}: {kinds} | Tally"[:110]
+    if pairs:  # the figures themselves, as many as fit a search result's title
+        title = f"{a} vs {b}"
+        for i, (k, va, vb) in enumerate(pairs[:3]):
+            more = f"{': ' if i == 0 else ', '}{k} {va} vs {vb}"
+            if len(title + more) > 92 and i:
+                break
+            title += more
+        title += " | Tally"
+    return shell(title,
                  f"{a} and {b} compared number by number. {lead + '. ' if lead else ''}{len(both)} figures tracked for both, each with its history and its source."[:300], versus_path(x, y), css + body, ld)
 
 
