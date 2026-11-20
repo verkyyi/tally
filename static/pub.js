@@ -10,6 +10,45 @@
   let mePromise;
   const me = fresh => (mePromise = (!fresh && mePromise) || fetch("/api/me").then(r => r.json()));
 
+  // ---- chart: point at any moment and read what the number was then. The value shown is the one on record at that moment
+  // (the last reading on or before it); nothing is filled in between readings. A click opens the page at that day.
+  document.querySelectorAll("svg[data-probe]").forEach(svg => {
+    let pts; try { pts = JSON.parse(svg.dataset.probe); } catch (e) { return; }
+    if (!pts || pts.length < 2) return;
+    const d = svg.dataset, n = k => parseFloat(d[k]), x0 = n("x0"), x1 = n("x1"), y0 = n("y0"), y1 = n("y1"), t0 = n("t0"), t1 = n("t1"), lo = n("lo"), hi = n("hi"), W = n("w"), step = d.step === "1";
+    const NS = "http://www.w3.org/2000/svg", el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); svg.appendChild(e); return e; };
+    const line = el("line", { y1: y0, y2: y1, stroke: "#0e1320", "stroke-opacity": ".35", "stroke-dasharray": "3 3", visibility: "hidden" });
+    const dot = el("circle", { r: 5, fill: "#2f5bff", stroke: "#fff", "stroke-width": 2, visibility: "hidden" });
+    const wrap = svg.parentNode; if (getComputedStyle(wrap).position === "static") wrap.style.position = "relative";
+    const tip = document.createElement("div");
+    tip.style.cssText = "position:absolute;top:6px;pointer-events:none;background:#0e1320;color:#fff;font:13px/1.35 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;padding:7px 10px;border-radius:8px;white-space:nowrap;visibility:hidden;z-index:2;box-shadow:0 4px 14px rgba(14,19,32,.18)";
+    wrap.appendChild(tip);
+    const day = t => new Date(t * 1000).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+    const iso = t => new Date(t * 1000).toISOString().slice(0, 10);
+    const X = t => x0 + (t - t0) / (t1 - t0) * (x1 - x0), Y = v => y0 + (1 - (v - lo) / (hi - lo)) * (y1 - y0);
+    let at = null;
+    const move = ev => {
+      const r = svg.getBoundingClientRect(), cx = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+      const t = Math.min(t1, Math.max(t0, t0 + (cx / r.width * W - x0) / (x1 - x0) * (t1 - t0)));
+      let a = 0, b = pts.length - 1;
+      while (a < b) { const m = (a + b + 1) >> 1; if (pts[m][0] <= t + 43200) a = m; else b = m - 1; }  // the last reading on or before this moment
+      const p = pts[a], px = step ? X(t) : X(p[0]);
+      at = step ? t : p[0];
+      line.setAttribute("x1", px); line.setAttribute("x2", px); dot.setAttribute("cx", px); dot.setAttribute("cy", Y(p[1]));
+      line.setAttribute("visibility", "visible"); dot.setAttribute("visibility", "visible");
+      const since = step && iso(p[0]) !== iso(t) ? `<br><span style="opacity:.7">since ${esc(day(p[0]))}${p[3] ? " · " + esc(p[3]) : ""}</span>` : (p[3] ? `<br><span style="opacity:.7">${esc(p[3])}</span>` : "");
+      tip.innerHTML = `<b>${esc(p[2])}</b> · ${esc(day(at))}${since}`;
+      tip.style.visibility = "visible";
+      const left = px / W * r.width + (svg.offsetLeft || 0);
+      tip.style.left = Math.max(4, Math.min(wrap.clientWidth - tip.offsetWidth - 4, left - tip.offsetWidth / 2)) + "px";
+    };
+    const hide = () => { [line, dot].forEach(e => e.setAttribute("visibility", "hidden")); tip.style.visibility = "hidden"; };
+    svg.style.cursor = "crosshair"; svg.style.touchAction = "pan-y";
+    svg.addEventListener("mousemove", move); svg.addEventListener("mouseleave", hide);
+    svg.addEventListener("touchstart", move, { passive: true }); svg.addEventListener("touchmove", move, { passive: true });
+    svg.addEventListener("click", () => { if (at !== null) { const u = new URL(location.href); u.searchParams.set("on", iso(at)); u.hash = "on"; location.href = u.toString(); } });
+  });
+
   // ---- search: numbers, each with its current value
   document.querySelectorAll("input[data-suggest]").forEach(input => {
     const box = document.createElement("div");

@@ -241,7 +241,7 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 <div class="sbox"><input type="search" data-suggest autocomplete="off" placeholder="Search a number" aria-label="Search a number"></div>
 <nav style="display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end;font-size:15px"><a href="/changes" style="text-decoration:none">What changed</a><a href="/numbers" style="text-decoration:none">All numbers</a><a href="/app" style="text-decoration:none;font-weight:600">Your board</a></nav></header>
 {body}
-<script src="/static/pub.js?v=12" defer></script>
+<script src="/static/pub.js?v=13" defer></script>
 <footer>The record is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>, for the compilation Tally makes: <a href="/terms#data">what that covers</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>, or take the whole record from the <a href="https://github.com/verkyyi/tally-data" rel="noopener">open dataset</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
 <a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/corrections">Corrections</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
@@ -401,7 +401,8 @@ def chart(pts, unit, w=820, h=280, card=False, versions=(), step=False, other=No
     events: name the steps whose event is known (a round, a price change) beside the line."""
     from datetime import datetime as _dt
     stamp = lambda ps: [_dt.strptime(p["at"][:10], "%Y-%m-%d").timestamp() for p in ps]
-    pts = _thin([p for p in pts if p.get("value") is not None])
+    every = [p for p in pts if p.get("value") is not None]  # all of them: the chart can be asked for the value at any moment
+    pts = _thin(every)
     if len(pts) < 2:
         return ""
     ts, vs = stamp(pts), [p["value"] for p in pts]
@@ -482,7 +483,13 @@ def chart(pts, unit, w=820, h=280, card=False, versions=(), step=False, other=No
             placed.append((tx, ty))
             named += (f'<text x="{tx:.1f}" y="{ty:.1f}" text-anchor="{"end" if right else "start"}" font-size="11" font-weight="600" fill="#0e1320" '
                       f'stroke="#fff" stroke-width="3" paint-order="stroke">{esc(_short(pts[i]["label"]))}</text>')
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" role="img" aria-label="History chart" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" '
+    probe = ""
+    if not card and not vs2:  # what the page's script needs to answer "what was it here": every point, and how time and value map onto the drawing
+        import json as _json
+        data = [[int(t), p["value"], " ".join(x for x in fmt(p["value"], unit) if x), (p.get("label") or "")[:60]] for t, p in zip(stamp(_thin(every, 1500)), _thin(every, 1500))]
+        probe = (f' data-probe="{esc(_json.dumps(data, separators=(",", ":")))}" data-x0="{L}" data-x1="{w - R}" data-y0="{T}" data-y1="{h - B}" data-t0="{int(t0)}" data-t1="{int(t1)}" '
+                 f'data-lo="{lo}" data-hi="{hi}" data-step="{1 if step else 0}" data-w="{w}" data-h="{h}"')
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}"{probe} role="img" aria-label="History chart" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif" '
             f'style="width:100%;height:auto;display:block">{marks}{grid}<path d="{area}" fill="#2f5bff" fill-opacity="{".05" if vs2 else ".09"}"/>'
             f'<path d="{line}" fill="none" stroke="#2f5bff" stroke-width="2" stroke-linejoin="round"/><circle cx="{X(ts[-1]):.1f}" cy="{Y(vs[-1]):.1f}" r="4" fill="#2f5bff"/>{second}{named}</svg>')
 
