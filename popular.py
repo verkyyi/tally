@@ -21,7 +21,8 @@ def candidates():
 
 
 def has(name):
-    return bool(db.one("SELECT 1 x FROM metrics WHERE lower(title)=?", (f"{name} · latest valuation".lower(),)))
+    # a company that was listed or acquired keeps its valuation under another name: it is still in the catalog
+    return bool(db.one("SELECT 1 x FROM metrics WHERE lower(title) IN (?,?,?)", tuple(f"{name} · {k}".lower() for k in ("latest valuation", "valuation at ipo", "valuation at acquisition"))))
 
 
 def ranked(limit=200):
