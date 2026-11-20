@@ -19,6 +19,7 @@ KINDS = [("funding", r"total funding|funding raised|raised in total|raised to da
          ("valuation", r"valuation|valued|worth"), ("headcount", r"headcount|employee|staff|people work"), ("revenue", r"revenue|\barr\b|run-rate|run rate"),
          ("jobs", r"open (engineering |sales )?roles|job postings|openings"), ("price", r"price|pricing|per seat|/mo\b|plan\b"), ("stars", r"github stars|\bstars\b"),
          ("downloads", r"downloads"), ("users", r"users|customers|subscribers")]
+SECOND_HAND = {"en.wikipedia.org", "linkedin.com"}  # may hold a figure, but are never where it was first reported: not recommended as a place to start
 DEAD = 3  # a site that failed this many times for a kind of number, and never once gave a usable figure, is not tried again for it
 
 
@@ -81,7 +82,7 @@ def brief(question):
     kind, who, out = kind_of(question), company_in(question), []
     if kind:
         rows = sorted(_table(kind).values(), key=lambda r: -r["ok"])
-        good = [r for r in rows if r["ok"] >= 2][:5]
+        good = [r for r in rows if r["ok"] >= 2 and r["host"] not in SECOND_HAND][:5]
         bad = [r for r in rows if r["ok"] == 0 and r["bad"] >= DEAD][:5]
         if good:
             out.append(f"Sites that have stated a {kind} figure that passed review before (most often first): " + ", ".join(f'{r["host"]} ({r["ok"]})' for r in good) + ".")
