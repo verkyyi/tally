@@ -576,7 +576,7 @@ def compare_page(a, b, ta, tb, pa, pb, others=(), named=None):
         body += (f'<h2>Compare {esc(subject(a))} with</h2><div class="cols">' + "".join(f'<a href="{esc(compare_path(a, m))}">{esc(label)}</a>' for m, label in others) + "</div>")
     if named:  # the same kind of number for two companies has an address of its own, with the two figures in its title
         sa, sb, kind = subject(a), subject(b), plain_name({"title": what(a)})
-        one = lambda v: (v[0] if (v[1] or "").lower() in kind.lower() and v[1] else " ".join(x for x in v if x)) or "no value yet"
+        one = lambda v: (v[0] if (v[1] or "").lower().rstrip("s") in kind.lower() and v[1] else " ".join(x for x in v if x)) or "no value yet"
         title = f"{sa} vs {sb} {kind}: {one(va)} vs {one(vb)} | Tally"
         desc = f"{sa} {kind}: {one(va)}. {sb} {kind}: {one(vb)}. Both histories on one chart, every point with its source."
         said = f'<p style="font-size:17px;margin:10px 0 6px">{esc(sa)} {esc(kind)}: <b>{esc(one(va))}</b>. {esc(sb)} {esc(kind)}: <b>{esc(one(vb))}</b>.</p>'
@@ -684,7 +684,7 @@ def plain_name(m):
     """A number's name as people type it: 'OpenAI · latest valuation' -> 'OpenAI valuation'."""
     who, _, kind = (m.get("title") or "").rpartition(" · ")
     kind = re.sub(r"^(.*), (weekly|monthly|daily|quarterly|annual)$", r"\2 \1", kind)  # 'npm downloads, weekly' -> 'weekly npm downloads'
-    return re.sub(r"\s+", " ", re.sub(r"\blatest\b ?", "", f"{who} {kind}".replace(" · ", " "), flags=re.I)).strip()
+    return re.sub(r"\s+", " ", re.sub(r"\(latest\)|\blatest\b ?", "", f"{who} {kind}".replace(" · ", " "), flags=re.I)).strip()
 
 
 def story(m, pts):
@@ -1063,7 +1063,7 @@ def versus_page(a, b, rows_a, rows_b):
     WANT = ("run-rate revenue", "latest valuation", "valuation at ipo", "valuation at acquisition", "annual revenue", "total funding raised", "quarterly revenue", "employee count", "headcount", "github stars")
     heads = [k for k in WANT if k in both and len(by_a[k]) == 1 and len(by_b[k]) == 1 and by_a[k][0][1]["value"] is not None and by_b[k][0][1]["value"] is not None]
     short = lambda k: re.sub(r"^(latest|total) ", "", what(by_a[k][0][0])).replace(" raised", "")  # as the record writes it: "GitHub stars"
-    bare = lambda rows, k: one(rows) if (rows[0][1]["unit"] or "").lower() not in k else (fmt(rows[0][1]["value"], rows[0][1]["unit"])[0] or "no value yet")  # "33,341", not "33,341 stars", after "GitHub stars"
+    bare = lambda rows, k: one(rows) if (rows[0][1]["unit"] or "").lower().rstrip("s") not in k else (fmt(rows[0][1]["value"], rows[0][1]["unit"])[0] or "no value yet")  # "33,341", not "33,341 stars", after "GitHub stars"
     pairs = [(short(k), bare(by_a[k], k), bare(by_b[k], k)) for k in heads]
     lead = "; ".join(f"{k}: {a} {va}, {b} {vb}" for k, va, vb in pairs[:3]) or "; ".join(x for x, _ in listed[:2])
     said = " ".join(f"{k[0].upper() + k[1:]}: {a} {va}, {b} {vb}." for k, va, vb in pairs[:3])
