@@ -403,6 +403,61 @@ def _matches(words, hay):
 COMMON_WORDS = {"now", "net", "ma", "v", "hd", "dis", "ko", "coin", "mu", "ant", "meta", "uber", "shop", "cost", "amd", "ibm"} - {"amd", "ibm", "uber"}
 
 
+_JOIN = {"vs", "vs.", "versus", "and", "&", "compare", "compared", "to", "with", "or"}
+
+
+def _subject_for(words, names, sizes, aliases):
+    """The company these words name: its name, another name it goes by, or the start of its name ("ant" is Anthropic,
+    "hugging" is Hugging Face). When several start that way, the one with the most numbers tracked."""
+    text = " ".join(words)
+    if text in names:
+        return names[text]
+    if text in aliases and aliases[text].lower() in names:
+        return names[aliases[text].lower()]
+    if len(text) < 3:
+        return None
+    starts = [n for low, n in names.items() if low.startswith(text)] or ([n for low, n in names.items() if any(w.startswith(text) for w in low.split())] if len(words) == 1 else [])
+    return max(starts, key=lambda n: (sizes[n], -len(n))) if starts else None
+
+
+def _versus_for(raw):
+    """Comparison pages for what was typed, when it names two different companies, with or without "vs" between them.
+    Words left over say which number is meant ("openai anthropic revenue"): each kind both have gets its own line."""
+    low = [w for w in (x.lower().strip(",") for x in raw) if w and w not in _JOIN]
+    if not 2 <= len(low) <= 7:
+        return []
+    groups = pp.groups()
+    names = {n.lower(): n for n in groups}
+    sizes = {n: len(ids) for n, ids in groups.items()}
+    aliases = {r["alias"]: r["subject"] for r in db.q("SELECT alias, subject FROM aliases") if r["alias"] not in COMMON_WORDS}
+    if any(n.startswith(" ".join(low)) for n in names):  # one company's name, still being typed
+        return []
+    fallback = []
+    for i in range(1, len(low)):
+        a = _subject_for(low[:i], names, sizes, aliases)
+        if not a:
+            continue
+        for j in range(len(low), i, -1):
+            b = _subject_for(low[i:j], names, sizes, aliases)
+            if not b or b == a:
+                continue
+            rest = low[j:]
+            ra, rb = _subject_rows(pp.slug(a))[1], _subject_rows(pp.slug(b))[1]
+            shared = []
+            for m, t, n in ra:
+                k = pp.what(m)
+                mb = _of_kind(rb, b, pp.slug(k)) if _of_kind(ra, a, pp.slug(k)) else None
+                if mb and (not rest or _matches(rest, k.lower())) and (rest or k.lower() in _HEAD + ("run-rate revenue",)):
+                    one = lambda t: " ".join(x for x in pp.fmt(t["value"], t["unit"]) if x) or "no value yet"
+                    shared.append({"name": f"{a} vs {b} {pp.plain_name({'title': k})}", "count": 2, "vs": True, "note": f"{one(t)} vs {one(tile(mb, None))}", "path": pp.versus_kind_path(a, b, k)})
+            both = [{"name": f"{a} vs {b}", "count": 2, "vs": True, "path": pp.versus_path(a, b)}]
+            if rest and not shared:
+                fallback = fallback or both  # the words left over are not a number both have: try another split, else the two side by side
+                continue
+            return both + shared[:3]
+    return fallback
+
+
 def _in_record(q):
     """True when a search for these words finds a number or a company today."""
     r = suggest(q)
@@ -424,14 +479,12 @@ def suggest(q: str = ""):
     tick = {r["subject"]: r["alias"].upper() for r in db.q("SELECT alias, subject FROM aliases WHERE kind='ticker'")}
     # a company, sector or investor whose name matches: its page lists every number tracked about it
     boards = sorted(((n, len(ids)) for n, ids in pp.groups().items() if len(ids) >= 2 and all(w in n.lower() for w in words)), key=lambda x: (x[0].lower() != " ".join(words), not x[0].lower().startswith(words[0]), -x[1]))[:3]
-    versus = []  # "openai vs anthropic" is a page of its own: the two side by side
-    low = [w.lower() for w in raw]
-    cut = next((i for i, w in enumerate(low) if w in ("vs", "vs.", "versus")), None)
-    if cut and cut < len(low) - 1:
-        names = {n.lower(): n for n, ids in pp.groups().items() if len(ids) >= 2}
-        left, right = names.get(" ".join(low[:cut])), names.get(" ".join(low[cut + 1:]))
-        if left and right and left != right:
-            versus = [{"name": f"{left} vs {right}", "count": 2, "vs": True, "path": pp.versus_path(left, right)}]
+    try:
+        versus = _versus_for(raw)
+    except Exception as e:  # a suggestion is a convenience: search must answer even when this fails
+        versus = []
+        print("versus suggestion failed:", type(e).__name__, str(e)[:120])
+    # two companies typed together are a comparison: "openai vs anthropic", "ant open", "msft nvda revenue"
     hits = []
     for m in db.q(f"SELECT * FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id"):
         hay = " ".join([m["title"] or "", m["question"] or "", m.get("company") or "", m.get("unit") or ""]).lower()

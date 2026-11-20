@@ -241,7 +241,7 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 <div class="sbox"><input type="search" data-suggest autocomplete="off" placeholder="Search a number" aria-label="Search a number"></div>
 <nav style="display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end;font-size:15px"><a href="/changes" style="text-decoration:none">What changed</a><a href="/numbers" style="text-decoration:none">All numbers</a><a href="/app" style="text-decoration:none;font-weight:600">Your board</a></nav></header>
 {body}
-<script src="/static/pub.js?v=11" defer></script>
+<script src="/static/pub.js?v=12" defer></script>
 <footer>The record is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>, for the compilation Tally makes: <a href="/terms#data">what that covers</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>, or take the whole record from the <a href="https://github.com/verkyyi/tally-data" rel="noopener">open dataset</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
 <a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/corrections">Corrections</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 

@@ -21,3 +21,21 @@ class SearchWords(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TwoCompanies(unittest.TestCase):
+    NAMES = {"anthropic": "Anthropic", "anthropic sdk": "Anthropic SDK", "openai": "OpenAI", "open webui": "Open WebUI", "hugging face": "Hugging Face", "microsoft": "Microsoft"}
+    SIZES = {"Anthropic": 39, "Anthropic SDK": 2, "OpenAI": 26, "Open WebUI": 1, "Hugging Face": 3, "Microsoft": 5}
+
+    def who(self, text):
+        return main._subject_for(text.split(), self.NAMES, self.SIZES, {"msft": "Microsoft"})
+
+    def test_the_start_of_a_name_finds_the_company_most_tracked(self):
+        self.assertEqual(self.who("ant"), "Anthropic")
+        self.assertEqual(self.who("open"), "OpenAI")
+        self.assertEqual(self.who("hugging"), "Hugging Face")
+        self.assertEqual(self.who("msft"), "Microsoft")
+
+    def test_too_little_or_nothing_like_a_name_finds_no_one(self):
+        self.assertIsNone(self.who("ai"))
+        self.assertIsNone(self.who("valuation"))
