@@ -546,7 +546,7 @@ def compare_path(a, b):
     return f"/compare?a={a['id']}&b={b['id']}"
 
 
-def compare_page(a, b, ta, tb, pa, pb, others=()):
+def compare_page(a, b, ta, tb, pa, pb, others=(), named=None):
     """Two numbers on one chart. a, b: metric rows; ta, tb: signed-out tiles; pa, pb: their public series; others: [(metric, label)] to swap in for b."""
     same = (ta["unit"] or "") == (tb["unit"] or "")
     ca, cb = brand.pair(subject(a), subject(b)) if subject(a) != subject(b) else ("#2f5bff", C2)
@@ -574,6 +574,14 @@ def compare_page(a, b, ta, tb, pa, pb, others=()):
     body += f'<div class="cta"><a class="btn ghost" href="{esc(compare_path(b, a))}">Swap</a><a class="btn ghost" href="/n/{a["id"]}/history.csv">CSV: {esc(subject(a))}</a><a class="btn ghost" href="/n/{b["id"]}/history.csv">CSV: {esc(subject(b))}</a></div>'
     if others:
         body += (f'<h2>Compare {esc(subject(a))} with</h2><div class="cols">' + "".join(f'<a href="{esc(compare_path(a, m))}">{esc(label)}</a>' for m, label in others) + "</div>")
+    if named:  # the same kind of number for two companies has an address of its own, with the two figures in its title
+        sa, sb, kind = subject(a), subject(b), plain_name({"title": what(a)})
+        one = lambda v: " ".join(x for x in v if x) or "no value yet"
+        title = f"{sa} vs {sb} {kind}: {one(va)} vs {one(vb)} | Tally"
+        desc = f"{sa} {kind}: {one(va)}. {sb} {kind}: {one(vb)}. Both histories on one chart, every point with its source."
+        said = f'<p style="font-size:17px;margin:10px 0 6px">{esc(sa)} {esc(kind)}: <b>{esc(one(va))}</b>. {esc(sb)} {esc(kind)}: <b>{esc(one(vb))}</b>.</p>'
+        body = body.replace("</h1>", f" {esc(kind)}</h1>{said}", 1) + f'<div class="cta"><a class="btn ghost" href="{esc(versus_path(sa, sb))}">{esc(sa)} vs {esc(sb)}: every number</a></div>'
+        return shell(title[:110], desc[:300], named, body)
     return shell(title[:110], desc[:300], compare_path(a, b), body)
 
 
@@ -942,6 +950,12 @@ def versus_path(a, b):
     return f"/vs/{slug(a)}/{slug(b)}"
 
 
+def versus_kind_path(a, b, kind):
+    """The address of one kind of number for two companies, names in alphabetical order: /vs/anthropic/openai/annual-revenue."""
+    x, y = sorted((a, b), key=slug)
+    return f"/vs/{slug(x)}/{slug(y)}/{slug(kind)}"
+
+
 def _pair_spark(pa, pb, step_a=False, step_b=False, w=132, h=34, colours=("#2f5bff", "#e8590c")):
     """Two histories on one small chart, sharing one value axis from zero, so the gap between the lines is the real gap."""
     from datetime import datetime as _dt
@@ -1016,7 +1030,10 @@ def versus_page(a, b, rows_a, rows_b):
             if pa and pb and len(ra) == 1 and len(rb) == 1:
                 svg = _pair_spark(core.series(pa[0]["id"]), core.series(pb[0]["id"]), core.stepped(pa[0]), core.stepped(pb[0]), colours=(ca, cb))
                 spark = f'<a href="{esc(compare_path(pa[0], pb[0]))}" title="Both histories on one chart" aria-label="{esc(what(ra[0][0]))}: both histories on one chart">{svg}</a>' if svg else ""
-            trs += f'<tr><td>{esc(what(ra[0][0]))}</td><td>{cell(ra, top, ca)}</td><td>{cell(rb, top, cb)}</td><td>{gap(ra, rb)}{spark}</td></tr>'
+            label = esc(what(ra[0][0]))
+            if len(ra) == 1 and len(rb) == 1 and subject(ra[0][0]) == a and subject(rb[0][0]) == b:
+                label = f'<a href="{esc(versus_kind_path(a, b, what(ra[0][0])))}" style="color:inherit">{label}</a>'
+            trs += f'<tr><td>{label}</td><td>{cell(ra, top, ca)}</td><td>{cell(rb, top, cb)}</td><td>{gap(ra, rb)}{spark}</td></tr>'
     if trs:
         key = lambda name, col: f'{logo_img(name, 22)}{esc(name)}<span title="{esc(name)}\'s colour in the bars and charts below" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{col};margin-left:8px;vertical-align:middle"></span>'
         body += (f'<div style="overflow-x:auto;margin-top:18px"><table class="pts vs"><colgroup><col style="width:27%"><col style="width:27%"><col style="width:27%"><col style="width:19%"></colgroup>'

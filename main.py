@@ -959,6 +959,24 @@ def versus(a: str, b: str):
     return HTMLResponse(pp.versus_page(na, nb, ra, rb))
 
 
+def _of_kind(rows, name, kind):
+    """The one number of this kind that is about the company itself (not one of its products), or None."""
+    mine = [m for m, t, n in rows if pp.slug(pp.what(m)) == kind and pp.subject(m) == name and m["title"].split(" · ")[0] == name]
+    return mine[0] if len(mine) == 1 else None
+
+
+@app.get("/vs/{a}/{b}/{kind}")
+def versus_kind(a: str, b: str, kind: str):
+    """One kind of number for two companies, on one chart: /vs/anthropic/openai/annual-revenue."""
+    na, ra = _subject_rows(a)
+    nb, rb = _subject_rows(b)
+    ma, mb = (_of_kind(ra, na, kind), _of_kind(rb, nb, kind)) if na and nb and na != nb else (None, None)
+    if not ma or not mb:
+        raise HTTPException(404, "no such comparison")
+    ta, tb = tile(ma, None), tile(mb, None)
+    return HTMLResponse(pp.compare_page(ma, mb, ta, tb, _public_series(ma, ta), _public_series(mb, tb), named=pp.versus_kind_path(na, nb, pp.what(ma))))
+
+
 @app.get("/c/{slug}/card.png")
 def subject_card(slug: str):
     for name, ids in pp.groups().items():
@@ -1270,6 +1288,14 @@ def sitemap():
     urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
     urls += [(pp.subject_path(n), of(n)) for n in groups]
     urls += [(pp.versus_path(a, b), max(of(a), of(b))) for a, b in _pairs()]
+    names = {n.lower(): n for n in groups}
+    for x, y in CLASSIC:  # for the comparisons people search by name, each headline number has its own page
+        if x.lower() in names and y.lower() in names:
+            x, y = names[x.lower()], names[y.lower()]
+            rx, ry = _subject_rows(pp.slug(x))[1], _subject_rows(pp.slug(y))[1]
+            for k in _HEAD + ("run-rate revenue",):
+                if _of_kind(rx, x, pp.slug(k)) and _of_kind(ry, y, pp.slug(k)):
+                    urls.append((pp.versus_kind_path(x, y, k), max(of(x), of(y))))
     urls += [(pp.number_path(m), changed.get(m["id"], "")) for m in db.q(f"SELECT id, title FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id")]
     body = ('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
             + "".join(f"<url><loc>{pp.SITE}{pp.esc(u)}</loc>{f'<lastmod>{d}</lastmod>' if d else ''}</url>" for u, d in urls) + "</urlset>")
