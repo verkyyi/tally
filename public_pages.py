@@ -241,7 +241,7 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 <div class="sbox"><input type="search" data-suggest autocomplete="off" placeholder="Search a number" aria-label="Search a number"></div>
 <nav style="display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end;font-size:15px"><a href="/changes" style="text-decoration:none">What changed</a><a href="/numbers" style="text-decoration:none">All numbers</a><a href="/app" style="text-decoration:none;font-weight:600">Your board</a></nav></header>
 {body}
-<script src="/static/pub.js?v=10" defer></script>
+<script src="/static/pub.js?v=11" defer></script>
 <footer>The record is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>, for the compilation Tally makes: <a href="/terms#data">what that covers</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>, or take the whole record from the <a href="https://github.com/verkyyi/tally-data" rel="noopener">open dataset</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
 <a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/corrections">Corrections</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
@@ -576,7 +576,7 @@ def compare_page(a, b, ta, tb, pa, pb, others=(), named=None):
         body += (f'<h2>Compare {esc(subject(a))} with</h2><div class="cols">' + "".join(f'<a href="{esc(compare_path(a, m))}">{esc(label)}</a>' for m, label in others) + "</div>")
     if named:  # the same kind of number for two companies has an address of its own, with the two figures in its title
         sa, sb, kind = subject(a), subject(b), plain_name({"title": what(a)})
-        one = lambda v: " ".join(x for x in v if x) or "no value yet"
+        one = lambda v: (v[0] if (v[1] or "").lower() in kind.lower() and v[1] else " ".join(x for x in v if x)) or "no value yet"
         title = f"{sa} vs {sb} {kind}: {one(va)} vs {one(vb)} | Tally"
         desc = f"{sa} {kind}: {one(va)}. {sb} {kind}: {one(vb)}. Both histories on one chart, every point with its source."
         said = f'<p style="font-size:17px;margin:10px 0 6px">{esc(sa)} {esc(kind)}: <b>{esc(one(va))}</b>. {esc(sb)} {esc(kind)}: <b>{esc(one(vb))}</b>.</p>'
@@ -774,6 +774,13 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     val = txt + (" " + unit if unit else "") if txt else t.get("publication_label", "no value yet")
     pts = list(pts)
     stamp = pts[-1]["at"] if pts and core.reported_by_period(m) else (t.get("as_of") or t.get("last_checked") or "")  # a quarter's figure is dated by its quarter, not by when it was read
+    if pts and core.stepped(m) and not core.reported_by_period(m):  # a round or a price holds from the day it was set: the title carries that day, not today's reading
+        held = pts[-1]
+        for q in reversed(pts):
+            if q["value"] != pts[-1]["value"]:
+                break
+            held = q
+        stamp = held["at"]
     title = (f'{plain_name(m)} history: {val} ({datetime.strptime(stamp[:10], "%Y-%m-%d").strftime("%b %Y")}) | Tally' if told and asof
              else f'{m["title"]}: {val} | Tally')
     desc = (f'{m["question"]} {txt}{" " + unit if unit else ""}{", as of " + asof if asof else ""}. {told or "Tracked on Tally with its source and history."}'[:300] if txt
@@ -1055,8 +1062,9 @@ def versus_page(a, b, rows_a, rows_b):
     # What people search these pages for comes first in the title and the description: revenue, valuation, funding, people.
     WANT = ("run-rate revenue", "latest valuation", "valuation at ipo", "valuation at acquisition", "annual revenue", "total funding raised", "quarterly revenue", "employee count", "headcount", "github stars")
     heads = [k for k in WANT if k in both and len(by_a[k]) == 1 and len(by_b[k]) == 1 and by_a[k][0][1]["value"] is not None and by_b[k][0][1]["value"] is not None]
-    short = lambda k: re.sub(r"^(latest|total) ", "", k).replace(" raised", "")
-    pairs = [(short(k), one(by_a[k]), one(by_b[k])) for k in heads]
+    short = lambda k: re.sub(r"^(latest|total) ", "", what(by_a[k][0][0])).replace(" raised", "")  # as the record writes it: "GitHub stars"
+    bare = lambda rows, k: one(rows) if (rows[0][1]["unit"] or "").lower() not in k else (fmt(rows[0][1]["value"], rows[0][1]["unit"])[0] or "no value yet")  # "33,341", not "33,341 stars", after "GitHub stars"
+    pairs = [(short(k), bare(by_a[k], k), bare(by_b[k], k)) for k in heads]
     lead = "; ".join(f"{k}: {a} {va}, {b} {vb}" for k, va, vb in pairs[:3]) or "; ".join(x for x, _ in listed[:2])
     said = " ".join(f"{k[0].upper() + k[1:]}: {a} {va}, {b} {vb}." for k, va, vb in pairs[:3])
     body = body.replace("<!--vslead-->", f'<p style="font-size:17px;margin:10px 0 6px">{esc(said)}</p>' if said else "")

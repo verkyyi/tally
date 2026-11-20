@@ -431,7 +431,7 @@ def suggest(q: str = ""):
         names = {n.lower(): n for n, ids in pp.groups().items() if len(ids) >= 2}
         left, right = names.get(" ".join(low[:cut])), names.get(" ".join(low[cut + 1:]))
         if left and right and left != right:
-            versus = [{"name": f"{left} vs {right}", "count": 2, "path": pp.versus_path(left, right)}]
+            versus = [{"name": f"{left} vs {right}", "count": 2, "vs": True, "path": pp.versus_path(left, right)}]
     hits = []
     for m in db.q(f"SELECT * FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id"):
         hay = " ".join([m["title"] or "", m["question"] or "", m.get("company") or "", m.get("unit") or ""]).lower()
