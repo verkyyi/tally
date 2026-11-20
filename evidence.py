@@ -1,6 +1,6 @@
 """Fail-closed evidence review shared by daily reads and recipe agents.
 
-Non-exact statements remain review candidates, never scalar chart points.
+Bounds and ranges remain review candidates, never scalar chart points. A figure the source calls "about" is recorded and labelled approximate.
 """
 import json
 import math
@@ -71,8 +71,12 @@ def rejection(m, ex):
     if any(r.get(k) is not True for k in ("supported", "entity_matches", "scope_matches")) or not r.get("entity") or not r.get("scope"):
         return "Missing or mismatched entity/metric evidence"
     q = re.sub(r"\b\d{4}-\d{2}-\d{2}\b", "", ex.get("quote") or "")
-    if r.get("qualifier") != "exact" or re.search(r"\b(fewer than|less than|more than|at least|at most|about|approximately|roughly|over|under)\s+\$?\d|\d\s*\+|\d\s*[-–]\s*\d", q, re.I):
+    # A bound or a range is not one number, and stays a review candidate. A figure a source gives as "about" is the figure
+    # the source reported: it is recorded, and marked approximate so the page says "about" too.
+    if r.get("qualifier") not in ("exact", "approximate") or re.search(r"\b(fewer than|less than|more than|at least|at most|up to|over|under)\s+\$?\d|\d\s*\+|\d\s*[-–]\s*\d", q, re.I):
         return "Qualified value retained for review, not an exact scalar"
+    if r.get("qualifier") == "approximate" or re.search(r"\b(about|approximately|roughly|around|nearly|almost|circa|some)\s+\$?\d|[~≈]\s*\$?\d", q, re.I):
+        r["approximate"] = True
     d = day(r.get("effective_date"))
     source = day(r.get("source_date"))
     today = db.now()[:10]

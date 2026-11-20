@@ -60,7 +60,7 @@ class AccuracyTests(unittest.TestCase):
         self.notify.assert_not_called()
 
     def test_qualified_facts_preserved_only_in_review(self):
-        for qualifier, phrase, value in [('less_than', 'fewer than 120', 120), ('at_least', '100+', 100), ('approximate', 'about 300', 300), ('range', '201-500', 201)]:
+        for qualifier, phrase, value in [('less_than', 'fewer than 120', 120), ('at_least', '100+', 100), ('range', '201-500', 201)]:
             with self.subTest(qualifier=qualifier):
                 res = self.result(value, f'Acme has {phrase} employees.')
                 r = self.review(); r['qualifier'] = qualifier
@@ -69,6 +69,21 @@ class AccuracyTests(unittest.TestCase):
                 payload = json.loads(db.q('SELECT * FROM evidence_reviews')[-1]['payload'])
                 self.assertEqual(payload['_review']['qualifier'], qualifier)
         self.assertFalse(db.q('SELECT * FROM observations'))
+
+    def test_an_approximate_figure_is_recorded_and_labelled(self):
+        res = self.result(300, 'Acme has about 300 employees.')
+        r = self.review(); r['qualifier'] = 'approximate'
+        self.assertEqual(self.verify(res, r)[1], 300)
+        core.record_direct(self.m, res, 'test')
+        o = core.latest_obs(self.m['id'])
+        self.assertEqual((o['value'], o['label']), (300, core.APPROX))
+        self.assertTrue(json.loads(o['evidence_json'])['approximate'])
+
+    def test_about_in_the_quote_is_approximate_even_if_the_reviewer_says_exact(self):
+        res = self.result(300, 'Acme has roughly 300 employees.')
+        self.assertEqual(self.verify(res)[1], 300)
+        core.record_direct(self.m, res, 'test')
+        self.assertEqual(core.latest_obs(self.m['id'])['label'], core.APPROX)
 
     def test_llm_cannot_remove_explicit_qualifier(self):
         self.assertIsNone(self.verify(self.result(120, 'Acme has fewer than 120 employees.'))[1])

@@ -360,6 +360,9 @@ def jump_held(m, ex):
     return True
 
 
+APPROX = "approximate figure"  # the label of a value its source gave as "about": the page then says "about" as well
+
+
 def record_direct(m, ex, origin):
     if publication.pending(m["id"]):
         evidence.hold(m, ex, publication.LABEL)
@@ -381,8 +384,8 @@ def record_direct(m, ex, origin):
     at = review.get("effective_date") or (ex.get("as_of") if trusted else None) or db.now()
     if len(at) == 10:
         at += "T00:00:00Z"
-    db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version,collected_at,evidence_json) VALUES(?,?,?,?,?,0,?,?,?,?)",
-           (m["id"], ex["value"], at, ex["evidence_url"], origin, ex.get("quote"), m.get("recipe_version"), db.now(), json.dumps(review)))
+    db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version,collected_at,evidence_json,label) VALUES(?,?,?,?,?,0,?,?,?,?,?)",
+           (m["id"], ex["value"], at, ex["evidence_url"], origin, ex.get("quote"), m.get("recipe_version"), db.now(), json.dumps(review), APPROX if review.get("approximate") else None))
     changed = prev is not None and prev["value"] != ex["value"]
     if changed:
         add_change(m["id"], fmt(prev["value"]), fmt(ex["value"]), origin, "value_changed", url=ex["evidence_url"])
