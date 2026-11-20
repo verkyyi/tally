@@ -3,6 +3,7 @@
   free|npm|<package>                        npm downloads, last week
   free|pypi|<package>                       PyPI downloads, last week
   free|yc|<batches|tags|industries|companies>|<slug>   the open Y Combinator directory
+  free|jobs|<greenhouse|ashby|lever>|<board>  the company's public job board: how many postings it lists
 Each reader returns {"value", "quote", "evidence_url"} or None."""
 import time
 
@@ -62,6 +63,19 @@ def sec_points(spec):
     return [out[k] for k in sorted(out)]
 
 
+def board(provider, slug):
+    """(postings listed, the board's public address) from the job board's own public API."""
+    if provider == "greenhouse":
+        d = _get(f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs", ttl=600)
+        return len(d["jobs"]), f"https://job-boards.greenhouse.io/{slug}"
+    if provider == "ashby":
+        d = _get(f"https://api.ashbyhq.com/posting-api/job-board/{slug}", ttl=600)
+        return sum(1 for j in d["jobs"] if j.get("isListed", True)), f"https://jobs.ashbyhq.com/{slug}"
+    if provider == "lever":
+        return len(_get(f"https://api.lever.co/v0/postings/{slug}?mode=json", ttl=600)), f"https://jobs.lever.co/{slug}"
+    raise RuntimeError(f"unknown job board {provider}")
+
+
 def is_free(m):
     return ((m or {}).get("skill") or "").startswith("free|")
 
@@ -78,6 +92,11 @@ def read(spec):
         if p[1] == "pypi":
             d = _get(f"https://pypistats.org/api/packages/{p[2]}/recent", ttl=600)
             return {"value": d["data"]["last_week"], "quote": f'last_week: {d["data"]["last_week"]}', "evidence_url": f"https://pypistats.org/packages/{p[2]}"}
+        if p[1] == "jobs":
+            n, url = board(p[2], p[3])
+            if not n:  # a board that answers with nothing listed is far more often a moved board than a company with no openings
+                return None
+            return {"value": n, "quote": f"{n} postings listed on the public job board ({p[2].title()})", "evidence_url": url}
         if p[1] == "sec":
             pts = sec_points(spec)
             if not pts:
@@ -199,6 +218,22 @@ STOCK_NUMBERS = [("quarterly revenue", "What was {}'s revenue in its most recent
                  ("quarterly net income", "What was {}'s net income in its most recently reported quarter?", ("NetIncomeLoss",), "q", "USD", "USD"),
                  ("quarterly operating income (loss)", "What was {}'s operating income or loss in its most recently reported quarter?", ("OperatingIncomeLoss",), "q", "USD", "USD"),
                  ("shares outstanding", "How many shares of {} are outstanding?", ("dei:EntityCommonStockSharesOutstanding",), "i", "shares", "shares")]
+
+# Companies whose public job board answers without a key: the name the record uses, the board's provider, the board's name there.
+JOBS = [("Anduril", "greenhouse", "andurilindustries"), ("Brex", "greenhouse", "brex"), ("Cognition", "ashby", "cognition"), ("Cohere", "ashby", "cohere"),
+        ("Databricks", "greenhouse", "databricks"), ("Decagon", "ashby", "decagon"), ("ElevenLabs", "ashby", "elevenlabs"), ("Figma", "greenhouse", "figma"),
+        ("Gamma", "ashby", "gamma"), ("Glean", "greenhouse", "gleanwork"), ("Linear", "ashby", "linear"), ("LlamaIndex", "ashby", "llamaindex"),
+        ("Mercor", "ashby", "mercor"), ("N8N", "ashby", "n8n"), ("Notion", "ashby", "notion"), ("Perplexity", "ashby", "perplexity"),
+        ("Physical Intelligence", "ashby", "physicalintelligence"), ("Replit", "ashby", "replit"), ("Scale AI", "greenhouse", "scaleai"),
+        ("Stripe", "greenhouse", "stripe"), ("Tailscale", "greenhouse", "tailscale"), ("Vercel", "greenhouse", "vercel"), ("Zapier", "ashby", "zapier"),
+        ("Cloudflare", "greenhouse", "cloudflare"), ("Datadog", "greenhouse", "datadog"), ("Coinbase", "greenhouse", "coinbase"), ("Airbnb", "greenhouse", "airbnb"),
+        ("Palantir", "lever", "palantir"), ("Snowflake", "ashby", "snowflake")]
+
+
+def jobs_number(name, provider, slug):
+    """The arguments core.create_free takes for a company's open roles."""
+    return (f"{name} · open roles, all teams", f"How many open roles does {name} have across all teams?", "roles", f"free|jobs|{provider}|{slug}", name, "all_roles")
+
 
 # name, GitHub repository, npm package, PyPI package
 OSS = [

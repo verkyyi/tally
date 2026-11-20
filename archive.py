@@ -1,6 +1,7 @@
 """The past of a number, read from archived copies of its source page (the Internet Archive's Wayback Machine).
 Each archived copy is read the way today's page is read, and a value is kept only if it can be read in that copy's text."""
 import html
+import json
 import re
 import time
 
@@ -74,22 +75,52 @@ def stars_history(repo, now):
     return out
 
 
-ROLES_TEXT = ("From archived copies of the company's public job board (Greenhouse) kept by the Internet Archive, up to one a month: the postings each copy listed, "
+ROLES_TEXT = ("From archived copies of the company's public job board kept by the Internet Archive, up to one a month: the postings each copy listed, "
               "counted by their own links. For one team, the postings under that team's heading on the board.")
 TEAM = {"engineering": re.compile(r"engineer|infrastructure|platform|security|data|machine learning|research", re.I), "sales": re.compile(r"sales|account|revenue|go.to.market|gtm|partnerships|business development", re.I)}
 _BOARD = re.compile(r"<h([1-6])[^>]*>(.*?)</h\1>|/jobs/(\d{6,})", re.S)
 
 
+_STATED = re.compile(r'data-testid="job-count-header"[^>]*>\s*([\d,]+) jobs?<|"total":(\d+),?"total_pages":(\d+)|"total_pages":(\d+),?"total":(\d+)')
+
+
 def board_count(html_text, team=None):
-    """How many postings a Greenhouse board page lists: distinct posting links, all of them or those under a heading that names the team."""
-    heads, ids = {}, set()
+    """How many postings a Greenhouse board page lists: distinct posting links, all of them or those under a heading that names the team.
+    A newer board shows fifty postings a page and states its total: the stated total is the count for all teams, and one team
+    cannot be counted from the first page of several (None)."""
+    stated = _STATED.search(html_text)
+    total = int((stated.group(1) or stated.group(2) or stated.group(5)).replace(",", "")) if stated else None
+    heads, ids, every = {}, set(), set()
     for mt in _BOARD.finditer(html_text):
         if mt.group(1):
             lvl = int(mt.group(1))
             heads = {k: v for k, v in heads.items() if k < lvl} | {lvl: re.sub(r"<[^>]+>", " ", mt.group(2))}
-        elif not team or any(TEAM[team].search(h) for h in heads.values()):
-            ids.add(mt.group(3))
-    return len(ids)
+        else:
+            every.add(mt.group(3))
+            if not team or any(TEAM[team].search(h) for h in heads.values()):
+                ids.add(mt.group(3))
+    if not team:
+        return max(total or 0, len(ids))
+    return None if total and total > len(every) else len(ids)
+
+
+def ashby_count(html_text):
+    """How many postings an Ashby board page lists, from the list the page itself carries. None when the copy carries no list."""
+    i = html_text.find("window.__appData")
+    j = html_text.find("{", i) if i >= 0 else -1
+    if j < 0:
+        return None
+    try:
+        data, _ = json.JSONDecoder().raw_decode(html_text[j:])
+        posts = (data.get("jobBoard") or {}).get("jobPostings")
+    except (ValueError, AttributeError):
+        return None
+    return sum(1 for x in posts if x.get("isListed", True)) if isinstance(posts, list) else None
+
+
+def lever_count(html_text, slug):
+    """How many postings a Lever board page lists: distinct posting links."""
+    return len(set(re.findall(r"jobs\.lever\.co/" + re.escape(slug) + r"/([0-9a-f]{8}-[0-9a-f-]{27})", html_text)))
 
 
 def roles_history(slug, team=None):
@@ -99,14 +130,31 @@ def roles_history(slug, team=None):
         for day, url in snapshots(base + slug, since=2015, limit=96, per_year=12):
             r = _get(re.sub(r"/web/(\d+)/", r"/web/\1id_/", url, count=1))
             total = board_count(r.text) if r is not None else 0
-            if total:  # an archived error page or an empty shell lists nothing: that is a missing copy, not zero roles
-                out[day[:7]] = (day, float(board_count(r.text, team)), url)
+            n = board_count(r.text, team) if total else None
+            if total and n is not None:  # an archived error page or an empty shell lists nothing: that is a missing copy, not zero roles
+                out[day[:7]] = (day, float(n), url)
+    return [out[k] for k in sorted(out)]
+
+
+def jobs_history(provider, slug):
+    """[(date, open roles, archived url)] for a company's whole board, from the archived copies of the board's public page."""
+    if provider == "greenhouse":
+        return roles_history(slug)
+    out = {}
+    for day, url in snapshots(("https://jobs.ashbyhq.com/" if provider == "ashby" else "https://jobs.lever.co/") + slug, since=2015, limit=96, per_year=12):
+        r = _get(re.sub(r"/web/(\d+)/", r"/web/\1id_/", url, count=1))
+        n = (ashby_count(r.text) if provider == "ashby" else lever_count(r.text, slug)) if r is not None else None
+        if n:
+            out[day[:7]] = (day, float(n), url)
     return [out[k] for k in sorted(out)]
 
 
 def history(m):
     """[(date, value, archived url)] for a number read from one page, oldest first. Empty when the page has no archived copies."""
     now = (core.latest_obs(m["id"]) or {}).get("value")
+    jobs = re.match(r"free\|jobs\|(\w+)\|(.+)$", m.get("skill") or "")
+    if jobs:
+        return jobs_history(jobs.group(1), jobs.group(2))
     if re.search(r" open .*roles", m.get("title") or ""):
         import db
         slugs = [mt.group(1) for e in db.q("SELECT url FROM entries WHERE metric_id=? AND held_out=0", (m["id"],)) for mt in [re.search(r"greenhouse\.io/(?!embed)([\w-]+)", e["url"] or "")] if mt]
