@@ -53,8 +53,49 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 [Install]
 WantedBy=multi-user.target
 UNIT
+# The instance has under 2 GB of memory: swap keeps a burst of crawling from killing the app.
+if ! swapon --show | grep -q /swapfile; then
+  [ -f /swapfile ] || { dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none; chmod 600 /swapfile; mkswap -q /swapfile; }
+  swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+echo 'vm.swappiness = 10' > /etc/sysctl.d/90-tally-swap.conf
+sysctl -q -p /etc/sysctl.d/90-tally-swap.conf
+# Restart the app when it stops answering (it has hung under load without exiting, which systemd alone does not see).
+cat > /usr/local/bin/tally-watchdog.sh <<'WATCH'
+#!/bin/bash
+# Restart Tally when it has stopped answering. Two failed checks 15 seconds apart, and never within two minutes of a start
+# (a deploy or a restart is still warming up then).
+ok() { curl -fsS -m 10 -o /dev/null http://127.0.0.1:8000/robots.txt; }
+since=$(systemctl show tally -p ActiveEnterTimestampMonotonic --value); now=$(awk '{print int($1*1000000)}' /proc/uptime)
+[ -n "$since" ] && [ $(( (now - since) / 1000000 )) -lt 120 ] && exit 0
+ok && exit 0
+sleep 15
+ok && exit 0
+echo "tally-watchdog: no answer twice, restarting tally" | systemd-cat -t tally-watchdog -p warning
+systemctl restart tally
+WATCH
+chmod 755 /usr/local/bin/tally-watchdog.sh
+cat > /etc/systemd/system/tally-watchdog.service <<UNIT
+[Unit]
+Description=Restart Tally when it stops answering
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/tally-watchdog.sh
+UNIT
+cat > /etc/systemd/system/tally-watchdog.timer <<UNIT
+[Unit]
+Description=Check Tally every minute
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=1min
+AccuracySec=5s
+[Install]
+WantedBy=timers.target
+UNIT
 chown -R tally:tally /opt/tally
 systemctl daemon-reload
+systemctl enable -q --now tally-watchdog.timer
 systemctl enable -q tally caddy
 systemctl restart tally
 systemctl reload caddy 2>/dev/null || systemctl restart caddy

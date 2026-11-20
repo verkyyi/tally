@@ -227,7 +227,9 @@ JOBS = [("Anduril", "greenhouse", "andurilindustries"), ("Brex", "greenhouse", "
         ("Physical Intelligence", "ashby", "physicalintelligence"), ("Replit", "ashby", "replit"), ("Scale AI", "greenhouse", "scaleai"),
         ("Stripe", "greenhouse", "stripe"), ("Tailscale", "greenhouse", "tailscale"), ("Vercel", "greenhouse", "vercel"), ("Zapier", "ashby", "zapier"),
         ("Cloudflare", "greenhouse", "cloudflare"), ("Datadog", "greenhouse", "datadog"), ("Coinbase", "greenhouse", "coinbase"), ("Airbnb", "greenhouse", "airbnb"),
-        ("Palantir", "lever", "palantir"), ("Snowflake", "ashby", "snowflake")]
+        ("Palantir", "lever", "palantir"), ("Snowflake", "ashby", "snowflake"),
+        ("Supabase", "ashby", "supabase"), ("PostHog", "ashby", "posthog"), ("ClickHouse", "ashby", "clickhouse"), ("Grafana", "greenhouse", "grafanalabs"),
+        ("Redis", "ashby", "redis"), ("Firecrawl", "ashby", "firecrawl"), ("Exa", "ashby", "exa"), ("Ollama", "ashby", "ollama")]
 
 
 def jobs_number(name, provider, slug):

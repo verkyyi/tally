@@ -807,7 +807,10 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
                 steps.append(p)
                 last = p["value"]
         end = show(asked["value"]) if asked.get("value") is not None else "no value yet"
-        said = (f"{plain_name(m)} in {year}: {end}" + (f" at the end of the year" if str(year) < db_today()[:4] else " so far")
+        name, changes = plain_name(m), [q for i, q in enumerate(pts) if q.get("value") is not None and (i == 0 or q["value"] != pts[i - 1].get("value"))]
+        if changes and str(year) < changes[-1]["at"][:4]:  # in a year before the listing or the sale, it was simply the company's valuation
+            name = re.sub(r"\bvaluation at (IPO|acquisition)\b", "valuation", name, flags=re.I)
+        said = (f"{name} in {year}: {end}" + (f" at the end of the year" if str(year) < db_today()[:4] else " so far")
                 + (f", after {len(steps)} recorded value{'s' if len(steps) != 1 else ''} that year" if steps else ", unchanged from the year before") + ".")
         def src(p):
             u = p.get("url") or ""
@@ -817,7 +820,7 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
         lede = (f'<div class="card" style="margin:12px 0"><b style="font-size:17px">{esc(said)}</b>'
                 + (f'<div style="overflow-x:auto;margin-top:10px"><table class="pts"><tr><th>Date</th><th>Value</th><th>Event</th><th>Source</th></tr>{rows}</table></div>' if rows else "")
                 + f'<p class="meta" style="margin:10px 0 0">Other years: {other} · <a href="{path}">full history</a></p></div>') + lede
-        title = f"{plain_name(m)} in {year}: {end} | Tally"
+        title = f"{name} in {year}: {end} | Tally"
         desc = (said + " " + "; ".join(f'{(when(p["at"]) or p["at"][:10])}: {show(p["value"])}' + (f' ({p["label"]})' if p.get("label") else "") for p in steps[:6]))[:300]
         path = f"{path}/{year}"
     elif len(years) >= 2 and not per:  # every year of a number's history has a page of its own: the past is what this record is for
