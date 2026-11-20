@@ -314,7 +314,7 @@ def _human(request):
     return not _BOT.search(request.headers.get("user-agent", ""))
 
 
-PINS = ("Anthropic · latest valuation", "OpenAI · latest valuation", "Cursor · total funding raised", "Lovable · latest valuation", "Notion · Plus plan price")
+PINS = ("Anthropic · valuation at IPO", "Anthropic · latest valuation", "OpenAI · latest valuation", "Cursor · total funding raised", "Lovable · latest valuation", "Notion · Plus plan price")
 _featured = {"at": 0.0, "cards": [], "compare": None}
 
 
@@ -445,7 +445,7 @@ def _versus_for(raw):
             ra, rb = _subject_rows(pp.slug(a))[1], _subject_rows(pp.slug(b))[1]
             shared = []
             for m, t, n in ra:
-                k = pp.what(m)
+                k = pp.kind(m)
                 mb = _of_kind(rb, b, pp.slug(k)) if _of_kind(ra, a, pp.slug(k)) else None
                 if mb and (not rest or _matches(rest, k.lower())) and (rest or k.lower() in _HEAD + ("run-rate revenue",)):
                     one = lambda t: " ".join(x for x in pp.fmt(t["value"], t["unit"]) if x) or "no value yet"
@@ -1033,7 +1033,7 @@ def versus(a: str, b: str):
 
 def _of_kind(rows, name, kind):
     """The one number of this kind that is about the company itself (not one of its products), or None."""
-    mine = [m for m, t, n in rows if pp.slug(pp.what(m)) == kind and pp.subject(m) == name and m["title"].split(" · ")[0] == name]
+    mine = [m for m, t, n in rows if pp.slug(pp.kind(m)) == kind and pp.subject(m) == name and m["title"].split(" · ")[0] == name]
     return mine[0] if len(mine) == 1 else None
 
 
@@ -1046,7 +1046,7 @@ def versus_kind(a: str, b: str, kind: str):
     if not ma or not mb:
         raise HTTPException(404, "no such comparison")
     ta, tb = tile(ma, None), tile(mb, None)
-    return HTMLResponse(pp.compare_page(ma, mb, ta, tb, _public_series(ma, ta), _public_series(mb, tb), named=pp.versus_kind_path(na, nb, pp.what(ma))))
+    return HTMLResponse(pp.compare_page(ma, mb, ta, tb, _public_series(ma, ta), _public_series(mb, tb), named=pp.versus_kind_path(na, nb, pp.kind(ma))))
 
 
 @app.get("/c/{slug}/card.png")
@@ -1302,10 +1302,10 @@ def _alike():
     kinds, head = {}, {}
     for n, ids in groups.items():
         ms = [core.metric(i) for i in ids]
-        kinds[n] = {pp.what(m).lower() for m in ms if m}
+        kinds[n] = {pp.kind(m) for m in ms if m}
         head[n] = {}
         for m in ms:
-            k = pp.what(m).lower() if m else ""
+            k = pp.kind(m) if m else ""
             if k in _HEAD and k not in head[n]:
                 v = (core.latest_obs(m["id"]) or {}).get("value")
                 if v and v > 0:

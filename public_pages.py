@@ -575,7 +575,7 @@ def compare_page(a, b, ta, tb, pa, pb, others=(), named=None):
     if others:
         body += (f'<h2>Compare {esc(subject(a))} with</h2><div class="cols">' + "".join(f'<a href="{esc(compare_path(a, m))}">{esc(label)}</a>' for m, label in others) + "</div>")
     if named:  # the same kind of number for two companies has an address of its own, with the two figures in its title
-        sa, sb, kind = subject(a), subject(b), plain_name({"title": what(a)})
+        sa, sb, kind = subject(a), subject(b), plain_name({"title": what(a) if what(a).lower() == what(b).lower() else "valuation"})
         one = lambda v: (v[0] if (v[1] or "").lower().rstrip("s") in kind.lower() and v[1] else " ".join(x for x in v if x)) or "no value yet"
         title = f"{sa} vs {sb} {kind}: {one(va)} vs {one(vb)} | Tally"
         desc = f"{sa} {kind}: {one(va)}. {sb} {kind}: {one(vb)}. Both histories on one chart, every point with its source."
@@ -947,6 +947,13 @@ def what(m):
     return (m.get("title") or "").split(" · ")[-1].strip()
 
 
+def kind(m):
+    """What a number measures, for putting two companies side by side: a valuation is a valuation whether it is a private
+    company's latest, a listed company's at its IPO, or an acquired company's at the sale."""
+    k = what(m).lower()
+    return "latest valuation" if k in ("valuation at ipo", "valuation at acquisition") else k
+
+
 def logo_img(name, size=22):
     """A company's logo beside its name; it removes itself when there is none."""
     return (f'<img src="/logo/{slug(name)}.png" alt="" width="{size}" height="{size}" loading="lazy" onerror="this.remove()" '
@@ -1013,9 +1020,9 @@ def versus_page(a, b, rows_a, rows_b):
     ca, cb = brand.pair(a, b)  # each company in the colour people know it by
     by_a, by_b = {}, {}
     for r in rows_a:
-        by_a.setdefault(what(r[0]).lower(), []).append(r)
+        by_a.setdefault(kind(r[0]), []).append(r)
     for r in rows_b:
-        by_b.setdefault(what(r[0]).lower(), []).append(r)
+        by_b.setdefault(kind(r[0]), []).append(r)
     both = [k for k in by_a if k in by_b]
     groups = {}
     for k in both:
@@ -1039,7 +1046,7 @@ def versus_page(a, b, rows_a, rows_b):
                 spark = f'<a href="{esc(compare_path(pa[0], pb[0]))}" title="Both histories on one chart" aria-label="{esc(what(ra[0][0]))}: both histories on one chart">{svg}</a>' if svg else ""
             label = esc(what(ra[0][0]))
             if len(ra) == 1 and len(rb) == 1 and subject(ra[0][0]) == a and subject(rb[0][0]) == b:
-                label = f'<a href="{esc(versus_kind_path(a, b, what(ra[0][0])))}" style="color:inherit">{label}</a>'
+                label = f'<a href="{esc(versus_kind_path(a, b, kind(ra[0][0])))}" style="color:inherit">{label}</a>'
             trs += f'<tr><td>{label}</td><td>{cell(ra, top, ca)}</td><td>{cell(rb, top, cb)}</td><td>{gap(ra, rb)}{spark}</td></tr>'
     if trs:
         key = lambda name, col: f'{logo_img(name, 22)}{esc(name)}<span title="{esc(name)}\'s colour in the bars and charts below" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{col};margin-left:8px;vertical-align:middle"></span>'
