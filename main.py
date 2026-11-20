@@ -403,6 +403,39 @@ def _matches(words, hay):
 COMMON_WORDS = {"now", "net", "ma", "v", "hd", "dis", "ko", "coin", "mu", "ant", "meta", "uber", "shop", "cost", "amd", "ibm"} - {"amd", "ibm", "uber"}
 
 
+_MONTHS = {m: i + 1 for i, names in enumerate(("january jan", "february feb", "march mar", "april apr", "may", "june jun", "july jul", "august aug", "september sep sept",
+                                              "october oct", "november nov", "december dec")) for m in names.split()}
+
+
+def _when(words):
+    """A date typed among the words: (day the record is asked about, how to say it, the other words). "2025" is the end of
+    2025, "march 2025" the end of that March, "q1 2025" the end of that quarter, "2025-03-04" that day. Never a day after today."""
+    import calendar
+    today, low = db.now()[:10], [w.lower().strip(",.?") for w in words]
+    for i, w in enumerate(low):
+        day = label = None
+        used = {i}
+        if re.fullmatch(r"(19|20)\d\d-\d\d-\d\d", w) and _on_day(w):
+            day, label = w, pp.when(w + "T00:00:00Z") or w
+        elif re.fullmatch(r"(19|20)\d\d", w) and 2005 <= int(w) <= int(today[:4]):
+            y, mo, q = int(w), None, None
+            for j in (i - 1, i + 1):
+                if 0 <= j < len(low) and low[j] in _MONTHS:
+                    mo, used = _MONTHS[low[j]], used | {j}
+                elif 0 <= j < len(low) and re.fullmatch(r"q[1-4]", low[j]):
+                    q, used = int(low[j][1]), used | {j}
+            if mo:
+                day, label = f"{y}-{mo:02d}-{calendar.monthrange(y, mo)[1]:02d}", f"{calendar.month_abbr[mo]} {y}"
+            elif q:
+                day, label = f"{y}-{q * 3:02d}-{calendar.monthrange(y, q * 3)[1]:02d}", f"Q{q} {y}"
+            else:
+                day, label = f"{y}-12-31", str(y)
+        if day:
+            rest = [x for k, x in enumerate(words) if k not in used and low[k] not in ("in", "on", "at", "during", "of", "end")]
+            return (min(day, today), label, rest) if rest else (None, None, words)
+    return None, None, words
+
+
 _JOIN = {"vs", "vs.", "versus", "and", "&", "compare", "compared", "to", "with", "or"}
 
 
@@ -468,6 +501,7 @@ def _in_record(q):
 def suggest(q: str = ""):
     """Numbers matching what was typed, for the search box on every public page: each with its current value and its page."""
     raw = " ".join(q.split())[:80].split()
+    day, day_label, raw = _when(raw)  # "anthropic valuation 2025": the number, as it stood then
     words = [w.lower() for w in raw if w]
     if not words:
         return {"numbers": [], "boards": []}
@@ -495,7 +529,12 @@ def suggest(q: str = ""):
     for m in hits[:7]:
         t = tile(m, None)
         txt, unit = pp.fmt(t["value"], t["unit"])
-        out.append({"id": m["id"], "title": m["title"], "value": (txt + (" " + unit if unit else "")) if txt else t.get("publication_label", "no value yet"), "path": pp.number_path(m)})
+        row = {"id": m["id"], "title": m["title"], "value": (txt + (" " + unit if unit else "")) if txt else t.get("publication_label", "no value yet"), "path": pp.number_path(m)}
+        if day:  # what the record says it was on that day, and the page opened at that day
+            then = core.value_on(m, _public_series(m, t), day)
+            was = " ".join(x for x in pp.fmt(then["value"], t["unit"]) if x) if then.get("value") is not None else None
+            row |= {"value": f"{day_label}: {was}" if was else f"{day_label}: not on record yet", "path": pp.number_path(m) + f"?on={day}#on", "on": day}
+        out.append(row)
     wanted = None
     if not out and not versus and not boards and demand.wellformed(q):  # nothing found, and it reads like a number: say what happens next
         n = demand.count(q)
@@ -1062,6 +1101,28 @@ def subject_card(slug: str):
     raise HTTPException(404, "nothing tracked under that name yet")
 
 
+@app.get("/c/{slug}/{name}/{year}")
+def public_number_year(slug: str, name: str, year: int, request: Request):
+    """One year of a number's history: /c/anthropic/valuation-at-ipo/2025."""
+    path = f"/c/{slug}/{name}"
+    mid = pp.paths()["by_path"].get(path)
+    m = core.metric(mid) if mid else None
+    if not m:
+        old = db.one("SELECT metric_id FROM paths WHERE path=?", (path,))
+        m = core.metric(old["metric_id"]) if old else None
+        if not m:
+            raise HTTPException(404, "no such number")
+        return RedirectResponse(f"{pp.number_path(m)}/{year}", status_code=301)
+    t = tile(m, None)
+    series = _public_series(m, t)
+    today = db.now()[:10]
+    if not series or not (int(series[0]["at"][:4]) <= year <= int(today[:4])) or core.folded_into(m):
+        raise HTTPException(404, "the record of this number does not cover that year")
+    asked = core.value_on(m, series, min(f"{year}-12-31", today))
+    ev = {"observation": None if publication.pending(m["id"]) else core.latest_obs(m["id"])} if m["kind"] != "count" else {"entries": []}
+    return HTMLResponse(pp.number_page(m, t, ev, [], series, "all", recipes.live(m), [], _comparable(m), None, _rank_of(m["id"]), asked=asked, year=year))
+
+
 @app.get("/c/{slug}/{name}")
 def public_number_page(slug: str, name: str, request: Request, range: str = "all", period: str = ""):
     """A number's page, at /c/<whose it is>/<what it measures>. An address the number used to have leads to its current one."""
@@ -1372,6 +1433,11 @@ def sitemap():
                 if _of_kind(rx, x, pp.slug(k)) and _of_kind(ry, y, pp.slug(k)):
                     urls.append((pp.versus_kind_path(x, y, k), max(of(x), of(y))))
     urls += [(pp.number_path(m), changed.get(m["id"], "")) for m in db.q(f"SELECT id, title FROM metrics WHERE NOT ({core.FOLDED}) ORDER BY id")]
+    many = {r["id"]: r["n"] for r in db.q("SELECT metric_id id, COUNT(DISTINCT substr(as_of,1,4)) n FROM observations WHERE seeded=0 AND value IS NOT NULL GROUP BY metric_id")}
+    for r in db.q("SELECT o.metric_id id, substr(o.as_of,1,4) y, m.title, m.update_json FROM observations o JOIN metrics m ON m.id=o.metric_id "
+                  f"WHERE o.seeded=0 AND o.value IS NOT NULL AND m.kind='direct' AND NOT ({core.FOLDED}) GROUP BY o.metric_id, y"):
+        if not publication.pending(r["id"]) and many.get(r["id"], 0) >= 2:  # each year of a number with a past is a page people look for ("langchain github stars 2024")
+            urls.append((f'{pp.number_path(r)}/{r["y"]}', changed.get(r["id"], "") if r["y"] == today[:4] else ""))
     body = ('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
             + "".join(f"<url><loc>{pp.SITE}{pp.esc(u)}</loc>{f'<lastmod>{d}</lastmod>' if d else ''}</url>" for u, d in urls) + "</urlset>")
     return RawResponse(body, media_type="application/xml", headers={"Cache-Control": "public, max-age=900"})

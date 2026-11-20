@@ -765,7 +765,7 @@ def on_box(m, pts, asked):
                   '<button type="submit" style="font:inherit;padding:4px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);cursor:pointer">Show</button></form>')
 
 
-def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(), compare=(), per=None, rank=None, asked=None):
+def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(), compare=(), per=None, rank=None, asked=None, year=None):
     """m: metric row, t: the signed-out tile, ev: the signed-out evidence dict (may be locked), pts: the full series."""
     txt, unit = fmt(per["value"] if per and not per["current"] else t["value"], t["unit"])
     sub = subject(m)
@@ -788,6 +788,33 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
     if publication.pending(m["id"]):
         desc = publication.LABEL + ". " + publication.PENDING[m["id"]]["reason"]
     lede = f'<p class="lede">{esc(told)}</p>' if told else ""
+    years = sorted({p["at"][:4] for p in pts if p.get("value") is not None})
+    path = number_path(m)
+    if year and asked and not publication.pending(m["id"]):
+        # One year of a number's history as a page of its own: where it stood at the end of that year, and each value recorded in it.
+        show = lambda v: " ".join(x for x in fmt(v, t["unit"]) if x)
+        mine = [p for p in pts if p["at"][:4] == str(year) and p.get("value") is not None]
+        steps, last = [], object()
+        for p in mine:  # each change, once: a value read again unchanged is not an event
+            if p["value"] != last:
+                steps.append(p)
+                last = p["value"]
+        end = show(asked["value"]) if asked.get("value") is not None else "no value yet"
+        said = (f"{plain_name(m)} in {year}: {end}" + (f" at the end of the year" if str(year) < db_today()[:4] else " so far")
+                + (f", after {len(steps)} recorded value{'s' if len(steps) != 1 else ''} that year" if steps else ", unchanged from the year before") + ".")
+        def src(p):
+            u = p.get("url") or ""
+            return f'<a href="{esc(u)}" rel="nofollow noopener">{esc(re.sub(r"^www[.]", "", u.split("/")[2]))}</a>' if u.count("/") >= 2 else ""
+        rows = "".join(f'<tr><td style="white-space:nowrap">{esc(when(p["at"]) or p["at"][:10])}</td><td><b>{esc(show(p["value"]))}</b></td><td>{esc(p.get("label") or "")}</td><td>{src(p)}</td></tr>' for p in steps[:60])
+        other = " · ".join(f'<a href="{path}/{y}">{y}</a>' if y != str(year) else f"<b>{y}</b>" for y in years)
+        lede = (f'<div class="card" style="margin:12px 0"><b style="font-size:17px">{esc(said)}</b>'
+                + (f'<div style="overflow-x:auto;margin-top:10px"><table class="pts"><tr><th>Date</th><th>Value</th><th>Event</th><th>Source</th></tr>{rows}</table></div>' if rows else "")
+                + f'<p class="meta" style="margin:10px 0 0">Other years: {other} · <a href="{path}">full history</a></p></div>') + lede
+        title = f"{plain_name(m)} in {year}: {end} | Tally"
+        desc = (said + " " + "; ".join(f'{(when(p["at"]) or p["at"][:10])}: {show(p["value"])}' + (f' ({p["label"]})' if p.get("label") else "") for p in steps[:6]))[:300]
+        path = f"{path}/{year}"
+    elif len(years) >= 2 and not per:  # every year of a number's history has a page of its own: the past is what this record is for
+        lede += '<p class="meta" style="margin:6px 0 0">By year: ' + " · ".join(f'<a href="{path}/{y}">{y}</a>' for y in years) + "</p>"
     now_shown = not (per and not per["current"])  # a past period's page shows that period, not the latest move
     # the question answered in a sentence, where a search engine or an assistant looks for it first
     about = "about " if pts and re.match(r"(?i)\s*(about|approx)", pts[-1].get("label") or "") or pts and "(about " in (pts[-1].get("label") or "").lower() else ""  # the source gave the figure as approximate
@@ -882,7 +909,7 @@ def number_page(m, t, ev, related=(), pts=(), rng="all", recipe=None, versions=(
         if told:
             asked.append({"@type": "Question", "name": f"How has {plain_name(m)} changed over time?", "acceptedAnswer": {"@type": "Answer", "text": told}})
         ld = ld_json({"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": asked}, data, crumbs(("Numbers", "/numbers"), (sub, subject_path(sub)), (m["title"], number_path(m))))
-    return shell(title, desc, number_path(m), body, ld, image=f"/n/{m['id']}/card.png")
+    return shell(title, desc, path, body, ld, image=f"/n/{m['id']}/card.png")
 
 
 def changed_on(pts):
@@ -946,6 +973,11 @@ def category(m):
 def what(m):
     """What a number measures, without whose it is: 'Claude Opus (latest) · API input price' -> 'API input price'."""
     return (m.get("title") or "").split(" · ")[-1].strip()
+
+
+def db_today():
+    import db
+    return db.now()[:10]
 
 
 def kind(m):

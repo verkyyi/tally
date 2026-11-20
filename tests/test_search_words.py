@@ -1,4 +1,4 @@
-import os, unittest
+import os, unittest, unittest.mock
 os.environ.setdefault("TALLY_AUTOSYNC", "0")
 import main
 
@@ -39,3 +39,16 @@ class TwoCompanies(unittest.TestCase):
     def test_too_little_or_nothing_like_a_name_finds_no_one(self):
         self.assertIsNone(self.who("ai"))
         self.assertIsNone(self.who("valuation"))
+
+
+class DatesInSearch(unittest.TestCase):
+    def test_a_date_among_the_words(self):
+        with unittest.mock.patch("db.now", return_value="2026-11-20T00:00:00Z"):
+            self.assertEqual(main._when("anthropic valuation 2025".split())[:2], ("2025-12-31", "2025"))
+            self.assertEqual(main._when("openai revenue march 2025".split()), ("2025-03-31", "Mar 2025", ["openai", "revenue"]))
+            self.assertEqual(main._when("cursor stars q2 2025".split())[:2], ("2025-06-30", "Q2 2025"))
+            self.assertEqual(main._when("cursor stars 2024-06-01".split())[0], "2024-06-01")
+            self.assertEqual(main._when("anthropic valuation in 2026".split()), ("2026-11-20", "2026", ["anthropic", "valuation"]))
+            self.assertEqual(main._when("anthropic valuation".split())[0], None)
+            self.assertEqual(main._when(["2025"])[0], None)      # a year alone asks for nothing
+            self.assertEqual(main._when("windows 1999 price".split())[0], None)
