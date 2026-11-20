@@ -783,16 +783,35 @@ def llms():
     return PlainTextResponse(LLMS, headers=OPEN)
 
 
+_cards = {}  # address -> (when drawn, image): a crawler asks for every card in a row, and drawing one costs far more than keeping it
+
+
+def _card(key, draw, keep=3600, most=300):
+    """A share image drawn at most once an hour. The oldest are dropped when there are too many to keep in memory."""
+    got = _cards.get(key)
+    if got and time.time() - got[0] < keep:
+        return got[1]
+    png = draw()
+    if len(_cards) >= most:
+        for k in sorted(_cards, key=lambda k: _cards[k][0])[:most // 3]:
+            _cards.pop(k, None)
+    _cards[key] = (time.time(), png)
+    return png
+
+
 @app.get("/n/{mid}/card.png")
 def number_card(mid: int):
     m = core.metric(mid)
     if not m:
         raise HTTPException(404, "no such number")
+    got = _cards.get(("n", mid))
+    if got and time.time() - got[0] < 3600:
+        return RawResponse(got[1], media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
     t = tile(m, None)
     pts = pp._thin(_public_series(m, t), 200)
     txt, unit = pp.fmt(t["value"], t["unit"])
     sub = f'since {pp.when(pts[0]["at"])}' if len(pts) >= 2 else ""
-    return RawResponse(cards.number(m["title"], t.get("publication_label") or txt, "" if publication.pending(mid) else unit, pts, step=core.stepped(m), bars=core.by_period(m, pts), sub=sub), media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
+    return RawResponse(_card(("n", mid), lambda: cards.number(m["title"], t.get("publication_label") or txt, "" if publication.pending(mid) else unit, pts, step=core.stepped(m), bars=core.by_period(m, pts), sub=sub)), media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.get("/n/{mid}/chart.svg")
@@ -979,11 +998,14 @@ def versus_kind(a: str, b: str, kind: str):
 
 @app.get("/c/{slug}/card.png")
 def subject_card(slug: str):
+    got = _cards.get(("c", slug))
+    if got and time.time() - got[0] < 3600:
+        return RawResponse(got[1], media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
     for name, ids in pp.groups().items():
         if pp.slug(name) == slug:
             ts = [t for t in (tile(core.metric(i), None) for i in ids) if t["value"] is not None][:4]
             rows = [(t["title"].split(" · ")[-1], " ".join(x for x in pp.fmt(t["value"], t["unit"]) if x)) for t in ts]
-            return RawResponse(cards.board(name, rows), media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
+            return RawResponse(_card(("c", slug), lambda: cards.board(name, rows)), media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
     raise HTTPException(404, "nothing tracked under that name yet")
 
 
