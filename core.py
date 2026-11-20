@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 import db
 import publication
 import evidence
+import lessons
 import llm
 import telem
 import free_sources
@@ -311,6 +312,7 @@ def resolve_direct(m, exclude_domain=None, fresh=False):
     results, _ = telem.search(m["search_query"] or m["question"], m["id"], auto=True, num_results=5)
     hint = (m.get("source_hint") or "").lower()
     results.sort(key=lambda r: (0 if hint and hint in domain(r["url"]) else 1, r.get("rank") or 99))
+    results = lessons.rank(lessons.kind_of(m.get("title")), results)
     for r in results:
         if domain(r["url"]) != exclude_domain and r["url"] not in urls:
             urls.append(r["url"])
@@ -333,7 +335,9 @@ def resolve_direct(m, exclude_domain=None, fresh=False):
     if not ex or not isinstance(ex.get("value"), (int, float)):
         return None
     page = next((p["content"] for p in pages if p["url"] == ex.get("evidence_url")), "")
-    if not evidence.assess(m, ex, page):
+    passed = evidence.assess(m, ex, page)
+    lessons.note(lessons.kind_of(m.get("title")), ex.get("evidence_url"), passed, (ex.get("_review") or {}).get("reason"))  # how this page did for this kind of number
+    if not passed:
         return None
 
     return ex

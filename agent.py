@@ -1,5 +1,6 @@
 """The recipe agent: Claude follows a number's recipe with tools and hands back a reading the runtime can check.
 The agent proposes; the runtime verifies. Nothing the agent says is stored unless the runtime can read it in a page the agent fetched."""
+import lessons
 import sources
 import ipaddress
 import json
@@ -77,7 +78,7 @@ FILINGS = """Official filings first. When the company files with a securities re
 - Prefer the filing over a news article that quotes it. Use news only for what filings do not state."""
 
 
-def _toolbox(pages, steps, mid, on_step=None, limit=None):
+def _toolbox(pages, steps, mid, on_step=None, limit=None, kind=None):
     """The tools every run has: search the web, read a page, read an API. Each call is logged as a step, so a run can be shown as it happens.
     limit is how many rounds the run is allowed: close to it, every tool result ends with a reminder to hand in what has been found,
     because a run that is still researching when it runs out hands in nothing at all."""
@@ -107,6 +108,7 @@ def _toolbox(pages, steps, mid, on_step=None, limit=None):
             results, _ = telem.search(query, mid, auto=True, num_results=6)
         except Exception as e:
             return f"search failed: {str(e)[:200]}"
+        results = lessons.rank(kind, results)  # sites that have given this kind of number first; known dead ends left out
         for r in results:
             pages[r["url"]] = (pages.get(r["url"], "") + " " + r["title"] + " " + r["summary"]).strip()
         return near(json.dumps([{"title": r["title"], "url": r["url"], "summary": r["summary"][:600]} for r in results[:6]]))
@@ -126,6 +128,9 @@ def _toolbox(pages, steps, mid, on_step=None, limit=None):
             return sources.REFUSED.format(why=sources.why(url))
         if not telem.robots_ok(url):
             return "refused: this site's robots.txt asks crawlers not to read that page. Find the figure on a page that may be read."
+        why = lessons.dead(kind, url) if lessons.on() else None
+        if why:
+            return f"skipped: this site has been tried several times for this kind of number and never gave a usable figure ({why}). Read another page."
         try:
             rows = [p for p in telem.fetch([url], mid, fresh=True) if p["ok"]]
         except Exception as e:
@@ -297,7 +302,7 @@ Work efficiently: a handful of searches and page reads is typical; go further on
 def create(question, on_step=None, max_iterations=24):
     """Have the agent research a requested number and write the recipe that keeps it alive. Returns {"result", "pages", "steps", "usage", "model"}."""
     pages, steps, out = {}, [], {}
-    search, fetch, get_json, grep = _toolbox(pages, steps, None, on_step, max_iterations)
+    search, fetch, get_json, grep = _toolbox(pages, steps, None, on_step, max_iterations, kind=lessons.kind_of(question))
 
     @beta_tool
     def submit(found: bool, title: str = "", unit: str = "", value: float = 0, quote: str = "", evidence_url: str = "", history_json: str = "[]",
@@ -336,7 +341,8 @@ def create(question, on_step=None, max_iterations=24):
                     "recipe": {"Source": source.strip()[:1500], "Read": read.strip()[:1500], "History": history.strip()[:1500], "Update": update.strip()[:800], "Checks": checks.strip()[:1200]}})
         return "recorded"
 
-    meta = _run(CREATE, f"Request: {question}", [search, fetch, get_json, grep, submit], max_iterations)
+    known = lessons.brief(question)
+    meta = _run(CREATE, f"Request: {question}" + (f"\n\n{known}" if known else ""), [search, fetch, get_json, grep, submit], max_iterations)
     return {"result": out or None, "pages": pages, "steps": steps} | meta
 
 
