@@ -101,18 +101,23 @@ MIGRATIONS = [
 
 
 def init():
-    with conn() as c:
+    c = conn()
+    with c:
         c.executescript(SCHEMA)
         for m in MIGRATIONS:
             try:
                 c.execute(m)
             except sqlite3.OperationalError:
                 pass  # already applied
+    c.close()
 
 
 def q(sql, args=()):
-    with conn() as c:
+    c = conn()
+    try:  # "with" on a connection only commits: closing it is what gives its memory back, and a page runs a hundred queries
         return [dict(r) for r in c.execute(sql, args).fetchall()]
+    finally:
+        c.close()
 
 
 def one(sql, args=()):
@@ -121,6 +126,10 @@ def one(sql, args=()):
 
 
 def run(sql, args=()):
-    with conn() as c:
-        cur = c.execute(sql, args)
-        return cur.lastrowid, cur.rowcount
+    c = conn()
+    try:
+        with c:
+            cur = c.execute(sql, args)
+            return cur.lastrowid, cur.rowcount
+    finally:
+        c.close()
