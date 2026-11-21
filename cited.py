@@ -142,7 +142,7 @@ def stated(value, text, words):
         near = text[max(0, mt.start() - 90):mt.end() + 90]
         if not re.search(words, near, re.I):
             continue
-        a = max(text.rfind(". ", 0, mt.start()), text.rfind("? ", 0, mt.start()), text.rfind("! ", 0, mt.start()), mt.start() - 220) + 1
+        a = max(text.rfind(". ", 0, mt.start()), text.rfind("? ", 0, mt.start()), text.rfind("! ", 0, mt.start()), mt.start() - 140) + 1
         ends = [i for i in (text.find(". ", mt.end()), text.find("? ", mt.end()), text.find("! ", mt.end())) if i >= 0]
         b = min(min(ends) + 1 if ends else len(text), mt.end() + 220)
         quote = re.sub(r"\s+", " ", text[max(a, 0):b]).strip()
