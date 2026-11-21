@@ -27,7 +27,12 @@ def _get(url, ttl=1800):
         time.sleep(0.4)
     if r.status_code != 200:
         raise RuntimeError(f"{url} -> {r.status_code}")
-    _cache[url] = (time.time(), r.json())
+    now = time.time()
+    for k in [k for k, (at, _) in _cache.items() if now - at > 6 * 3600]:  # nothing is kept past the longest time any caller asks for
+        _cache.pop(k, None)
+    while len(_cache) >= 48:  # a filing or a download log is megabytes once parsed: keep the few a run of reads shares, not every one ever read
+        _cache.pop(min(_cache, key=lambda k: _cache[k][0]), None)
+    _cache[url] = (now, r.json())
     return _cache[url][1]
 
 

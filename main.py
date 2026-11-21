@@ -1508,6 +1508,23 @@ def public_finding_hiring():
     return HTMLResponse(pp.hiring_page(rows, [(m, tile(m, None), core.series(m["id"])) for m, _, _, _ in rows[:6]]))
 
 
+@app.get("/api/_mem")
+def _mem(request: Request):
+    """What the process is holding, for finding what grows. Answered only to the machine itself."""
+    if (request.client.host if request.client else "") != "127.0.0.1" or request.headers.get("x-forwarded-for"):
+        raise HTTPException(404)
+    import collections
+    import gc
+    import sys
+    import cards
+    import free_sources
+    kinds = collections.Counter(type(o).__name__ for o in gc.get_objects())
+    big = sorted(((sys.getsizeof(o), type(o).__name__, len(o)) for o in gc.get_objects() if isinstance(o, (dict, list, set, str, bytes)) and sys.getsizeof(o) > 1 << 20), reverse=True)[:12]
+    return {"objects": sum(kinds.values()), "kinds": kinds.most_common(14), "over_1mb": big,
+            "caches": {"free_sources": len(free_sources._cache), "cards": len(cards._cache), "main_cards": len(_cards), "seen": len(_seen["ids"])},
+            "card_bytes": sum(len(v[1]) for v in _cards.values()) + sum(len(v[1]) for v in cards._cache.values() if isinstance(v[1], (bytes, bytearray)))}
+
+
 @app.get("/growth")
 def public_growth():
     return HTMLResponse(pp.growth_page([(m, core.series(m["id"])) for m in db.q("SELECT * FROM metrics WHERE skill LIKE 'free|tally|%' ORDER BY id")]))
