@@ -209,8 +209,9 @@ STOCKS = [("NVDA", "Nvidia", 1045810), ("MSFT", "Microsoft", 789019), ("AAPL", "
           ("INTC", "Intel", 50863), ("CSCO", "Cisco", 858877), ("IBM", "IBM", 51143), ("UBER", "Uber", 1543151),
           ("QCOM", "Qualcomm", 804328), ("MU", "Micron", 723125), ("NOW", "ServiceNow", 1373715), ("SNOW", "Snowflake", 1640147),
           ("DDOG", "Datadog", 1561550), ("NET", "Cloudflare", 1477333), ("CRWD", "CrowdStrike", 1535527), ("SHOP", "Shopify", 1594805),
-          ("COIN", "Coinbase", 1679788), ("ABNB", "Airbnb", 1559720), ("DIS", "Disney", 1744489), ("KO", "Coca-Cola", 21344)]
-ALSO_KNOWN_AS = {"Alphabet": ["google", "goog"], "Meta": ["facebook", "fb"], "Berkshire Hathaway": ["brk", "brk.b", "brkb"], "Anthropic": ["ant"], "JPMorgan Chase": ["jpmorgan", "chase"]}
+          ("COIN", "Coinbase", 1679788), ("ABNB", "Airbnb", 1559720), ("DIS", "Disney", 1744489), ("KO", "Coca-Cola", 21344),
+          ("CRWV", "CoreWeave", 1769628), ("PEGA", "Pegasystems", 1013857)]  # the last two: searched for on the site and not found
+ALSO_KNOWN_AS = {"Alphabet": ["google", "goog"], "Meta": ["facebook", "fb"], "Berkshire Hathaway": ["brk", "brk.b", "brkb"], "Anthropic": ["ant"], "JPMorgan Chase": ["jpmorgan", "chase"], "Pegasystems": ["pega"]}
 REVENUE = ("RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "RevenuesNetOfInterestExpense", "SalesRevenueNet", "RevenueFromContractWithCustomerIncludingAssessedTax")
 # what is tracked for each: name after the dot, question, candidate concepts, kind, unit, shown unit
 STOCK_NUMBERS = [("quarterly revenue", "What was {}'s revenue in its most recently reported quarter?", REVENUE, "q", "USD", "USD"),
