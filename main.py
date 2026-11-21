@@ -38,6 +38,15 @@ import alerts
 
 HERE = os.path.dirname(__file__)
 app = FastAPI(title="Tally")
+RENDERS = int(os.environ.get("TALLY_RENDERS", "6"))
+
+
+@app.on_event("startup")
+async def _few_at_a_time():
+    """A page is built in a worker thread and holds tens of megabytes while it is. The default lets forty be built at once,
+    which a crawler's burst turned into more memory than the machine has (2026-11-21). The rest wait their turn, which costs nothing."""
+    import anyio
+    anyio.to_thread.current_default_thread_limiter().total_tokens = RENDERS
 db.init()
 app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="static")
 
@@ -1416,8 +1425,19 @@ def _changed():
     return out
 
 
+_sitemap = {"at": 0.0, "body": ""}
+_sitemap_lock = threading.Lock()
+
+
 @app.get("/sitemap.xml")
 def sitemap():
+    with _sitemap_lock:  # building it reads every number and takes seconds: once every fifteen minutes, and never twice at a time
+        if time.time() - _sitemap["at"] > 900 or not _sitemap["body"]:
+            _sitemap.update(body=_sitemap_body(), at=time.time())
+    return RawResponse(_sitemap["body"], media_type="application/xml", headers={"Cache-Control": "public, max-age=900"})
+
+
+def _sitemap_body():
     changed = _changed()
     groups = pp.groups()
     of = lambda name: max((changed.get(i, "") for i in groups.get(name, [])), default="")
@@ -1441,7 +1461,7 @@ def sitemap():
             urls.append((f'{pp.number_path(r)}/{r["y"]}', changed.get(r["id"], "") if r["y"] == today[:4] else ""))
     body = ('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
             + "".join(f"<url><loc>{pp.SITE}{pp.esc(u)}</loc>{f'<lastmod>{d}</lastmod>' if d else ''}</url>" for u, d in urls) + "</urlset>")
-    return RawResponse(body, media_type="application/xml", headers={"Cache-Control": "public, max-age=900"})
+    return body
 
 
 @app.get("/indexnow.txt")
@@ -1452,7 +1472,7 @@ def indexnow_key():
 
 @app.get("/robots.txt")
 def robots():
-    return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /embed/\nSitemap: {pp.SITE}/sitemap.xml\n# Agents: see {pp.SITE}/llms.txt\n")
+    return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /embed/\nDisallow: /compare\nSitemap: {pp.SITE}/sitemap.xml\n# Agents: see {pp.SITE}/llms.txt\n")
 
 
 @app.get("/corrections")
