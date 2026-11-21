@@ -1451,7 +1451,7 @@ def _sitemap_body():
     groups = pp.groups()
     of = lambda name: max((changed.get(i, "") for i in groups.get(name, [])), default="")
     today = db.now()[:10]
-    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/growth", today), ("/findings", today), ("/findings/ai-hiring", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
+    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/growth", today), ("/findings", today), ("/findings/ai-hiring", today), ("/findings/open-source-stars", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
     urls += [(pp.subject_path(n), of(n)) for n in groups]
     urls += [(pp.versus_path(a, b), max(of(a), of(b))) for a, b in _pairs()]
     names = {n.lower(): n for n in groups}
@@ -1506,9 +1506,37 @@ def _hiring_rows():
     return _hiring["rows"]
 
 
+_stars = {"at": 0.0, "rows": []}
+
+
+def _stars_rows():
+    """GitHub stars now and about a year ago for every tracked project with at least 1,000 stars then: [(metric, then, now, times)],
+    fastest growing first. Same rule for 'a year ago' as the hiring finding. Kept an hour."""
+    if time.time() - _stars["at"] < 3600 and _stars["rows"]:
+        return _stars["rows"]
+    out = []
+    for m in db.q("SELECT * FROM metrics WHERE skill LIKE 'free|gh|%|stargazers_count'"):
+        pts = core.series(m["id"])
+        if len(pts) < 2 or not pts[-1]["value"]:
+            continue
+        end = datetime.strptime(pts[-1]["at"][:10], "%Y-%m-%d")
+        gap = lambda p: abs((end - datetime.strptime(p["at"][:10], "%Y-%m-%d")).days - 365)
+        then = min(pts[:-1], key=gap)
+        if gap(then) <= 75 and then["value"] >= 1000:
+            out.append((m, then, pts[-1], pts[-1]["value"] / then["value"]))
+    _stars.update(at=time.time(), rows=sorted(out, key=lambda r: -r[3]))
+    return _stars["rows"]
+
+
 @app.get("/findings")
 def public_findings():
-    return HTMLResponse(pp.findings_page(_hiring_rows()))
+    return HTMLResponse(pp.findings_page(_hiring_rows(), _stars_rows()))
+
+
+@app.get("/findings/open-source-stars")
+def public_finding_stars():
+    rows = _stars_rows()
+    return HTMLResponse(pp.stars_page(rows, [(m, tile(m, None), core.series(m["id"])) for m, _, _, _ in rows[:6]]))
 
 
 @app.get("/findings/ai-hiring")

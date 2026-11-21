@@ -182,11 +182,44 @@ def hiring_page(rows, cards):
     return shell("Who is hiring fastest in AI: open roles now vs a year ago | Tally", desc, "/findings/ai-hiring", body)
 
 
-def findings_page(rows):
+def _stars_lede(rows):
+    say = lambda m, a, b, x: f'{subject(m)} has {b["value"]:,.0f} GitHub stars, {"%.1f times" % x if x >= 1.5 else "%.0f%% more than" % ((x - 1) * 100)} the {a["value"]:,.0f} it had in {_utc(a["at"]).strftime("%B %Y")}'
+    return "; ".join(say(*r) for r in rows[:3]) + "." if rows else ""
+
+
+def stars_page(rows, cards):
+    """A finding from the record: which open-source projects gained GitHub stars fastest over the past year."""
+    gained = sorted(rows, key=lambda r: r[1]["value"] - r[2]["value"])[:3]
+    line = lambda m, a, b, x: (f'<tr><td><a href="{number_path(m)}"><b>{esc(subject(m))}</b></a></td><td>{a["value"]:,.0f} <span style="color:#667085">({_utc(a["at"]).strftime("%b %Y")})</span></td>'
+                               f'<td>{b["value"]:,.0f}</td><td style="white-space:nowrap">+{b["value"] - a["value"]:,.0f}</td>'
+                               f'<td style="white-space:nowrap;font-weight:600;color:{"#0a8f5b" if x > 1.005 else "inherit"}">{"×%.1f" % x if x >= 1.5 else "%+.0f%%" % ((x - 1) * 100)}</td></tr>')
+    asof = when(max(r[2]["at"] for r in rows)) if rows else ""
+    most = "; ".join(f'{subject(m)} +{b["value"] - a["value"]:,.0f}' for m, a, b, _ in gained)
+    body = ('<div class="crumb"><a href="/findings">Findings</a> / Open-source stars</div>'
+            '<h1 style="margin-top:8px">The fastest-growing open-source AI and developer projects: GitHub stars now and a year ago</h1>'
+            f'<p class="lede">{esc(_stars_lede(rows))}</p>'
+            f'<p class="q">{len(rows)} open-source projects Tally has a star count for from a year ago, ranked by how many times over they grew. The most stars added outright: {esc(most)}. '
+            f'Updated daily, latest reading {esc(asof)}.</p>'
+            + share_bar("/findings/open-source-stars", "Fastest-growing open-source projects by GitHub stars: " + _stars_lede(rows[:2]))
+            + '<div style="overflow-x:auto;margin-top:14px"><table class="pts"><tr><th>Project</th><th>About a year ago</th><th>Now</th><th>Added</th><th>Change</th></tr>' + "".join(line(*r) for r in rows) + '</table></div>'
+            + (f'<h2 style="margin:28px 0 10px">The six fastest, over their whole history</h2><div class="cards">{"".join(landing_card(m, t, pts) for m, t, pts in cards)}</div>' if cards else "")
+            + '<h2 style="margin:28px 0 8px">How this is counted</h2><p class="q">Today\'s star count is read from GitHub once a day. The past is the exact count shown on copies of the repository\'s page kept by the Internet Archive, at most one a month. '
+            '"About a year ago" is the reading closest to twelve months before the latest one, never more than 75 days off, and its month is shown. '
+            'Projects with fewer than 1,000 stars then are left out, as are projects with no archived copy from that time. '
+            'Stars measure attention, not use: for use, each project\'s page also has its weekly npm or PyPI downloads where it has a package.</p>'
+            '<p class="q">Free to quote and chart with a link to this page (CC BY 4.0). Every row opens the full history, with a source for each point and a CSV.</p>'
+            '<div class="cta"><a class="btn" href="/top/github-stars">All projects by stars</a><a class="btn ghost" href="/findings">More findings</a></div>')
+    desc = ("GitHub stars for open-source AI and developer projects, now and a year ago. " + _stars_lede(rows[:2]))[:300]
+    return shell("Fastest-growing open-source AI and developer projects by GitHub stars | Tally", desc, "/findings/open-source-stars", body)
+
+
+def findings_page(rows, stars=()):
     """Findings: short pages built from the record, each one a question the history answers."""
     body = ('<h1 style="margin-top:22px">Findings</h1><p class="q">What the record shows when its numbers are put side by side. Each finding is rebuilt from the data every day, and every figure opens to its history and source.</p>'
             f'<a class="card" style="display:block;text-decoration:none;margin:14px 0" href="/findings/ai-hiring"><b style="font-size:18px">Who is hiring fastest in AI: open roles now and a year ago</b>'
-            f'<p class="q" style="margin:6px 0 0">{esc(_hiring_lede(rows))}</p></a>')
+            f'<p class="q" style="margin:6px 0 0">{esc(_hiring_lede(rows))}</p></a>'
+            f'<a class="card" style="display:block;text-decoration:none;margin:14px 0" href="/findings/open-source-stars"><b style="font-size:18px">The fastest-growing open-source AI and developer projects, by GitHub stars</b>'
+            f'<p class="q" style="margin:6px 0 0">{esc(_stars_lede(stars))}</p></a>')
     return shell("Findings from the record | Tally", "Short, sourced findings built from Tally's history of company numbers: hiring, funding, prices and open-source traction.", "/findings", body)
 
 
