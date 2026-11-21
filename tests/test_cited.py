@@ -37,6 +37,11 @@ class Cited(unittest.TestCase):
         self.assertTrue(cited.stated(2500, "It is now employing over 2,500 people globally.", words)[1])
         self.assertFalse(cited.stated(2300, "Headcount went from around 500 employees to about 2,300 today.", words)[1])
 
+    def test_a_company_database_is_not_a_report(self):
+        self.assertIsNone(cited.parse("47,600 (2020)<ref>{{cite web |url=https://www.zoominfo.com/c/x/9012358 |title=x}}</ref>"))
+        self.assertIsNone(cited.parse("375 (2024)<ref>{{cite web |url=https://www.forbes.com/companies/anthropic/?sh=7 |date=April 2024}}</ref>"))
+        self.assertTrue(cited.parse("375 (2024)<ref>{{cite web |url=https://www.forbes.com/sites/x/2024/04/01/story/ |date=April 2024}}</ref>"))
+
     def test_which_numbers_it_applies_to(self):
         self.assertTrue(cited.field_for({"title": "Anthropic · employee count"}))
         self.assertTrue(cited.field_for({"title": "Airtable · headcount"}))

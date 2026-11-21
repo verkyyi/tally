@@ -21,6 +21,16 @@ BROWSER = {"User-Agent": "Mozilla/5.0 (compatible; tally-catalog; +https://tally
 VIA = "wikipedia_citation"
 # The kinds of number this works for: (how its title ends, the infobox field, words that must share a sentence with the figure).
 FIELDS = [(("headcount", "employee count", "employees"), "num_employees", r"employ|staff|people|worker|headcount|workforce|team\b|person")]
+# Company databases and estimate publishers: they restate or estimate a figure, they are not where it was reported. Tally does not take figures from them.
+DATABASES = ("hoovers.com", "zoominfo.com", "macrotrends.net", "crunchbase.com", "pitchbook.com", "craft.co", "growjo.com", "owler.com", "rocketreach.co",
+             "statista.com", "linkedin.com", "companiesmarketcap.com", "stockanalysis.com", "dnb.com", "cbinsights.com", "tracxn.com", "forbes.com/companies",
+             "wikipedia.org", "glassdoor.com", "indeed.com", "comparably.com", "leadiq.com", "apollo.io", "datanyze.com")
+
+
+def database(url):
+    return any(d in (url or "").lower() for d in DATABASES)
+
+
 TEXT = ("From dated reports of the figure, found through the citations in the edit history of the company's Wikipedia infobox. "
         "Each point is dated by the report and links to it, and is kept only when the report's own text states the figure.")
 
@@ -104,7 +114,7 @@ def parse(raw):
     for ref in re.findall(r"<ref[^>/]*>(.*?)</ref>", raw, re.S):
         field = lambda k: (re.search(r"\|\s*" + k + r"\s*=\s*([^|}]+)", ref) or [None, ""])[1].strip()
         url = field("url") or (re.search(r"https?://[^\s|\]}<]+", ref) or [""])[0]
-        if url.startswith("http"):
+        if url.startswith("http") and not database(url):
             cites.append({"url": url, "date": _date(field("date")), "archive": field("archive-url")})
     return {"value": value, "approx": approx, "cites": cites} if cites else None
 
