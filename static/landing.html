@@ -42,7 +42,7 @@ h1{font-size:clamp(36px,6vw,58px);line-height:1.04;letter-spacing:-.045em;margin
 .num:hover,.num:focus-visible{border-color:var(--accent);box-shadow:0 0 0 3px var(--tint);outline:none}
 .num b{font-size:15px;font-weight:600;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
 .num b i{font:11px var(--mono);font-style:normal;color:var(--accent);background:var(--tint);border-radius:999px;padding:2px 8px;white-space:nowrap}
-.num .v{font-size:32px;font-weight:700;letter-spacing:-.035em;line-height:1.1;font-variant-numeric:tabular-nums}
+.num .v{font-size:32px;font-weight:700;letter-spacing:-.035em;line-height:1.1;font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;align-items:baseline;row-gap:4px;min-width:0}.num .v .chip{position:relative;top:-4px}
 .num .v small{font:12px var(--mono);font-weight:400;color:var(--mute);letter-spacing:0;margin-left:6px}
 .num svg{margin-top:2px}
 .num .m{font:12px var(--mono);color:var(--mute);display:flex;justify-content:space-between;gap:8px;flex-wrap:nowrap}
