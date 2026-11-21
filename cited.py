@@ -28,7 +28,9 @@ DATABASES = ("hoovers.com", "zoominfo.com", "macrotrends.net", "crunchbase.com",
 
 
 def database(url):
-    return any(d in (url or "").lower() for d in DATABASES)
+    """True for a page Tally does not take figures from: the house rules in sources.py, and the databases named above."""
+    import sources
+    return sources.status(url) != "ok" or any(d in (url or "").lower() for d in DATABASES)
 
 
 TEXT = ("From dated reports of the figure, found through the citations in the edit history of the company's Wikipedia infobox. "
