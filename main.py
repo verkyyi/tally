@@ -401,7 +401,7 @@ def _matches(words, hay):
     return all(any(v in hay or _stem(v) in hay for v in SAME.get(w, {w}) | {w}) for w in keep)
 
 
-COMMON_WORDS = {"now", "net", "ma", "v", "hd", "dis", "ko", "coin", "mu", "ant", "meta", "uber", "shop", "cost", "amd", "ibm", "team", "path", "fig"} - {"amd", "ibm", "uber"}
+COMMON_WORDS = {"now", "net", "ma", "v", "hd", "dis", "ko", "coin", "mu", "ant", "meta", "uber", "shop", "cost", "amd", "ibm", "team", "path", "fig", "iot", "frog", "dt"} - {"amd", "ibm", "uber"}
 
 
 _MONTHS = {m: i + 1 for i, names in enumerate(("january jan", "february feb", "march mar", "april apr", "may", "june jun", "july jul", "august aug", "september sep sept",

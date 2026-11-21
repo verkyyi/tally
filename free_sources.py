@@ -213,7 +213,10 @@ STOCKS = [("NVDA", "Nvidia", 1045810), ("MSFT", "Microsoft", 789019), ("AAPL", "
           ("CRWV", "CoreWeave", 1769628), ("PEGA", "Pegasystems", 1013857),  # these two: searched for on the site and not found
           ("GTLB", "GitLab", 1653482), ("MDB", "MongoDB", 1441816), ("ESTC", "Elastic", 1707753), ("TEAM", "Atlassian", 1650372),
           ("TWLO", "Twilio", 1447669), ("DOCN", "DigitalOcean", 1582961), ("PATH", "UiPath", 1734722), ("FIG", "Figma", 1579878),
-          ("OKTA", "Okta", 1660134), ("ZS", "Zscaler", 1713683)]
+          ("OKTA", "Okta", 1660134), ("ZS", "Zscaler", 1713683),
+          ("HUBS", "HubSpot", 1404655), ("IOT", "Samsara", 1642896), ("DT", "Dynatrace", 1773383), ("FSLY", "Fastly", 1517413),
+          ("FROG", "JFrog", 1800667), ("SOUN", "SoundHound AI", 1840856), ("ASAN", "Asana", 1477720), ("DBX", "Dropbox", 1467623),
+          ("NTNX", "Nutanix", 1618732), ("RBRK", "Rubrik", 1943896)]
 ALSO_KNOWN_AS = {"Alphabet": ["google", "goog"], "Meta": ["facebook", "fb"], "Berkshire Hathaway": ["brk", "brk.b", "brkb"], "Anthropic": ["ant"], "JPMorgan Chase": ["jpmorgan", "chase"], "Pegasystems": ["pega"]}
 REVENUE = ("RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "RevenuesNetOfInterestExpense", "SalesRevenueNet", "RevenueFromContractWithCustomerIncludingAssessedTax")
 # what is tracked for each: name after the dot, question, candidate concepts, kind, unit, shown unit
