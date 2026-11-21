@@ -375,6 +375,26 @@ def resource():
             print(line, flush=True)
 
 
+def cited_history():
+    """The past of numbers a company states only now and then (headcount), from the cited reports behind its Wikipedia infobox:
+    see cited.py. Free: no search, no model. Pass metric ids to limit the run. Safe to run again."""
+    import cited
+    ids = [int(x) for x in sys.argv[2:]]
+    total = 0
+    for m in db.q("SELECT * FROM metrics WHERE kind='direct' ORDER BY id"):
+        if not cited.field_for(m) or (ids and m["id"] not in ids) or not core.latest_obs(m["id"]):
+            continue
+        print(m["id"], m["title"], flush=True)
+        try:
+            n = cited.backfill(m, log=lambda s: print(s, flush=True))
+        except Exception as e:
+            print("  FAILED", type(e).__name__, str(e)[:160], flush=True)
+            continue
+        total += n
+        print("  points written:", n, flush=True)
+    print("DONE cited history points:", total)
+
+
 def growth():
     """Tally's own figures as numbers in the record (see free_sources.OWN), with their past. Safe to run again."""
     import free_sources as fs
@@ -493,4 +513,4 @@ def period_history():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "stocks": stocks, "growth": growth, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "stocks": stocks, "growth": growth, "cited_history": cited_history, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()

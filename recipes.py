@@ -61,7 +61,7 @@ def baseline(m):
         upd = "Checked once a day; the value changes when the company files its next quarterly or annual report." if p[1] == "sec" else "Once a day, from the site's own counts. No search and no model are involved." if p[1] == "tally" else "Once a day, straight from the API. No search and no model are involved."
     else:
         src = (m.get("source_url") or "Found by search on each run.") + (f"\nSearch: {m['search_query']}" if m.get("search_query") else "")
-        hist = ("From the entries' own dates, when at least half of them have one." if m["kind"] != "direct" else "Observed from the first time this number was tracked. No older history is known.")
+        hist = ("From the entries' own dates, when at least half of them have one." if m["kind"] != "direct" else (__import__("cited").TEXT + " Read by Tally itself from the day it started tracking the number.") if __import__("cited").field_for(m) else "Observed from the first time this number was tracked. No older history is known.")
         upd = ("An automatic check watches for: " + (m.get("monitor_query") or m["question"]) if m.get("telem_monitor_id") else "When someone presses Check now.")
     checks = "- The value must be readable in the text of the source.\n- A reading more than three times away from the last one is held until a second source agrees.\n- If the source has no value, the number shows \"no value yet\"."
     return f"## Source\n{src}\n\n## Read\n{read}\n\n## History\n{hist}\n\n## Update\n{upd}\n\n## Checks\n{checks}\n"

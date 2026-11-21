@@ -57,6 +57,11 @@ def add(names, history_model=None):
         rows = []
         for m in ms:
             pts = 0
+            try:  # a figure stated only now and then (headcount): the cited reports behind the Wikipedia infobox, free, before any paid search
+                import cited
+                pts = cited.backfill(core.metric(m["id"]), log=lambda s: None) if cited.field_for(m) and core.latest_obs(m["id"]) else 0
+            except Exception as e:
+                print("cited history failed:", m["title"], type(e).__name__, str(e)[:160], flush=True)
             if core.latest_obs(m["id"]) and not db.one("SELECT 1 x FROM observations WHERE metric_id=? AND origin='source_history'", (m["id"],)):
                 try:
                     rep = recipes.revise({"id": "tally"}, core.metric(m["id"]), recipes.with_round_history(m), "History from dated funding rounds.", again=True)
