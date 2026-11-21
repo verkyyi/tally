@@ -102,7 +102,7 @@ ul.rows li span{font:13px var(--mono);color:var(--mute);white-space:nowrap}
 .num{display:flex;flex-direction:column;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 17px 11px;text-decoration:none;min-width:0}
 .num:hover{border-color:var(--accent)}.num b{font-size:15px;font-weight:600;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
 .num b i{font:11px var(--mono);font-style:normal;color:var(--accent);background:#eaf0ff;border-radius:999px;padding:2px 8px;white-space:nowrap}
-.num .v{font-size:30px;font-weight:700;letter-spacing:-.035em;line-height:1.1;font-variant-numeric:tabular-nums}.num .v small{font:12px var(--mono);font-weight:400;color:var(--mute);letter-spacing:0;margin-left:6px}
+.num .v{font-size:30px;font-weight:700;letter-spacing:-.035em;line-height:1.1;font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;align-items:baseline;row-gap:4px;min-width:0}.num .v .chip{position:relative;top:-4px}.num .v small{font:12px var(--mono);font-weight:400;color:var(--mute);letter-spacing:0;margin-left:6px}
 .num .m{font:12px var(--mono);color:var(--mute);display:flex;justify-content:space-between;gap:8px;flex-wrap:nowrap;margin-top:auto}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
 ol.steps{margin:0;padding-left:22px;font-size:14px;color:#344054}ol.steps li{padding:2px 0;word-break:break-word}ol.steps li.chk{list-style:none;margin-left:-22px;color:var(--ink)}
