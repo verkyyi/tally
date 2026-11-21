@@ -1442,7 +1442,7 @@ def _sitemap_body():
     groups = pp.groups()
     of = lambda name: max((changed.get(i, "") for i in groups.get(name, [])), default="")
     today = db.now()[:10]
-    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/growth", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
+    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/growth", today), ("/findings", today), ("/findings/ai-hiring", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
     urls += [(pp.subject_path(n), of(n)) for n in groups]
     urls += [(pp.versus_path(a, b), max(of(a), of(b))) for a, b in _pairs()]
     names = {n.lower(): n for n in groups}
@@ -1473,6 +1473,39 @@ def indexnow_key():
 @app.get("/robots.txt")
 def robots():
     return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /embed/\nDisallow: /compare\nSitemap: {pp.SITE}/sitemap.xml\n# Agents: see {pp.SITE}/llms.txt\n")
+
+
+_hiring = {"at": 0.0, "rows": []}
+
+
+def _hiring_rows():
+    """Open roles now and about a year ago, for every company whose job board has a reading from then: [(metric, then, now, times)],
+    fastest growing first. 'A year ago' is the reading closest to twelve months before the latest one, at most 75 days off. Kept an hour."""
+    if time.time() - _hiring["at"] < 3600 and _hiring["rows"]:
+        return _hiring["rows"]
+    out = []
+    for m in db.q("SELECT * FROM metrics WHERE skill LIKE 'free|jobs|%' OR title LIKE '% · open roles, all teams' OR title LIKE '% · open job postings'"):
+        pts = core.series(m["id"])
+        if len(pts) < 2 or not pts[-1]["value"]:
+            continue
+        end = datetime.strptime(pts[-1]["at"][:10], "%Y-%m-%d")
+        gap = lambda p: abs((end - datetime.strptime(p["at"][:10], "%Y-%m-%d")).days - 365)
+        then = min(pts[:-1], key=gap)
+        if gap(then) <= 75 and then["value"] >= 10:  # from a handful of postings any change is a large multiple and says little
+            out.append((m, then, pts[-1], pts[-1]["value"] / then["value"]))
+    _hiring.update(at=time.time(), rows=sorted(out, key=lambda r: -r[3]))
+    return _hiring["rows"]
+
+
+@app.get("/findings")
+def public_findings():
+    return HTMLResponse(pp.findings_page(_hiring_rows()))
+
+
+@app.get("/findings/ai-hiring")
+def public_finding_hiring():
+    rows = _hiring_rows()
+    return HTMLResponse(pp.hiring_page(rows, [(m, tile(m, None), core.series(m["id"])) for m, _, _, _ in rows[:6]]))
 
 
 @app.get("/growth")

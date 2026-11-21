@@ -150,6 +150,46 @@ LICENSE_SCOPE = ("CC BY 4.0 covers Tally's own work: the compilation, its struct
                  "and text quoted from a source remains that source's. Every value names where it was reported.")
 
 
+def _hiring_lede(rows):
+    top = rows[:3]
+    say = lambda m, a, b, x: f'{subject(m)} lists {b["value"]:,.0f} open roles, {x:.1f} times the {a["value"]:,.0f} it listed in {_utc(a["at"]).strftime("%B %Y")}'
+    return "; ".join(say(*r) for r in top) + "." if top else ""
+
+
+def hiring_page(rows, cards):
+    """A finding from the record: which AI and developer-tool companies list more open roles than a year ago, and by how much."""
+    up = [r for r in rows if r[3] > 1.05]
+    down = [r for r in rows if r[3] < 0.95]
+    line = lambda m, a, b, x: (f'<tr><td><a href="{number_path(m)}"><b>{esc(subject(m))}</b></a></td><td>{a["value"]:,.0f} <span style="color:#667085">({_utc(a["at"]).strftime("%b %Y")})</span></td>'
+                               f'<td>{b["value"]:,.0f}</td><td style="white-space:nowrap;font-weight:600;color:{"#0a8f5b" if x > 1.05 else "#d92d20" if x < 0.95 else "inherit"}">{"×%.1f" % x if x >= 1.5 else "%+.0f%%" % ((x - 1) * 100)}</td></tr>')
+    asof = when(max(r[2]["at"] for r in rows)) if rows else ""
+    body = ('<div class="crumb"><a href="/findings">Findings</a> / AI hiring</div>'
+            '<h1 style="margin-top:8px">Who is hiring fastest in AI: open roles now and a year ago</h1>'
+            f'<p class="lede">{esc(_hiring_lede(rows))}</p>'
+            f'<p class="q">{len(rows)} AI and developer-tool companies whose public job boards Tally has a reading for from a year ago: {len(up)} list more roles than then, {len(down)} fewer. '
+            f'Counted from each company\'s own job board; updated daily, latest reading {esc(asof)}.</p>'
+            + share_bar("/findings/ai-hiring", "Who is hiring fastest in AI: " + _hiring_lede(rows[:2]))
+            + '<div style="overflow-x:auto;margin-top:14px"><table class="pts"><tr><th>Company</th><th>About a year ago</th><th>Now</th><th>Change</th></tr>' + "".join(line(*r) for r in rows) + '</table></div>'
+            + (f'<h2 style="margin:28px 0 10px">The six fastest, month by month</h2><div class="cards">{"".join(landing_card(m, t, pts) for m, t, pts in cards)}</div>' if cards else "")
+            + '<h2 style="margin:28px 0 8px">How this is counted</h2><p class="q">Each figure is the number of postings on the company\'s public job board (Greenhouse, Ashby or Lever), every team and location. '
+            'Today\'s count is read from the board once a day; the past comes from copies of the same board kept by the Internet Archive, at most one a month. '
+            '"About a year ago" is the reading closest to twelve months before the latest one, never more than 75 days off, and its month is shown. '
+            'Companies that listed fewer than ten roles then are left out, as are companies whose board has no archived copy from that time. '
+            'A posting is not a hire: one posting can stand for several openings, and boards are pruned at different rhythms.</p>'
+            '<p class="q">Free to quote and chart with a link to this page (CC BY 4.0). Every row opens the full history, with a source for each point and a CSV.</p>'
+            '<div class="cta"><a class="btn" href="/top">Rankings</a><a class="btn ghost" href="/findings">More findings</a></div>')
+    desc = ("Open roles at AI and developer-tool companies, now and a year ago, from each company's own job board. " + _hiring_lede(rows[:2]))[:300]
+    return shell("Who is hiring fastest in AI: open roles now vs a year ago | Tally", desc, "/findings/ai-hiring", body)
+
+
+def findings_page(rows):
+    """Findings: short pages built from the record, each one a question the history answers."""
+    body = ('<h1 style="margin-top:22px">Findings</h1><p class="q">What the record shows when its numbers are put side by side. Each finding is rebuilt from the data every day, and every figure opens to its history and source.</p>'
+            f'<a class="card" style="display:block;text-decoration:none;margin:14px 0" href="/findings/ai-hiring"><b style="font-size:18px">Who is hiring fastest in AI: open roles now and a year ago</b>'
+            f'<p class="q" style="margin:6px 0 0">{esc(_hiring_lede(rows))}</p></a>')
+    return shell("Findings from the record | Tally", "Short, sourced findings built from Tally's history of company numbers: hiring, funding, prices and open-source traction.", "/findings", body)
+
+
 def growth_page(items):
     """Tally's own growth, in the open. items: [(metric, points)], each one of the numbers under free|tally."""
     def one(m, pts):
@@ -261,7 +301,7 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 {body}
 <script src="/static/pub.js?v=13" defer></script>
 <footer>The record is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>, for the compilation Tally makes: <a href="/terms#data">what that covers</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>, or take the whole record from the <a href="https://github.com/verkyyi/tally-data" rel="noopener">open dataset</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
-<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/corrections">Corrections</a> · <a href="/growth">Growth</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
+<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/findings">Findings</a> · <a href="/corrections">Corrections</a> · <a href="/growth">Growth</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
 
 _PATHS = {"at": 0.0, "by_id": {}, "by_path": {}}
