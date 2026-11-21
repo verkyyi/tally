@@ -186,6 +186,12 @@ def backfill(m, log=print):
         return 0
     import public_pages as pp
     pts, title = reports(pp.subject(m), ff[0], ff[1], log)
+    return write(m, pts)
+
+
+def write(m, pts):
+    """Write verified reports (as reports() returns them) into a number's past. They may have been gathered on another machine:
+    news sites and the archive answer a server's address slowly or not at all."""
     if not pts:
         return 0
     marker = f'%"via": "{VIA}"%'
