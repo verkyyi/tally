@@ -926,6 +926,15 @@ def public_chart(mid: int):
     return RawResponse(pp.card_svg(m, t, _public_series(m, t)), media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=3600"})
 
 
+@app.get("/badge/n/{mid}.svg")
+def public_badge(mid: int):
+    m = core.metric(mid)
+    if not m:
+        raise HTTPException(404, "no such number")
+    fetched("badge", mid)
+    return RawResponse(pp.badge_svg(m, tile(m, None)), media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=3600"})
+
+
 @app.get("/n/{mid}/history.csv")
 def public_csv(mid: int):
     m = core.metric(mid)

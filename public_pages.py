@@ -257,6 +257,23 @@ def number_text(m, t, pts):
             f'## History ({len(pts)} points{", last 200 shown" if len(pts) > 200 else ""})\n\n| date | value | kind | source |\n|---|---|---|---|\n{rows}\n')
 
 
+def badge_svg(m, t):
+    """A small two-part badge for a README: what the number is, and its value. It links nowhere by itself: the snippet wraps it in a link."""
+    txt, unit = fmt(t.get("value"), t.get("unit"))
+    left = m["title"].split(" · ", 1)[-1] + " history"
+    right = (txt or "no value yet") + (f" {unit}" if unit and txt and len(unit) <= 10 and unit.lower() not in left.lower() else "")
+    wl, wr = 12 + int(len(left) * 6.2), 12 + int(len(right) * 6.6)
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{wl + wr}" height="20" role="img" aria-label="{esc(m["title"])}: {esc(right)}"><title>{esc(m["title"])}: {esc(right)} (Tally)</title>'
+            f'<clipPath id="r"><rect width="{wl + wr}" height="20" rx="4"/></clipPath><g clip-path="url(#r)"><rect width="{wl}" height="20" fill="#3b4252"/><rect x="{wl}" width="{wr}" height="20" fill="#2f5bff"/></g>'
+            f'<g fill="#fff" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11" text-anchor="middle"><text x="{wl / 2:.0f}" y="14">{esc(left)}</text><text x="{wl + wr / 2:.0f}" y="14" font-weight="bold">{esc(right)}</text></g></svg>')
+
+
+def bibtex(m, t):
+    key = re.sub(r"[^a-z0-9]+", "_", m["title"].lower()).strip("_")
+    return (f'@misc{{tally_{key},\n  title = {{{m["title"]}}},\n  author = {{{{Tally}}}},\n  year = {{{datetime.now(timezone.utc).year}}},\n'
+            f'  howpublished = {{\\url{{{SITE}{number_path(m)}}}}},\n  note = {{Accessed {datetime.now(timezone.utc).strftime("%Y-%m-%d")}; history with a source for each value}}\n}}')
+
+
 def use_box(m, t, pts):
     """How to quote, download, link or embed this number."""
     if t["value"] is None:
@@ -268,6 +285,9 @@ def use_box(m, t, pts):
             f'<a href="/n/{mid}.json">JSON</a><a href="/n/{mid}/history.csv">CSV</a><a href="/n/{mid}.md">Plain text</a><a href="/n/{mid}/chart.svg">Chart image</a></div>'
             f'<p class="meta" style="margin:14px 0 6px">A live card for a website (it updates by itself)</p>'
             f'<pre>&lt;iframe src="{SITE}/embed/n/{mid}" width="600" height="270" style="border:0" loading="lazy" title="{esc(m["title"])}"&gt;&lt;/iframe&gt;</pre>'
+            f'<p class="meta" style="margin:14px 0 6px">A badge for a README (it updates by itself): <img src="/badge/n/{mid}.svg" alt="" height="20" style="vertical-align:middle"></p>'
+            f'<pre>[![{esc(m["title"])} history]({SITE}/badge/n/{mid}.svg)]({url})</pre>'
+            f'<details style="margin-top:10px"><summary class="meta" style="cursor:pointer">BibTeX</summary><pre>{esc(bibtex(m, t))}</pre></details>'
             f'<p class="meta" style="margin:10px 0 0">Free to use with a link back to this page (<a href="{LICENSE_URL}" rel="license noopener">CC BY 4.0</a>). '
             f'Each past value links to the page it was read from.</p></div>')
 
