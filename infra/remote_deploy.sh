@@ -37,6 +37,10 @@ User=tally
 WorkingDirectory=$APP
 ExecStart=$APP/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
 Restart=always
+# A crawl burst once grew the app until the whole machine was swapping and nothing answered, the watchdog included.
+# Past this size the app is stopped and started again (seconds) instead.
+MemoryMax=1100M
+MemorySwapMax=256M
 [Install]
 WantedBy=multi-user.target
 UNIT
