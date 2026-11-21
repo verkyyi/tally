@@ -97,6 +97,8 @@ def read(spec):
             if not n:  # a board that answers with nothing listed is far more often a moved board than a company with no openings
                 return None
             return {"value": n, "quote": f"{n} postings listed on the public job board ({p[2].title()})", "evidence_url": url}
+        if p[1] == "tally":
+            return own(p[2])
         if p[1] == "sec":
             pts = sec_points(spec)
             if not pts:
@@ -152,6 +154,56 @@ def pypi_log(package):
     return [(d, n, f"https://clickpy.clickhouse.com/dashboard/{name}", "weekly downloads, from PyPI's public download log (ClickHouse copy)") for d, n in _weekly(days)]
 
 
+# Tally's own figures, kept in the open like any other number: what the record holds, and who comes to read it.
+# The site counts a page view and a distinct visitor per day itself, with no cookies and no stored addresses.
+OWN = {"numbers": ("Tally · numbers tracked", "How many numbers does Tally track?", "numbers"),
+       "values": ("Tally · dated values on record", "How many dated values, each with its source, does Tally hold?", "values"),
+       "subjects": ("Tally · companies and projects covered", "How many companies and projects does Tally cover?", "subjects"),
+       "visitors": ("Tally · daily visitors", "How many distinct visitors did tallycatalog.com have in a day? (Visitors not identified as crawlers; some crawlers that do not name themselves are counted.)", "visitors"),
+       "google": ("Tally · daily visitors from Google", "How many distinct visitors came to tallycatalog.com from Google in a day?", "visitors"),
+       "views": ("Tally · daily page views", "How many pages did visitors open on tallycatalog.com in a day? (Crawlers that name themselves are left out.)", "views"),
+       "crawls": ("Tally · pages read by crawlers, daily", "How many pages of tallycatalog.com did search and AI crawlers read in a day?", "pages")}
+_OWN_DAILY = {"visitors": "path='*visitors' AND ref NOT LIKE 'bot:%'", "google": "path='*visitors' AND ref LIKE '%google.%'",
+              "views": "path NOT LIKE '*%' AND ref NOT LIKE 'bot:%'", "crawls": "path NOT LIKE '*%' AND ref LIKE 'bot:%'"}
+OWN_URL = "https://tallycatalog.com/growth"
+_SUBJECT = "COALESCE(NULLIF(company,''), CASE WHEN instr(title,' · ')>0 THEN substr(title,1,instr(title,' · ')-1) ELSE title END)"
+
+
+def own(what):
+    """One of Tally's own figures, counted from its own database. A daily figure is yesterday's: the last whole day (UTC)."""
+    import db
+    from datetime import datetime, timedelta, timezone
+    if what in _OWN_DAILY:
+        day = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        n = db.one(f"SELECT COALESCE(SUM(n),0) n FROM visits WHERE day=? AND {_OWN_DAILY[what]}", (day,))["n"]
+        return {"value": n, "as_of": day, "quote": f"{n:,} {OWN[what][2]} on {day} (UTC), counted by the site itself", "evidence_url": OWN_URL}
+    n = db.one({"numbers": "SELECT COUNT(*) n FROM metrics WHERE COALESCE(skill,'') NOT LIKE 'free|yc|batches|%'",
+                "values": "SELECT COUNT(*) n FROM observations WHERE seeded=0 AND value IS NOT NULL",
+                "subjects": f"SELECT COUNT(DISTINCT {_SUBJECT}) n FROM metrics"}[what])["n"]
+    return {"value": n, "quote": f"{n:,} {OWN[what][2]}, counted in Tally's own database", "evidence_url": OWN_URL}
+
+
+def own_history(what):
+    """Every whole day before yesterday for a daily figure; for the numbers and subjects, the count at the end of each day since the first."""
+    import db
+    from datetime import datetime, timedelta, timezone
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if what in _OWN_DAILY:
+        first = (db.one("SELECT MIN(day) d FROM visits WHERE path='*visitors'") or {}).get("d") or today  # distinct visitors are counted from this day on
+        rows = db.q(f"SELECT day, SUM(n) n FROM visits WHERE day<? AND day>=? AND {_OWN_DAILY[what]} GROUP BY day ORDER BY day", (today, first))
+        return [(r["day"], r["n"], OWN_URL, "counted by the site itself") for r in rows]
+    if what == "values":
+        return []  # when each value was written was not kept before 2026-11-18
+    sql = ("SELECT substr(created_at,1,10) d, COUNT(*) n FROM metrics WHERE created_at IS NOT NULL GROUP BY d ORDER BY d" if what == "numbers" else
+           f"SELECT d, COUNT(*) n FROM (SELECT MIN(substr(created_at,1,10)) d FROM metrics WHERE created_at IS NOT NULL GROUP BY {_SUBJECT}) GROUP BY d ORDER BY d")
+    out, total = [], 0
+    for r in db.q(sql):
+        total += r["n"]
+        if r["d"] < today:
+            out.append((r["d"], total, OWN_URL, "counted from when each number was added (numbers since removed are not counted)"))
+    return out
+
+
 def history(spec):
     """The number's past, from the source's own records: [(YYYY-MM-DD, value, source url, note)]. Empty when the source keeps none."""
     from datetime import date, timedelta
@@ -171,6 +223,8 @@ def history(spec):
             return [o for o in pypi_log(p[2]) if not recent or o[0] < recent[0][0]] + recent
         if p[1] == "sec":
             return sec_points(spec)
+        if p[1] == "tally":
+            return own_history(p[2])
         if p[1] == "yc" and p[2] in ("tags", "industries"):
             # The directory lists every company with the batch it was in (acquired and closed ones too), so the count after
             # each batch can be rebuilt exactly. It uses today's tags: a tag added later counts from the company's batch.

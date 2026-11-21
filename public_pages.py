@@ -150,6 +150,24 @@ LICENSE_SCOPE = ("CC BY 4.0 covers Tally's own work: the compilation, its struct
                  "and text quoted from a source remains that source's. Every value names where it was reported.")
 
 
+def growth_page(items):
+    """Tally's own growth, in the open. items: [(metric, points)], each one of the numbers under free|tally."""
+    def one(m, pts):
+        txt, unit = fmt(pts[-1]["value"], m["unit"]) if pts else ("no value yet", "")
+        daily = "daily" in m["title"]
+        return (f'<div class="card" style="margin:14px 0"><h2 style="margin:0 0 2px"><a href="{number_path(m)}">{esc((lambda x: x[:1].upper() + x[1:])(m["title"].split(" · ", 1)[-1]))}</a></h2>'
+                f'<div style="font-size:30px;font-weight:700;letter-spacing:-.03em">{esc(txt)} <small style="font:12px var(--mono);color:var(--mute)">{esc(unit)}{" on " + when(pts[-1]["at"]) if daily and pts else ""}</small></div>'
+                f'{chart(pts, m["unit"], h=200, bars=daily) if len(pts) >= 2 else ""}'
+                f'<p class="q" style="margin:6px 0 0">{esc(m["question"])} <a href="{number_path(m)}">History and data</a></p></div>')
+    body = ('<h1 style="margin-top:22px">Tally\'s growth, in the open</h1>'
+            '<p class="lede">Tally keeps the history of other companies\' numbers. These are its own: what the record holds and who comes to read it, updated once a day and kept the same way as every other number here.</p>'
+            + "".join(one(m, pts) for m, pts in items) +
+            '<p class="q">How these are counted: the site counts page views and distinct visitors itself, with no cookies and without storing addresses. Crawlers that name themselves are counted apart; '
+            'some that do not are in the visitor figures, so the visitors who came from Google are the cleanest sign of real readers. Days are UTC. What visitors searched for is not published.</p>')
+    return shell("Tally's growth, in the open: numbers tracked, visitors, crawler reads | Tally",
+                 "Tally's own figures with their history: numbers and dated values on record, daily visitors, visitors from Google, and pages read by search and AI crawlers.", "/growth", body)
+
+
 def corrections_page(rows):
     """The public log of what was taken out of the record or changed in it, and why."""
     items = "".join(f'<tr><td style="white-space:nowrap"><time datetime="{esc(r["at"][:10])}">{esc(when(r["at"]) or r["at"][:10])}</time></td><td><b>{esc(r["title"] or "")}</b><br>{esc(r["what"] or "")}</td>'
@@ -243,7 +261,7 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 {body}
 <script src="/static/pub.js?v=13" defer></script>
 <footer>The record is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>, for the compilation Tally makes: <a href="/terms#data">what that covers</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>, or take the whole record from the <a href="https://github.com/verkyyi/tally-data" rel="noopener">open dataset</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
-<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/corrections">Corrections</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
+<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/corrections">Corrections</a> · <a href="/growth">Growth</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
 
 _PATHS = {"at": 0.0, "by_id": {}, "by_path": {}}

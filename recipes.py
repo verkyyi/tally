@@ -43,19 +43,22 @@ def baseline(m):
         p = m["skill"].split("|")
         src = {"gh": f"https://api.github.com/repos/{p[2]}" if len(p) > 2 else "", "npm": f"https://api.npmjs.org/downloads/point/last-week/{p[2]}" if len(p) > 2 else "",
                "pypi": f"https://pypistats.org/api/packages/{p[2]}/recent" if len(p) > 2 else "", "yc": "https://yc-oss.github.io/api/meta.json",
+               "tally": "https://tallycatalog.com/growth\nTally's own database: the numbers and values it holds, and the page views it counts itself (no cookies, no stored addresses).",
                "jobs": (m.get("source_url") or "") + "\nThe company's own public job board, read through the board's public listing.",
                "sec": (f"https://data.sec.gov/api/xbrl/companyconcept/CIK{p[2]}/{p[3].replace(':', '/')}.json\nThe figures the company itself reports to the US Securities and Exchange Commission in its quarterly and annual filings."
                        if len(p) > 3 else "")}.get(p[1], m.get("source_url") or "")
         read = {"gh": f"Read the `{p[3]}` field." if len(p) > 3 else read, "npm": "Read the `downloads` field: downloads over the last 7 days.",
-                "pypi": "Read `data.last_week`: downloads over the last 7 days.", "jobs": "Count the postings the board lists, every team and every location. No model reads it.", "yc": "Read the company count for the batch, tag or industry named in the title.",
+                "pypi": "Read `data.last_week`: downloads over the last 7 days.", "jobs": "Count the postings the board lists, every team and every location. No model reads it.",
+                "tally": "Count it in the database. A daily figure is the last whole day, in UTC.", "yc": "Read the company count for the batch, tag or industry named in the title.",
                 "sec": "Take the value for the latest reported period (one value per quarter, per fiscal year, or per reporting date). No model reads it: it is a number in the filing's own data."}.get(p[1], read)
         hist = {"npm": "Weekly totals from the registry's daily download counts, back to 2015: https://api.npmjs.org/downloads/range/{start}:{end}/{package}",
                 "pypi": "Weekly totals from the last 180 days of daily counts: https://pypistats.org/api/packages/{package}/overall?mirrors=false",
                 "yc": "One point per batch, dated at the start of the batch season, from the same directory file." if "series" in m["skill"] else YC_COUNT_HISTORY,
                 "sec": "Every period the company has reported, each linked to the filing it comes from. A fourth quarter is the fiscal year minus its first three quarters, and is marked as computed.",
+                "tally": "From the same database: one point per day since counting began.",
                 "jobs": "From archived copies of the board's page kept by the Internet Archive (web.archive.org), up to one a month: the postings each copy listed. Observed daily from now on.",
                 "gh": "From archived copies of the repository's page (web.archive.org), four a year. Observed daily from now on."}.get(p[1], "Observed from now on.")
-        upd = "Checked once a day; the value changes when the company files its next quarterly or annual report." if p[1] == "sec" else "Once a day, straight from the API. No search and no model are involved."
+        upd = "Checked once a day; the value changes when the company files its next quarterly or annual report." if p[1] == "sec" else "Once a day, from the site's own counts. No search and no model are involved." if p[1] == "tally" else "Once a day, straight from the API. No search and no model are involved."
     else:
         src = (m.get("source_url") or "Found by search on each run.") + (f"\nSearch: {m['search_query']}" if m.get("search_query") else "")
         hist = ("From the entries' own dates, when at least half of them have one." if m["kind"] != "direct" else "Observed from the first time this number was tracked. No older history is known.")

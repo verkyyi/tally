@@ -1442,7 +1442,7 @@ def _sitemap_body():
     groups = pp.groups()
     of = lambda name: max((changed.get(i, "") for i in groups.get(name, [])), default="")
     today = db.now()[:10]
-    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
+    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/growth", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
     urls += [(pp.subject_path(n), of(n)) for n in groups]
     urls += [(pp.versus_path(a, b), max(of(a), of(b))) for a, b in _pairs()]
     names = {n.lower(): n for n in groups}
@@ -1473,6 +1473,11 @@ def indexnow_key():
 @app.get("/robots.txt")
 def robots():
     return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /embed/\nDisallow: /compare\nSitemap: {pp.SITE}/sitemap.xml\n# Agents: see {pp.SITE}/llms.txt\n")
+
+
+@app.get("/growth")
+def public_growth():
+    return HTMLResponse(pp.growth_page([(m, core.series(m["id"])) for m in db.q("SELECT * FROM metrics WHERE skill LIKE 'free|tally|%' ORDER BY id")]))
 
 
 @app.get("/corrections")

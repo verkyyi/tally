@@ -375,6 +375,14 @@ def resource():
             print(line, flush=True)
 
 
+def growth():
+    """Tally's own figures as numbers in the record (see free_sources.OWN), with their past. Safe to run again."""
+    import free_sources as fs
+    for what, (title, q, unit) in fs.OWN.items():
+        mid, new = core.create_free(title, q, unit, f"free|tally|{what}", "Tally", f"tally_{what}")
+        print(mid, title, "created" if new else "kept", "| past points", core.backfill_free(core.metric(mid)) if mid else 0)
+
+
 def stocks():
     """Listed companies, from what each reports to the SEC: revenue, income and shares for every period on record, plus the ticker people search by.
     No search and no model are involved. Usage: stocks [TICKER ...]   (default: the whole list)"""
@@ -485,4 +493,4 @@ def period_history():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "stocks": stocks, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "stocks": stocks, "growth": growth, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
