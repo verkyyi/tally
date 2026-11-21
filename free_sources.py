@@ -193,7 +193,11 @@ def own_history(what):
         rows = db.q(f"SELECT day, SUM(n) n FROM visits WHERE day<? AND day>=? AND {_OWN_DAILY[what]} GROUP BY day ORDER BY day", (today, first))
         return [(r["day"], r["n"], OWN_URL, "counted by the site itself") for r in rows]
     if what == "values":
-        return []  # when each value was written was not kept before 2026-11-18
+        # When a value was written has been kept since 2026-11-18, and values are numbered in the order they were written:
+        # the count at the end of a day is every value numbered up to the last one written that day.
+        days = db.q("SELECT substr(collected_at,1,10) d, MAX(id) last FROM observations WHERE collected_at IS NOT NULL GROUP BY d ORDER BY d")
+        return [(r["d"], db.one("SELECT COUNT(*) n FROM observations WHERE seeded=0 AND value IS NOT NULL AND id<=?", (r["last"],))["n"], OWN_URL,
+                 "values written up to the end of this day (write times are kept since 2026-11-18)") for r in days if r["d"] < today]
     sql = ("SELECT substr(created_at,1,10) d, COUNT(*) n FROM metrics WHERE created_at IS NOT NULL GROUP BY d ORDER BY d" if what == "numbers" else
            f"SELECT d, COUNT(*) n FROM (SELECT MIN(substr(created_at,1,10)) d FROM metrics WHERE created_at IS NOT NULL GROUP BY {_SUBJECT}) GROUP BY d ORDER BY d")
     out, total = [], 0
