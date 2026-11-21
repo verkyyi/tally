@@ -14,6 +14,10 @@ class SearchWords(unittest.TestCase):
         self.assertTrue(main._matches("hume.ai valuation".split(), "hume ai · latest valuation what is hume ai's latest reported valuation? usd"))
         self.assertTrue(main._matches(["what", "is", "anthropic's", "latest", "valuation?"], "anthropic · latest valuation what is anthropic's latest reported valuation?"))
 
+    def test_asking_for_the_history_is_not_a_word_to_match(self):
+        for q in ("profound history", "profound headcount over time", "profound employees chart"):
+            self.assertTrue(main._matches([w for w in q.split() if w not in main.FILLER], self.HAY), q)
+
     def test_a_different_company_or_kind_does_not_match(self):
         self.assertFalse(main._matches("openai employees".split(), self.HAY))
         self.assertFalse(main._matches("profound valuation".split(), self.HAY))

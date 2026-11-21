@@ -384,7 +384,8 @@ _SAME = [("employee", "employees", "headcount", "staff", "workforce", "people", 
          ("stars", "star", "stargazers"), ("downloads", "download", "installs"), ("jobs", "roles", "openings", "postings", "hiring", "job"),
          ("users", "user", "customers", "subscribers"), ("latest", "current", "now", "today", "recent"), ("vs", "versus", "compared")]
 SAME = {w: set(g) for g in _SAME for w in g}
-FILLER |= {"which", "who", "when", "was", "were", "its", "their", "there", "to", "on", "by", "and", "or", "it", "did", "per", "as", "with", "latest", "current", "recent", "most", "recently", "reported", "today", "now", "total", "company"}
+FILLER |= {"which", "who", "when", "was", "were", "its", "their", "there", "to", "on", "by", "and", "or", "it", "did", "per", "as", "with", "latest", "current", "recent", "most", "recently", "reported", "today", "now", "total", "company",
+           "history", "historical", "chart", "graph", "trend", "timeline", "over", "time", "data", "stats", "statistics", "numbers"}  # every number here comes with its history: asking for it is not another word to match
 
 
 def _words(q):
