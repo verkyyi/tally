@@ -24,11 +24,21 @@ INSTANCE, REGION = os.environ.get("TALLY_INSTANCE", "i-0974ac20fad03f39d"), os.e
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIMIT = 12 * 60  # seconds one request may take
 STANDARD = ("latest valuation", "latest round size", "total funding raised", "headcount", "quarterly revenue")
-APP = "set -a; . <(grep -v ^TALLY_DOMAINS /opt/tally/app/.env); set +a; cd /opt/tally/app; PYTHONPATH=/opt/tally/app .venv/bin/python"
+APP = ("cd /opt/tally/app; PYTHONPATH=/opt/tally/app .venv/bin/python" if os.environ.get("TALLY_LOCAL") == "1" else
+       "set -a; . <(grep -v ^TALLY_DOMAINS /opt/tally/app/.env); set +a; cd /opt/tally/app; PYTHONPATH=/opt/tally/app .venv/bin/python")
+
+
+LOCAL = os.environ.get("TALLY_LOCAL") == "1"  # running on the server itself, as the app's user
+AGENT_USER = os.environ.get("TALLY_AGENT_USER", "")  # on the server the session runs as a user that cannot read the app or its keys
+CLAUDE = os.environ.get("TALLY_CLAUDE", "claude")
+WORK = os.environ.get("TALLY_AGENT_DIR", "")  # where sessions write their results (the agent user's own directory)
 
 
 def server(cmd, wait=True):
     """Run a shell command on the server as the app's user; its output."""
+    if LOCAL:
+        r = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True, timeout=900)
+        return r.stdout
     full = "sudo -u tally bash -c " + shlex.quote(cmd)
     b64 = base64.b64encode(full.encode()).decode()
     cid = subprocess.run(["aws", "ssm", "send-command", "--region", REGION, "--instance-ids", INSTANCE, "--document-name", "AWS-RunShellScript",
@@ -82,7 +92,8 @@ def research(rid, text, out):
     ask = (f"Today is {today}. Read {HERE}/research/{brief} (and BRIEF.md beside it) and follow it exactly. "
            + (f"Request: {text}. Use the SUBJECT.md output format with exactly one series, titled \"<Company> · <figure name>\"." if brief == "BRIEF.md" else f"Company: {text}.")
            + f" Write the result to {out} . Use absolute paths. Read-only web research: no accounts, no posting, no logins.")
-    p = subprocess.Popen(["claude", "-p", ask, "--output-format", "stream-json", "--verbose", "--allowedTools", "WebSearch,WebFetch,Read,Write",
+    run = (["sudo", "-n", "-u", AGENT_USER, "-H"] if AGENT_USER else []) + [CLAUDE]
+    p = subprocess.Popen(run + ["-p", ask, "--output-format", "stream-json", "--verbose", "--allowedTools", "WebSearch,WebFetch,Read,Write",
                           "--disallowedTools", "Bash,Edit,Agent", "--strict-mcp-config", "--add-dir", os.path.dirname(out)],
                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, cwd=os.path.dirname(out))
     start, last, waiting = time.time(), 0.0, []
@@ -114,7 +125,10 @@ def deliver(rid, text, out):
     name = re.sub(r"[^a-z0-9]+", "-", (doc.get("subject") or text).lower()).strip("-")
     remote = f"/var/tmp/tally-req/{rid}-{name}.json"
     b64 = base64.b64encode(json.dumps(doc).encode()).decode()
-    if "stored" not in server(f"mkdir -p /var/tmp/tally-req && echo {b64} | base64 -d > {remote} && echo stored"):
+    if LOCAL:
+        os.makedirs("/var/tmp/tally-req", exist_ok=True)
+        json.dump(doc, open(remote, "w"))
+    elif "stored" not in server(f"mkdir -p /var/tmp/tally-req && echo {b64} | base64 -d > {remote} && echo stored"):
         raise RuntimeError(f"request {rid}: the result did not reach the server; left open")  # never reported to the asker as a failed research
     tell(rid, "step", f"Checking {sum(len(s.get('points') or []) for s in series)} points against their pages")
     written, missed = [], []
@@ -146,7 +160,7 @@ def handle_all():
             continue
         rid, text = int(m.group(1)), m.group(2)
         tell(rid, "step", "Starting the research")
-        out = os.path.join(tempfile.mkdtemp(prefix="tally-req-"), "result.json")
+        out = os.path.join(WORK, f"req-{rid}.json") if WORK else os.path.join(tempfile.mkdtemp(prefix="tally-req-"), "result.json")
         research(rid, text, out)
         deliver(rid, text, out)
         print(datetime.datetime.now().isoformat(timespec="seconds"), "request", rid, text, flush=True)
