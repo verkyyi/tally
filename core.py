@@ -335,6 +335,7 @@ def resolve_direct(m, exclude_domain=None, fresh=False):
     if not ex or not isinstance(ex.get("value"), (int, float)):
         return None
     page = next((p["content"] for p in pages if p["url"] == ex.get("evidence_url")), "")
+    m["_read"] = ex["value"]  # what this read found, whether or not it passes the review: run_now uses it to tell "unchanged" from "nothing found"
     passed = evidence.assess(m, ex, page)
     lessons.note(lessons.kind_of(m.get("title")), ex.get("evidence_url"), passed, (ex.get("_review") or {}).get("reason"))  # how this page did for this kind of number
     if not passed:
@@ -634,7 +635,11 @@ def run_now(mid):
         ex = resolve_direct(m, fresh=True)
         ex = None if ex and jump_held(m, ex) else ex
         changed = record_direct(m, ex, "run_now") if ex else False
-        out = {"value": ex["value"] if ex else None, "changed": changed, "found": bool(ex)}
+        # A read whose value is the one already on record found the number again: nothing is written (the review asks for
+        # dated evidence newer than the record before it writes), but it is not a failed read and must not send for a repair.
+        prev = None if ex else latest_obs(mid)
+        same = bool(prev and m.get("_read") is not None and prev["value"] == m["_read"])
+        out = {"value": ex["value"] if ex else None, "changed": changed, "found": bool(ex) or same}
     else:
         new_ids = upsert_entries(m, find_entries(m), "run_now")
         record_count_obs(mid, "run_now")

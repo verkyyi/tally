@@ -31,12 +31,21 @@ def hold(m, ex, reason):
            (m.get("id"), db.now(), json.dumps(ex, ensure_ascii=False, default=str), reason))
 
 
+_PLAIN = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"', "\u2013": "-", "\u2014": "-", "\u2212": "-", "\u00a0": " ", "\u202f": " ", "\u2009": " ", "*": "", "_": "", "`": ""})
+
+
+def _squash(t):
+    """Text as compared between a quote and its page: the same words whatever the typography. Curly and straight quotes,
+    long and short dashes, non-breaking spaces and the marks a page uses for bold or italic do not change what was said."""
+    return re.sub(r"\s+", " ", (t or "").translate(_PLAIN)).strip().lower()
+
+
 def assess(m, ex, page):
     import core
     import sources
     ex.pop("_structured", None)  # text/model output cannot claim the API-adapter exemption
     quote = ex.get("quote") or ""
-    squash = lambda t: re.sub(r"\s+", " ", t).strip().lower()
+    squash = _squash
     reason = None
     if not finite(ex.get("value")) or not sources.readable(ex.get("evidence_url")):
         reason = "Invalid number or disallowed source"
