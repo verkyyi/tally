@@ -258,15 +258,17 @@ def request_page():
             '<p class="lede">Name a company, or a figure about one. Tally researches it, checks every point against the page it came from, and hands back the history with its sources.</p>'
             '<div class="card"><form id="rq" onsubmit="return send(event)"><input name="text" maxlength="200" required placeholder="Figure AI — or — Duolingo daily active users" '
             'style="width:100%;font:17px var(--display);padding:12px 14px;border-radius:9px;border:1px solid var(--line)">'
+            '<input name="email" type="email" maxlength="200" placeholder="Email (optional): one message when it is ready" '
+            'style="width:100%;font:15px var(--display);padding:10px 14px;border-radius:9px;border:1px solid var(--line);margin-top:10px">'
             '<input name="site" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">'
             '<div class="cta" style="margin-top:14px"><button class="btn" style="border:0;cursor:pointer;font:600 16px var(--display)">Ask Tally</button></div><p class="meta" id="rqm"></p></form></div>'
             '<h2>What you get</h2><ul><li><b>A company</b>: its standard figures (valuation, funding, revenue, headcount where public) and any other figure with a dated public record.</li>'
             '<li><b>A figure</b>: its history as dated points, each with the source page and the sentence that states it, a chart, and a file to download.</li>'
             '<li><b>Or a plain answer</b> that it could not be verified, with what was found.</li></ul>'
-            '<p class="q">Results are published in the open record. Samples: <a href="/c/duolingo/daily-active-users">Duolingo daily active users</a>, '
+            '<p class="q">Results are published in the open record. An email address, if you give one, is used for that one message and then erased. Samples: <a href="/c/duolingo/daily-active-users">Duolingo daily active users</a>, '
             '<a href="/c/perplexity">Perplexity</a>, <a href="/findings/ai-valuations">AI valuations in a year</a>. See <a href="/coverage">what is covered today</a>.</p>'
             '<script>async function send(e){e.preventDefault();const f=e.target,m=document.getElementById("rqm");m.textContent="Sending…";'
-            'const r=await fetch("/api/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:f.text.value,site:f.site.value})});'
+            'const r=await fetch("/api/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:f.text.value,site:f.site.value,email:f.email.value})});'
             'const d=await r.json().catch(()=>({}));if(r.ok&&d.path){location.href=d.path}else{m.textContent=d.detail||"That did not go through. Try again in a moment."}return false}</script>')
     return shell("Ask for a company's numbers, with sources | Tally", "Name a company or a figure about one. Tally researches it and hands back the history, every point with its source.", "/request", body)
 

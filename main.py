@@ -1574,6 +1574,7 @@ def _coverage():
 class Ask(BaseModel):
     text: str
     site: str = ""  # left empty by people; a script that fills every field gives itself away
+    email: str = ""  # optional: one message when the research is finished
 
 
 @app.get("/request")
@@ -1588,10 +1589,13 @@ def api_request(body: Ask, request: Request):
         raise HTTPException(422, "Name a company, or a figure about one, in a few words.")
     if db.one("SELECT COUNT(*) n FROM requests WHERE created_at>=?", (db.now()[:10],))["n"] >= 60:
         raise HTTPException(429, "Tally has taken all the requests it can research today. Please come back tomorrow.")
+    email = (body.email or "").strip()[:200]
+    if email and not re.match(r"^[^@\s<>,;]+@[^@\s<>,;]+\.[A-Za-z]{2,}$", email):
+        raise HTTPException(422, "That email address does not look right. Leave it empty to follow the request on its page.")
     same = db.one("SELECT token FROM requests WHERE lower(text)=? AND status IN ('received','researching')", (text.lower(),))
     token = same["token"] if same else secrets.token_urlsafe(9)
     if not same:
-        db.run("INSERT INTO requests(token,text,status,created_at) VALUES(?,?,?,?)", (token, text, "received", db.now()))
+        db.run("INSERT INTO requests(token,text,status,created_at,email) VALUES(?,?,?,?,?)", (token, text, "received", db.now(), email or None))
     return {"path": f"/request/{token}"}
 
 

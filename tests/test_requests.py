@@ -33,6 +33,12 @@ class Requests(unittest.TestCase):
         self.assertIn('href="/c/figure-ai"', page)
         self.assertNotIn("javascript:", page)
 
+    def test_an_email_is_optional_checked_and_never_shown(self):
+        self.assertEqual(self.c.post("/api/request", json={"text": "Acme", "email": "not an address"}, headers=self.h).status_code, 422)
+        path = self.c.post("/api/request", json={"text": "Acme", "email": "reader@example.com"}, headers=self.h).json()["path"]
+        self.assertEqual(db.one("SELECT email FROM requests")["email"], "reader@example.com")
+        self.assertNotIn("reader@example.com", self.c.get(path).text)
+
     def test_scripts_links_and_filled_traps_are_refused(self):
         for body, headers in (({"text": "see https://x.example"}, self.h), ({"text": "Acme", "site": "x"}, self.h), ({"text": "a"}, self.h),
                               ({"text": "Acme"}, {"user-agent": "Googlebot/2.1"})):

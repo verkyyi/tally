@@ -535,6 +535,16 @@ def requests():
         rid, status, note, links = int(a[0]), a[1], (a[2] if len(a) > 2 else ""), "\n".join(a[3:])
         assert status in ("received", "researching", "delivered", "unverified"), status
         db.run("UPDATE requests SET status=?, note=?, links=?, done_at=? WHERE id=?", (status, note, links, db.now() if status in ("delivered", "unverified") else None, rid))
+        r = db.one("SELECT * FROM requests WHERE id=?", (rid,))
+        if r.get("email") and status in ("delivered", "unverified"):  # the one message the address was given for; then the address is erased
+            import alerts
+            import public_pages as pp
+            url, head = f"{pp.SITE}/request/{r['token']}", pp.REQUEST_STATES[status]
+            listed = "".join(f"\n{pp.SITE}{l}" for l in links.split("\n") if l.startswith("/"))
+            text = f"You asked Tally for: {r['text']}\n\n{head}\n{note}\n{listed}\n\nYour request: {url}\n"
+            html = f"<p>You asked Tally for: <b>{pp.esc(r['text'])}</b></p><p>{pp.esc(head)}</p><p>{pp.esc(note)}</p><p><a href=\"{url}\">See the result</a></p>"
+            if alerts.send(r["email"], f"Tally: {r['text']}"[:120], text, html):
+                db.run("UPDATE requests SET email=NULL WHERE id=?", (rid,))
     for r in db.q("SELECT * FROM requests WHERE status IN ('received','researching') OR id=? ORDER BY id", (int(a[0]) if a else 0,)):
         print(r["id"], r["status"], r["created_at"], "|", r["text"], "|", r["token"], flush=True)
 
