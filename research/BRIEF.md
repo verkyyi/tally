@@ -8,6 +8,7 @@ Rules for a point:
 - `value`: a plain number in base units (USD not millions; counts as integers; percentages as 12.5).
 - `source_url`: a page you actually opened that states the value. Prefer primary sources (company posts, filings, official docs), then reputable press. One page may back several points.
 - `quote`: a VERBATIM sentence or phrase copied from that page that contains the value (as the page writes it, e.g. "$61.5 billion") — it will be machine-checked against the page text, so no paraphrase, no ellipsis, at most 300 characters.
+- Keep the quote SHORT and exact: the number with the few words around it that say what it is ("valued at $1.5 billion", "more than 17,000 customers"). A long sentence retold by a page reader is not the page's own words and will fail the check; when unsure of the exact wording, quote less.
 - Never estimate, interpolate or fill from memory. A point without an opened page and verbatim quote is left out.
 - Keep one consistent definition across points (same metric, same unit, same scope); note any definitional change in `notes`.
 
