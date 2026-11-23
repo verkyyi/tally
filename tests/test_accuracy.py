@@ -104,6 +104,12 @@ class AccuracyTests(unittest.TestCase):
         self.assertIsNone(self.verify(self.result(), self.review(same_population=False) | {'scope': 'total staff of Acme'})[1])
         self.assertEqual(self.verify(self.result(), self.review(same_population=True) | {'scope': 'total staff of Acme'})[1], 120)
 
+    def test_a_value_written_twice_for_one_date_is_one_point(self):
+        for _ in range(3):
+            self.seed(400, '2026-06-03')
+        self.seed(250, '2025-11-01')
+        self.assertEqual([(p['at'][:10], p['value']) for p in core.series(self.m['id'])], [('2025-11-01', 250), ('2026-06-03', 400)])
+
     def test_mismatched_scope_and_legacy_scope_held(self):
         r = self.review(); r['scope_matches'] = False
         self.assertIsNone(self.verify(self.result(), r)[1])

@@ -993,6 +993,10 @@ def series(mid, upto=None):
     if publication.pending(mid):
         return []  # publication only: raw observations remain available for audit
     rows = db.q("SELECT as_of, value, origin, evidence_url, recipe_version, quote, label FROM observations WHERE metric_id=? AND value IS NOT NULL AND seeded=0 ORDER BY as_of, id", (mid,))
+    once = {}  # the same value for the same date, written again by a later read or a new recipe version, is one point: the newest stands
+    for r in rows:
+        once[(r["as_of"], r["value"])] = r
+    rows = [r for r in rows if once[(r["as_of"], r["value"])] is r]
     meta = db.one("SELECT period, title FROM metrics WHERE id=?", (mid,)) or {}
     per = meta.get("period")
     if reported_by_period(meta):  # a quarter's total read again every day is still one quarter: keep each value once
