@@ -114,13 +114,33 @@ def rejection(m, ex):
     return None
 
 
+def sentence(value, page):
+    """The sentence of the page that states this value, in the page's own words, or None. A past point reported with its
+    date, value and page but no quotation is checked against this sentence."""
+    import core
+    for part in re.split(r"(?<=[.!?])\s+|\n+", page or ""):
+        part = part.strip()
+        if 20 <= len(part) <= 500 and core.supported(value, part):
+            return part
+    return None
+
+
 def historical(m, point, page):
-    """Historical points must preserve the same semantics; their date is not read time."""
-    candidate = {"value": point.get("value"), "quote": point.get("quote"), "evidence_url": point.get("url")}
+    """Historical points must preserve the same semantics; their date is not read time. The quotation is the point's own when
+    the page holds it, else the sentence of the page that states the value. A point dated to the month ("2024-10-01" for a
+    round announced on the 28th) takes the day the page gives; a date the page puts in another month is not accepted."""
+    quote = point.get("quote")
+    if not quote or _squash(quote) not in _squash(page or ""):
+        quote = sentence(point.get("value"), page)
+    candidate = {"value": point.get("value"), "quote": quote, "evidence_url": point.get("url")}
     context = dict(m, id=None)
     if not day(point.get("date")) or not assess(context, candidate, page):
         return False
-    if candidate["_review"].get("effective_date") != point["date"]:
-        hold(m, candidate, "Historical date differs from the evidenced fact date")
-        return False
+    found = day(candidate["_review"].get("effective_date"))
+    if found != point["date"]:
+        if not found or found[:7] != point["date"][:7]:
+            hold(m, candidate, "Historical date differs from the evidenced fact date")
+            return False
+        point["date"] = found
+    point["quote"] = point.get("quote") or quote
     return True
