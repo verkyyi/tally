@@ -16,6 +16,7 @@ class Requests(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         p = patch('db.DB_PATH', tmp.name + '/test.db'); p.start(); self.addCleanup(p.stop)
         db.init()
+        main._asked_by.clear()
         self.c = TestClient(main.app)
         self.h = {"user-agent": "Mozilla/5.0 (Macintosh) Safari/605"}
 
@@ -43,6 +44,12 @@ class Requests(unittest.TestCase):
         self.assertNotIn("email", d)
         self.assertEqual(self.c.get("/api/request/open").json(), {"n": 0})
         self.assertIn("Reading: acme.com", self.c.get(path).text)
+
+    def test_one_visitor_cannot_take_every_slot(self):
+        main._asked_by.clear()
+        codes = [self.c.post("/api/request", json={"text": f"Company {i}"}, headers=self.h | {"x-forwarded-for": "203.0.113.9"}).status_code for i in range(5)]
+        self.assertEqual(codes, [200, 200, 200, 200, 429])
+        self.assertEqual(self.c.post("/api/request", json={"text": "Another"}, headers=self.h | {"x-forwarded-for": "203.0.113.10"}).status_code, 200)
 
     def test_an_email_is_optional_checked_and_never_shown(self):
         self.assertEqual(self.c.post("/api/request", json={"text": "Acme", "email": "not an address"}, headers=self.h).status_code, 422)

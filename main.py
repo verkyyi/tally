@@ -1571,6 +1571,9 @@ def _coverage():
     return _cover["sets"]
 
 
+_asked_by = {}  # visitor address -> when they asked, to keep one visitor from taking every research slot
+
+
 class Ask(BaseModel):
     text: str
     site: str = ""  # left empty by people; a script that fills every field gives itself away
@@ -1590,6 +1593,13 @@ def api_request(body: Ask, request: Request):
     text = " ".join((body.text or "").split())[:200]
     if body.site or len(text) < 3 or not _human(request) or re.search(r"https?://|<|>", text):
         raise HTTPException(422, "Name a company, or a figure about one, in a few words.")
+    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "").split(",")[0].strip()
+    mine = [t for t in _asked_by.get(ip, []) if t > time.time() - 86400]
+    if len(mine) >= 10 or sum(t > time.time() - 3600 for t in mine) >= 4:  # one visitor: four an hour, ten a day; kept in memory only, never stored
+        raise HTTPException(429, "That is a lot of research for one day. The ones you asked for are still on their pages; please come back later for more.")
+    if len(_asked_by) > 5000:
+        _asked_by.clear()
+    _asked_by[ip] = mine + [time.time()]
     if db.one("SELECT COUNT(*) n FROM requests WHERE created_at>=?", (db.now()[:10],))["n"] >= 60:
         raise HTTPException(429, "Tally has taken all the requests it can research today. Please come back tomorrow.")
     email = (body.email or "").strip()[:200]
