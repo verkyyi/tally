@@ -98,6 +98,12 @@ class AccuracyTests(unittest.TestCase):
         with patch('llm.ask_json', side_effect=RuntimeError('offline')):
             self.assertFalse(evidence.assess(self.m, self.result(), self.result()['quote']))
 
+    def test_another_wording_of_the_same_population_is_not_a_change(self):
+        self.seed(scope='Acme employees worldwide')
+        self.assertIsNone(self.verify(self.result(), self.review() | {'scope': 'total staff of Acme'})[1])  # the reviewer did not say it is the same
+        self.assertIsNone(self.verify(self.result(), self.review(same_population=False) | {'scope': 'total staff of Acme'})[1])
+        self.assertEqual(self.verify(self.result(), self.review(same_population=True) | {'scope': 'total staff of Acme'})[1], 120)
+
     def test_mismatched_scope_and_legacy_scope_held(self):
         r = self.review(); r['scope_matches'] = False
         self.assertIsNone(self.verify(self.result(), r)[1])
