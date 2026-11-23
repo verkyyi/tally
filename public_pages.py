@@ -252,7 +252,7 @@ def coverage_page(sets):
     """What the record covers: each kind of subject, the figures each should carry, and what is on record today."""
     import coverage
     subjects = sum(len(rows) for _, _, _, rows, _ in sets)
-    desc = "; ".join(f"{len(rows)} {name.lower()} ({share:.0%} of their standard figures on record)" for name, _, _, rows, share in sets)
+    desc = "; ".join(f"{len(rows)} {name[0].lower() + name[1:]} ({share:.0%} of their standard figures on record)" for name, _, _, rows, share in sets)
     body = ('<h1 style="margin-top:22px">What Tally covers</h1>'
             f'<p class="lede">Tally keeps a fixed set of figures for each subject it follows: {esc(desc)}. A dot is a figure on record with its source and history; an empty cell is one Tally does not have yet.</p>')
     for name, key, figures, rows, share in sets:
