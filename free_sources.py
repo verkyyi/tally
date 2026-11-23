@@ -165,11 +165,14 @@ OWN = {"numbers": ("Tally · numbers tracked", "How many numbers does Tally trac
        "values": ("Tally · dated values on record", "How many dated values, each with its source, does Tally hold?", "values"),
        "subjects": ("Tally · companies and projects covered", "How many companies and projects does Tally cover?", "subjects"),
        "visitors": ("Tally · daily visitors", "How many distinct visitors did tallycatalog.com have in a day? (Visitors not identified as crawlers; some crawlers that do not name themselves are counted.)", "visitors"),
-       "google": ("Tally · daily visitors from Google", "How many distinct visitors came to tallycatalog.com from Google in a day?", "visitors"),
+       "clicks": ("Tally · daily clicks from Google Search", "How many times did someone click through to tallycatalog.com from Google Search in a day, as Google Search Console reports it?", "clicks"),
+       "impressions": ("Tally · daily Google Search impressions", "How many times did a page of tallycatalog.com appear in Google Search results in a day, as Google Search Console reports it?", "impressions"),
+       "google": ("Tally · daily visits carrying a Google referrer", "How many distinct visitors arrived at tallycatalog.com naming Google as the page they came from, in a day? (Many crawlers name Google falsely: Search Console counted about a fifteenth as many clicks. The clicks figure is the one to trust.)", "visitors"),
        "views": ("Tally · daily page views", "How many pages did visitors open on tallycatalog.com in a day? (Crawlers that name themselves are left out.)", "views"),
        "crawls": ("Tally · pages read by crawlers, daily", "How many pages of tallycatalog.com did search and AI crawlers read in a day?", "pages")}
 _OWN_DAILY = {"visitors": "path='*visitors' AND ref NOT LIKE 'bot:%'", "google": "path='*visitors' AND ref LIKE '%google.%'",
               "views": "path NOT LIKE '*%' AND ref NOT LIKE 'bot:%'", "crawls": "path NOT LIKE '*%' AND ref LIKE 'bot:%'"}
+_GSC = ("clicks", "impressions")  # read from Search Console once a day and written with `setup_demo.py gsc`; Google reports a day about two days late
 OWN_URL = "https://tallycatalog.com/growth"
 _SUBJECT = "COALESCE(NULLIF(company,''), CASE WHEN instr(title,' · ')>0 THEN substr(title,1,instr(title,' · ')-1) ELSE title END)"
 
@@ -178,6 +181,12 @@ def own(what):
     """One of Tally's own figures, counted from its own database. A daily figure is yesterday's: the last whole day (UTC)."""
     import db
     from datetime import datetime, timedelta, timezone
+    if what in _GSC:
+        r = db.one("SELECT day, clicks, impressions FROM gsc ORDER BY day DESC LIMIT 1")
+        if not r:
+            return None
+        n = r[what]
+        return {"value": n, "as_of": r["day"], "quote": f"{n:,} {what} on {r['day']}, reported by Google Search Console for tallycatalog.com", "evidence_url": OWN_URL}
     if what in _OWN_DAILY:
         day = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
         n = db.one(f"SELECT COALESCE(SUM(n),0) n FROM visits WHERE day=? AND {_OWN_DAILY[what]}", (day,))["n"]
@@ -193,6 +202,9 @@ def own_history(what):
     import db
     from datetime import datetime, timedelta, timezone
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if what in _GSC:  # every reported day but the newest, which is the live reading
+        live = {r["d"] for r in db.q("SELECT substr(o.as_of,1,10) d FROM observations o JOIN metrics m ON m.id=o.metric_id WHERE m.skill=? AND o.origin!='source_history'", (f"free|tally|{what}",))}
+        return [(r["day"], r[what], OWN_URL, "reported by Google Search Console") for r in db.q("SELECT day, clicks, impressions FROM gsc ORDER BY day")[:-1] if r["day"] not in live]
     if what in _OWN_DAILY:
         first = (db.one("SELECT MIN(day) d FROM visits WHERE path='*visitors'") or {}).get("d") or today  # distinct visitors are counted from this day on
         rows = db.q(f"SELECT day, SUM(n) n FROM visits WHERE day<? AND day>=? AND {_OWN_DAILY[what]} GROUP BY day ORDER BY day", (today, first))

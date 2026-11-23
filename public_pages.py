@@ -223,6 +223,9 @@ def findings_page(rows, stars=()):
     return shell("Findings from the record | Tally", "Short, sourced findings built from Tally's history of company numbers: hiring, funding, prices and open-source traction.", "/findings", body)
 
 
+_GROWTH_ORDER = ("numbers", "values", "subjects", "clicks", "impressions", "visitors", "views", "crawls", "google")
+
+
 def growth_page(items):
     """Tally's own growth, in the open. items: [(metric, points)], each one of the numbers under free|tally."""
     def one(m, pts):
@@ -234,11 +237,12 @@ def growth_page(items):
                 f'<p class="q" style="margin:6px 0 0">{esc(m["question"])} <a href="{number_path(m)}">History and data</a></p></div>')
     body = ('<h1 style="margin-top:22px">Tally\'s growth, in the open</h1>'
             '<p class="lede">Tally keeps the history of other companies\' numbers. These are its own: what the record holds and who comes to read it, updated once a day and kept the same way as every other number here.</p>'
-            + "".join(one(m, pts) for m, pts in items) +
+            + "".join(one(m, pts) for m, pts in sorted(items, key=lambda x: (_GROWTH_ORDER.index(x[0]["skill"].split("|")[-1]) if x[0]["skill"].split("|")[-1] in _GROWTH_ORDER else 99, x[0]["id"]))) +
             '<p class="q">How these are counted: the site counts page views and distinct visitors itself, with no cookies and without storing addresses. Crawlers that name themselves are counted apart; '
-            'some that do not are in the visitor figures, so the visitors who came from Google are the cleanest sign of real readers. Days are UTC. What visitors searched for is not published.</p>')
+            'some that do not are in the visitor figures, and many of those name Google as where they came from. The clicks and impressions are therefore taken from Google Search Console, which reports each day about two days late: '
+            'they are the cleanest sign of real readers. Days are UTC. What visitors searched for is not published.</p>')
     return shell("Tally's growth, in the open: numbers tracked, visitors, crawler reads | Tally",
-                 "Tally's own figures with their history: numbers and dated values on record, daily visitors, visitors from Google, and pages read by search and AI crawlers.", "/growth", body)
+                 "Tally's own figures with their history: numbers and dated values on record, daily visitors, clicks and impressions in Google Search, and pages read by search and AI crawlers.", "/growth", body)
 
 
 def corrections_page(rows):
