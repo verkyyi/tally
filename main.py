@@ -1530,6 +1530,9 @@ def _stars_rows():
 
 
 _valuations = {"at": 0, "rows": []}
+# Left out of the valuation finding until the record has every round: a missing round overstates the change.
+# Harvey: the $5B (Jun 2025) and $8B (Dec 2025) rounds are not on record yet (2026-11-23).
+_VALUATION_HOLD = {"harvey"}
 
 
 def _valuation_rows(today=None):
@@ -1547,7 +1550,7 @@ def _valuation_rows(today=None):
             if p["value"] and (not steps or steps[-1]["value"] != p["value"]):
                 steps.append(p)
         before = [p for p in steps if p["at"][:10] <= ago]
-        if len(steps) >= 2 and before and steps[-1]["at"][:10] > ago:
+        if len(steps) >= 2 and before and steps[-1]["at"][:10] > ago and pp.subject(m).lower() not in _VALUATION_HOLD:
             out.append((m, before[-1], steps[-1], steps[-1]["value"] / before[-1]["value"]))
     rows = sorted(out, key=lambda r: -r[3])
     if today is None:
