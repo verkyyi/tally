@@ -26,6 +26,17 @@ class QuoteText(unittest.TestCase):
         self.assertTrue(evidence.sentence(5000000000, page).startswith("In June 2025"))
         self.assertIsNone(evidence.sentence(5000000000, "They contacted the general counsel about their results.[5]"))
 
+    def test_a_value_is_matched_at_its_own_scale(self):
+        self.assertTrue(evidence.at_scale(5e9, "raised $300 million at a $5 billion valuation"))
+        self.assertTrue(evidence.at_scale(5e9, "valued at $5B"))
+        self.assertTrue(evidence.at_scale(15.8e9, "a $15.8 billion post-money valuation"))
+        self.assertTrue(evidence.at_scale(950e6, "brought in $950 million in fresh capital"))
+        self.assertTrue(evidence.at_scale(2500000, "2,500,000 users"))
+        self.assertTrue(evidence.at_scale(1.25e12, "a $1.25 trillion valuation"))
+        self.assertFalse(evidence.at_scale(5e9, "Harvey raised US$5 million in funding"))
+        self.assertFalse(evidence.at_scale(5e9, "contacted the counsel about results 5 times"))
+        self.assertTrue(evidence.at_scale(5300, "about 5,300 employees"))
+
 
 if __name__ == "__main__":
     unittest.main()

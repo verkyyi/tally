@@ -125,6 +125,35 @@ def rejection(m, ex):
     return None
 
 
+_SCALES = ((1e12, r"trillion|tn|T"), (1e9, r"billion|bn|B"), (1e6, r"million|mn|mm|M"), (1e3, r"thousand|K|k"))
+
+
+def at_scale(value, text):
+    """True when the text states this value at its own size: "$5 billion", "5B" or "5,000,000,000" for five billion, and
+    not "$5 million". For values under a million any ordinary rendering counts."""
+    import core
+    if not finite(value) or abs(value) < 1e6:
+        return core.supported(value, text)
+    hay, v = (text or "").replace(",", ""), abs(float(value))
+    if re.search(r"(?<![\d.])%d(?![\d.])" % round(v), hay):
+        return True
+    for div, words in _SCALES:
+        x = v / div
+        if not 0.001 <= x < 100000:
+            continue
+        for f in ("%.0f", "%.1f", "%.2f", "%.3f"):
+            t = f % x
+            t = t.rstrip("0").rstrip(".") if "." in t else t
+            if t in ("", "0") or abs(float(t) * div - v) > v * 0.006:
+                continue
+            tail = r"\d*" if "." in t else ""
+            for w in words.split("|"):
+                unit = w + r"\b" if len(w) <= 2 and w.isupper() or w == "k" else "(?i:" + w + r")\b"
+                if re.search(r"(?<![\d.])" + re.escape(t) + tail + r"\s?-?" + unit, hay):
+                    return True
+    return False
+
+
 def sentence(value, page, like=""):
     """The sentence of the page that states this value, in the page's own words, or None. A past point reported with its
     date, value and page but no quotation is checked against this sentence; so is a value whose quotation was a summary
@@ -132,13 +161,10 @@ def sentence(value, page, like=""):
     import core
     want = set(re.findall(r"[a-z0-9]+", _squash(like)))
     best, score = None, -1
-    big = finite(value) and abs(value) >= 1e6
     for part in re.split(r"(?<=[.!?])\s+|\n+", page or ""):
         part = part.strip()
         bare = re.sub(r"\[\d+\]", "", part)  # a footnote mark ("[5]") is not a figure
-        if 20 <= len(part) <= 500 and core.supported(value, bare):
-            if big and not re.search(r"[$€£]|\b(?:million|billion|trillion|bn|mn)\b|\d\s?[MBT]\b|\d{1,3}(?:,\d{3}){2,}|\d{7,}", bare, re.I):
-                continue  # millions and more are written with a currency sign, a scale word or all their digits; a bare "5" is something else
+        if 20 <= len(part) <= 500 and at_scale(value, bare):  # five billion is not "$5 million"
             n = len(want & set(re.findall(r"[a-z0-9]+", _squash(part))))
             if n > score:
                 best, score = part, n
