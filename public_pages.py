@@ -281,11 +281,11 @@ def request_status_page(r, state=None):
     steps = "".join(f'<li class="ok">{esc(x)}</li>' for x in st["steps"])
     links = "".join(f'<li><a href="{esc(l)}">{esc(SITE + l)}</a></li>' for l in st["links"])
     live = st["status"] in ("received", "researching")
-    body = (f'<div class="crumb"><a href="/request">Ask</a> / Your request</div><h1>{esc(r["text"])}</h1>'
+    body = (f'<div class="crumb"><a href="/">Tally</a> / Research</div><h1>{esc(r["text"])}</h1>'
             f'<p class="lede" id="rs">{esc(st["state"])}{"<span class=think>working</span>" if live else ""}</p><p id="rn">{esc(st["note"])}</p>'
             f'<ul id="rl">{links}</ul><ul class="feed" id="rf">{steps}</ul>'
             f'<p class="meta">Asked {esc((r.get("created_at") or "")[:10])}. Keep this page\'s address: the result appears here.</p>'
-            '<div class="cta"><a class="btn ghost" href="/request">Ask for another</a></div>')
+            '<div class="cta"><a class="btn ghost" href="/">Search another</a></div>')
     if live:
         body += ('<script>const E=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",\'"\':"&quot;"}[c]));let seen=-1;'
                  'async function tick(){try{const d=await (await fetch(location.pathname+".json",{cache:"no-store"})).json();const on=d.status=="received"||d.status=="researching";'
@@ -316,7 +316,7 @@ def coverage_page(sets):
     body += ('<h2>How a company gets on the list</h2><p>A private company is followed when it meets one of three tests: a latest valuation of at least $1 billion or at least $100 million raised; '
              'a place on a published list of leading AI or cloud companies; or people asking Tally for its numbers. The list is reviewed monthly. '
              'A company that is acquired, lists its shares or closes stops being read, and its history stays on record.</p>'
-             '<p class="q">● on record · ○ tracked, no value yet · · not tracked yet. Missing a company or a figure? <a href="/request">Ask for it</a>.</p>')
+             '<p class="q">● on record · ○ tracked, no value yet · · not tracked yet. Missing a company or a figure? Type it in the <a href="/">search box</a>: what is not on record is researched while you watch.</p>')
     return shell("What Tally covers: companies, figures and gaps | Tally", f"{subjects} subjects followed: {desc}. Every figure with its source and history."[:300], "/coverage", body,
                  ld_json(crumbs(("Coverage", "/coverage"))))
 
@@ -473,7 +473,7 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 {body}
 <script src="/static/pub.js?v=14" defer></script>
 <footer>The record is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>, for the compilation Tally makes: <a href="/terms#data">what that covers</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>, or take the whole record from the <a href="https://github.com/verkyyi/tally-data" rel="noopener">open dataset</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
-<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/findings">Findings</a> · <a href="/request">Ask</a> · <a href="/coverage">Coverage</a> · <a href="/corrections">Corrections</a> · <a href="/growth">Growth</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
+<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/findings">Findings</a> · <a href="/coverage">Coverage</a> · <a href="/corrections">Corrections</a> · <a href="/growth">Growth</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
 
 _PATHS = {"at": 0.0, "by_id": {}, "by_path": {}}

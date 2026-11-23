@@ -20,7 +20,8 @@ class Requests(unittest.TestCase):
         self.h = {"user-agent": "Mozilla/5.0 (Macintosh) Safari/605"}
 
     def test_a_request_is_kept_once_and_has_a_private_status_page(self):
-        self.assertEqual(self.c.get("/request").status_code, 200)
+        self.assertEqual(self.c.get("/request", follow_redirects=False).status_code, 302)  # the search box is the one entrance
+        self.assertEqual(self.c.get("/request?q=Figure+AI").status_code, 200)
         a = self.c.post("/api/request", json={"text": "  Figure AI  "}, headers=self.h).json()["path"]
         b = self.c.post("/api/request", json={"text": "figure ai"}, headers=self.h).json()["path"]
         self.assertEqual(a, b)  # the same words asked twice are one request
