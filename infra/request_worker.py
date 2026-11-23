@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+"""Research the requests people file on the site, as they arrive, with an agent session on this machine.
+
+It asks the site every few seconds whether a request waits. For each one it starts a headless Claude Code session with the
+research brief, shows what the session is doing on the request's page, brings the verified points into the record, and
+closes the request. It talks to the server through AWS SSM with this machine's own credentials: no key is stored here.
+
+    python3 infra/request_worker.py            # run until stopped
+    python3 infra/request_worker.py --once     # handle what waits now, then stop"""
+import base64
+import datetime
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+
+SITE = os.environ.get("TALLY_SITE", "https://tallycatalog.com")
+INSTANCE, REGION = os.environ.get("TALLY_INSTANCE", "i-0974ac20fad03f39d"), os.environ.get("AWS_REGION", "us-east-1")
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LIMIT = 12 * 60  # seconds one request may take
+STANDARD = ("latest valuation", "latest round size", "total funding raised", "headcount", "quarterly revenue")
+APP = "set -a; . <(grep -v ^TALLY_DOMAINS /opt/tally/app/.env); set +a; cd /opt/tally/app; PYTHONPATH=/opt/tally/app .venv/bin/python"
+
+
+def server(cmd, wait=True):
+    """Run a shell command on the server as the app's user; its output."""
+    full = "sudo -u tally bash -c " + shlex.quote(cmd)
+    b64 = base64.b64encode(full.encode()).decode()
+    cid = subprocess.run(["aws", "ssm", "send-command", "--region", REGION, "--instance-ids", INSTANCE, "--document-name", "AWS-RunShellScript",
+                          "--parameters", f'commands=["echo {b64} | base64 -d | bash"]', "--query", "Command.CommandId", "--output", "text"],
+                         capture_output=True, text=True, timeout=60).stdout.strip()
+    if not wait or not cid:
+        return ""
+    for _ in range(200):
+        r = subprocess.run(["aws", "ssm", "get-command-invocation", "--region", REGION, "--command-id", cid, "--instance-id", INSTANCE,
+                            "--query", "[Status,StandardOutputContent]", "--output", "json"], capture_output=True, text=True, timeout=60)
+        try:
+            status, out = json.loads(r.stdout)
+        except ValueError:
+            status, out = "Pending", ""
+        if status in ("Success", "Failed", "TimedOut", "Cancelled"):
+            return out
+        time.sleep(1.5)
+    return ""
+
+
+def tell(rid, *words):
+    server(f"{APP} setup_demo.py requests {rid} " + " ".join(shlex.quote(w) for w in words), wait=False)
+
+
+def step_of(event):
+    """A line for the request's page from one event of the session's stream, or None."""
+    if event.get("type") != "assistant":
+        return None
+    for c in (event.get("message") or {}).get("content") or []:
+        if c.get("type") != "tool_use":
+            continue
+        name, arg = c.get("name"), c.get("input") or {}
+        if name == "WebSearch":
+            return "Searching: " + str(arg.get("query", ""))[:120]
+        if name == "WebFetch":
+            return "Reading: " + re.sub(r"^https?://(www\.)?", "", str(arg.get("url", "")))[:120]
+        if name == "Write":
+            return "Writing up what was found"
+    return None
+
+
+def is_figure(text):
+    """A request that names a figure ("Duolingo daily active users") rather than only a company ("Figure AI")."""
+    return bool(re.search(r"\b(valuation|revenue|arr|funding|raised|users?|customers?|subscribers?|price|pricing|headcount|employees|downloads|stars|sales|"
+                          r"margin|income|profit|share|rides|shipments?|history|over time|per (week|month|year|quarter))\b", text.lower()))
+
+
+def research(rid, text, out):
+    brief = "BRIEF.md" if is_figure(text) else "SUBJECT.md"
+    today = datetime.date.today().isoformat()
+    ask = (f"Today is {today}. Read {HERE}/research/{brief} (and BRIEF.md beside it) and follow it exactly. "
+           + (f"Request: {text}. Use the SUBJECT.md output format with exactly one series, titled \"<Company> · <figure name>\"." if brief == "BRIEF.md" else f"Company: {text}.")
+           + f" Write the result to {out} . Use absolute paths. Read-only web research: no accounts, no posting, no logins.")
+    p = subprocess.Popen(["claude", "-p", ask, "--output-format", "stream-json", "--verbose", "--allowedTools", "WebSearch,WebFetch,Read,Write",
+                          "--disallowedTools", "Bash,Edit,Agent", "--strict-mcp-config", "--add-dir", os.path.dirname(out)],
+                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, cwd=os.path.dirname(out))
+    start, last, waiting = time.time(), 0.0, []
+    for line in p.stdout:
+        try:
+            s = step_of(json.loads(line))
+        except ValueError:
+            s = None
+        if s:
+            waiting.append(s)
+        if waiting and time.time() - last > 5:
+            tell(rid, "step", *waiting[-6:])
+            waiting, last = [], time.time()
+        if time.time() - start > LIMIT:
+            p.kill()
+            break
+    p.wait()
+    if waiting:
+        tell(rid, "step", *waiting[-6:])
+
+
+def deliver(rid, text, out):
+    try:
+        doc = json.load(open(out))
+    except (OSError, ValueError):
+        tell(rid, "unverified", "The research did not finish. Nothing was written; you can ask again.")
+        return
+    series = doc.get("series") or []
+    name = re.sub(r"[^a-z0-9]+", "-", (doc.get("subject") or text).lower()).strip("-")
+    remote = f"/var/tmp/tally-req/{rid}-{name}.json"
+    b64 = base64.b64encode(json.dumps(doc).encode()).decode()
+    if "stored" not in server(f"mkdir -p /var/tmp/tally-req && echo {b64} | base64 -d > {remote} && echo stored"):
+        raise RuntimeError(f"request {rid}: the result did not reach the server; left open")  # never reported to the asker as a failed research
+    tell(rid, "step", f"Checking {sum(len(s.get('points') or []) for s in series)} points against their pages")
+    written, missed = [], []
+    for k, s in enumerate(series):
+        figure = (s.get("title") or "").split(" · ")[-1].strip().lower()
+        least = 1 if figure in STANDARD else 3
+        log = server(f"{APP} research_import.py {remote} --series {k} --min {least} --write 2>&1 | tail -6")
+        (written if "written:" in log or ("on record as" in log and "to add 0" in log) else missed).append(s.get("title") or "?")
+    lost = [str(x)[:90] for x in (doc.get("not_found") or [])][:4]
+    note = (f"On record: {', '.join(t.split(' · ')[-1] for t in written)}. " if written else "") \
+        + (f"Not enough verified points: {', '.join(t.split(' · ')[-1] for t in missed)}. " if missed else "") \
+        + (f"No dated public record found for: {'; '.join(lost)}." if lost else "")
+    subject = (written[0].split(" · ")[0] if written else "")
+    link = "/c/" + re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-") if subject else ""
+    server(f"{APP} setup_demo.py requests {rid} {'delivered' if written else 'unverified'} {shlex.quote(note[:600])} {link}")
+
+
+def waiting():
+    try:
+        return json.load(urllib.request.urlopen(SITE + "/api/request/open", timeout=10))["n"]
+    except Exception:
+        return 0
+
+
+def handle_all():
+    for line in server(f"{APP} setup_demo.py requests").splitlines():
+        m = re.match(r"^(\d+) received \S+ \| (.+) \| \S+$", line.strip())
+        if not m:
+            continue
+        rid, text = int(m.group(1)), m.group(2)
+        tell(rid, "step", "Starting the research")
+        out = os.path.join(tempfile.mkdtemp(prefix="tally-req-"), "result.json")
+        research(rid, text, out)
+        deliver(rid, text, out)
+        print(datetime.datetime.now().isoformat(timespec="seconds"), "request", rid, text, flush=True)
+
+
+if __name__ == "__main__":
+    once = "--once" in sys.argv
+    while True:
+        if once or waiting():
+            handle_all()
+        if once:
+            break
+        time.sleep(3)
