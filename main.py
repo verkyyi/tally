@@ -1599,12 +1599,31 @@ def api_request(body: Ask, request: Request):
     return {"path": f"/request/{token}"}
 
 
+def _request_state(r):
+    return {"text": r["text"], "status": r["status"], "state": pp.REQUEST_STATES.get(r["status"], r["status"]), "note": r.get("note") or "",
+            "steps": json.loads(r.get("steps") or "[]")[-40:], "links": [l for l in (r.get("links") or "").split("\n") if l.startswith("/")]}
+
+
+@app.get("/api/request/open")
+def api_request_open():
+    """How many requests wait for research. A count only: the machine that does the research asks this every few seconds."""
+    return {"n": db.one("SELECT COUNT(*) n FROM requests WHERE status='received'")["n"]}
+
+
+@app.get("/request/{token}.json")
+def api_request_state(token: str):
+    r = db.one("SELECT * FROM requests WHERE token=?", (token,))
+    if not r:
+        raise HTTPException(404, "no such request")
+    return JSONResponse(_request_state(r), headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
+
+
 @app.get("/request/{token}")
 def public_request_status(token: str):
     r = db.one("SELECT * FROM requests WHERE token=?", (token,))
     if not r:
         raise HTTPException(404, "no such request")
-    return HTMLResponse(pp.request_status_page(r), headers={"X-Robots-Tag": "noindex"})
+    return HTMLResponse(pp.request_status_page(r, _request_state(r)), headers={"X-Robots-Tag": "noindex"})
 
 
 @app.get("/coverage")

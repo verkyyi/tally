@@ -248,7 +248,7 @@ def valuations_page(rows, cards):
     return shell("Private AI valuations now vs a year ago: who multiplied fastest | Tally", desc, "/findings/ai-valuations", body)
 
 
-REQUEST_STATES = {"received": "Received. Research starts within a day.", "researching": "Being researched now.",
+REQUEST_STATES = {"received": "Received. Research starts in a moment.", "researching": "Being researched now.",
                   "delivered": "Delivered. Every point below is on record with its source.", "unverified": "Not delivered: the figures could not be verified."}
 
 
@@ -273,14 +273,24 @@ def request_page():
     return shell("Ask for a company's numbers, with sources | Tally", "Name a company or a figure about one. Tally researches it and hands back the history, every point with its source.", "/request", body)
 
 
-def request_status_page(r):
-    links = [l for l in (r.get("links") or "").split("\n") if l.startswith("/")]
+def request_status_page(r, state=None):
+    """A request as it is researched: the steps appear as they happen, the results as they are written."""
+    st = state or {"state": REQUEST_STATES.get(r["status"], r["status"]), "note": r.get("note") or "", "steps": [], "links": [l for l in (r.get("links") or "").split("\n") if l.startswith("/")], "status": r["status"]}
+    steps = "".join(f'<li class="ok">{esc(x)}</li>' for x in st["steps"])
+    links = "".join(f'<li><a href="{esc(l)}">{esc(SITE + l)}</a></li>' for l in st["links"])
+    live = st["status"] in ("received", "researching")
     body = (f'<div class="crumb"><a href="/request">Ask</a> / Your request</div><h1>{esc(r["text"])}</h1>'
-            f'<p class="lede">{esc(REQUEST_STATES.get(r["status"], r["status"]))}</p>'
-            + (f'<p>{esc(r["note"])}</p>' if r.get("note") else "")
-            + ("<ul>" + "".join(f'<li><a href="{esc(l)}">{esc(SITE + l)}</a></li>' for l in links) + "</ul>" if links else "")
-            + f'<p class="meta">Asked {esc((r.get("created_at") or "")[:10])}. Keep this page\'s address: the result appears here.</p>'
+            f'<p class="lede" id="rs">{esc(st["state"])}{"<span class=think>working</span>" if live else ""}</p><p id="rn">{esc(st["note"])}</p>'
+            f'<ul id="rl">{links}</ul><ul class="feed" id="rf">{steps}</ul>'
+            f'<p class="meta">Asked {esc((r.get("created_at") or "")[:10])}. Keep this page\'s address: the result appears here.</p>'
             '<div class="cta"><a class="btn ghost" href="/request">Ask for another</a></div>')
+    if live:
+        body += ('<script>const E=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",\'"\':"&quot;"}[c]));let seen=-1;'
+                 'async function tick(){try{const d=await (await fetch(location.pathname+".json",{cache:"no-store"})).json();const on=d.status=="received"||d.status=="researching";'
+                 'document.getElementById("rs").innerHTML=E(d.state)+(on?\'<span class="think">working</span>\':"");document.getElementById("rn").textContent=d.note;'
+                 'document.getElementById("rl").innerHTML=d.links.map(l=>\'<li><a href="\'+E(l)+\'">\'+E(location.origin+l)+"</a></li>").join("");'
+                 'if(d.steps.length!=seen){seen=d.steps.length;document.getElementById("rf").innerHTML=d.steps.map((x,i)=>\'<li class="\'+(on&&i==d.steps.length-1?"live":"ok")+\'">\'+E(x)+"</li>").join("")}'
+                 'if(!on)return}catch(e){}setTimeout(tick,2000)}tick()</script>')
     return shell("Your request | Tally", "The state of a research request.", f"/request/{r['token']}", body).replace('<meta name="twitter:card"', '<meta name="robots" content="noindex"><meta name="twitter:card"', 1)
 
 

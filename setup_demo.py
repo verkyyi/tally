@@ -532,6 +532,16 @@ def requests():
     """What visitors asked to have researched. `requests` lists the open ones; `requests ID STATUS "note" /path ...` closes or updates one."""
     a = sys.argv[2:]
     if a:
+        if a[1] == "step":  # one more line on the request's page while it is researched
+            rid = int(a[0])
+            steps = json.loads((db.one("SELECT steps FROM requests WHERE id=?", (rid,)) or {}).get("steps") or "[]") + [x[:160] for x in a[2:]]
+            db.run("UPDATE requests SET steps=?, status=CASE WHEN status='received' THEN 'researching' ELSE status END WHERE id=?", (json.dumps(steps[-80:]), rid))
+            return
+        if a[1] == "link":  # a result that is already on record, shown before the research is over
+            rid = int(a[0])
+            have = [l for l in ((db.one("SELECT links FROM requests WHERE id=?", (rid,)) or {}).get("links") or "").split("\n") if l]
+            db.run("UPDATE requests SET links=? WHERE id=?", ("\n".join(have + [l for l in a[2:] if l not in have]), rid))
+            return
         rid, status, note, links = int(a[0]), a[1], (a[2] if len(a) > 2 else ""), "\n".join(a[3:])
         assert status in ("received", "researching", "delivered", "unverified"), status
         db.run("UPDATE requests SET status=?, note=?, links=?, done_at=? WHERE id=?", (status, note, links, db.now() if status in ("delivered", "unverified") else None, rid))
