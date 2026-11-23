@@ -86,8 +86,8 @@ def is_figure(text):
                           r"margin|income|profit|share|rides|shipments?|history|over time|per (week|month|year|quarter))\b", text.lower()))
 
 
-def research(rid, text, out, got, resume=None, about=None):
-    brief = "BRIEF.md" if is_figure(text) else "SUBJECT.md"
+def research(rid, text, out, got, resume=None, about=None, whole=False):
+    brief = "SUBJECT.md" if whole or not is_figure(text) else "BRIEF.md"
     today = datetime.date.today().isoformat()
     more = (f"Today is {today}. A follow-up from the reader of your research on {about}: «{text}». Continue under the same rules ({HERE}/research/SUBJECT.md and BRIEF.md): "
             "add or extend the series asked for and keep the series you already have. A different definition of a figure is a NEW series whose title says so "
@@ -161,6 +161,15 @@ def bring(rid, text, out, got):
     got["done"] = len(series)
 
 
+def kept_sentences(analysis, missed):
+    """The researcher's summary without the sentences about figures that were not kept: the text may not say more than the table."""
+    if not isinstance(analysis, str) or not analysis.strip():
+        return ""
+    words = {w for t in missed for w in re.findall(r"[a-z]{5,}", t.split(" · ")[-1].lower())} - {"latest", "total", "annual", "month", "count", "number"}
+    keep = [x for x in re.split(r"(?<=[.!?])\s+", " ".join(analysis.split())) if not any(w in x.lower() for w in words)]
+    return " ".join(keep)
+
+
 def deliver(rid, text, out, got=None):
     got = got or {"done": 0, "written": [], "missed": [], "doc": None}
     try:
@@ -175,8 +184,9 @@ def deliver(rid, text, out, got=None):
         + (f"No dated public record found for: {'; '.join(lost)}." if lost else "")
     subject = (written[0].split(" · ")[0] if written else "")
     link = "/c/" + re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-") if subject else ""
-    if written and isinstance(doc.get("analysis"), str) and doc["analysis"].strip():
-        server(f"{APP} setup_demo.py requests {rid} analysis {shlex.quote(' '.join(doc['analysis'].split())[:900])}")
+    said = kept_sentences(doc.get("analysis"), missed)
+    if written and said:
+        server(f"{APP} setup_demo.py requests {rid} analysis {shlex.quote(said[:900])}")
     server(f"{APP} setup_demo.py requests {rid} {'delivered' if written else 'unverified'} {shlex.quote(note[:600])} {link}")
 
 
@@ -197,7 +207,10 @@ def handle_all():
         tell(rid, "step", "Starting the research")
         out = os.path.join(WORK, f"req-{rid}.json") if WORK else os.path.join(tempfile.mkdtemp(prefix="tally-req-"), "result.json")
         got = {"done": 0, "written": [], "missed": [], "doc": None}
-        research(rid, text, out, got, resume, about)
+        if about and not resume:  # a follow-up on a research whose session was not kept: research the company again, with the wish
+            research(rid, f"{about}. The reader also asks: {text}", out, got, whole=True)
+        else:
+            research(rid, text, out, got, resume, about)
         deliver(rid, text, out, got)
         print(datetime.datetime.now().isoformat(timespec="seconds"), "request", rid, text, flush=True)
 
