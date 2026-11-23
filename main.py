@@ -1253,6 +1253,7 @@ def _rank_of(mid):
 def _rankings0():
     names = {t["title"].replace("{company} · ", "").lower(): t["title"].replace("{company} · ", "") for t in TEMPLATES if t.get("pack", "company") == "company"}
     names |= {"npm downloads, weekly": "npm downloads, weekly", "pypi downloads, weekly": "PyPI downloads, weekly"}
+    names |= {n: n for n in ("annual revenue", "quarterly revenue", "quarterly net income", "quarterly operating income (loss)", "shares outstanding")}  # the filings' figures of listed companies
     by = {}
     new_since = (datetime.now(timezone.utc) - timedelta(days=core.MIN_DAYS)).strftime("%Y-%m-%d")
     for m in db.q("SELECT * FROM metrics WHERE title LIKE '% · %'"):
@@ -1267,7 +1268,8 @@ def _rankings0():
             ts.sort(key=lambda t: -t["value"])
             out.append((names[tid], pp.slug(names[tid]), ts))
     free = ("github stars", "npm downloads, weekly", "pypi downloads, weekly")  # numbers anyone can get elsewhere go last
-    return sorted(out, key=lambda x: (x[0].lower() in free, -len(x[2])))
+    filed = ("annual revenue", "quarterly revenue", "quarterly net income", "quarterly operating income (loss)", "shares outstanding")  # after the private-company figures, which nobody else keeps
+    return sorted(out, key=lambda x: (2 if x[0].lower() in free else 1 if x[0].lower() in filed else 0, -len(x[2])))
 
 
 @app.get("/top")
