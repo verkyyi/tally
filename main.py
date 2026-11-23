@@ -553,10 +553,11 @@ def suggest(q: str = ""):
 
 
 @app.get("/track")
-def track(q: str = ""):
+def track(request: Request, q: str = ""):
     """Ask for a number the record does not have yet. The page signs the visitor in, has Tally find the number, and opens its new page."""
-    if q.strip():
-        asked(q, "request", 0)  # someone asked for this number by name: the strongest sign that it is wanted
+    if q.strip() and not _bot(request.headers.get("user-agent")):  # a crawler following an old link is not a person asking
+        r = suggest(q)  # someone asked for this number by name: the strongest sign that it is wanted, unless the record has it by now
+        asked(q, "request", len(r["numbers"]) + len(r["boards"]))
     return HTMLResponse(pp.track_page(" ".join(q.split())[:120]))
 
 
@@ -1481,7 +1482,7 @@ def indexnow_key():
 
 @app.get("/robots.txt")
 def robots():
-    return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /embed/\nDisallow: /compare\nSitemap: {pp.SITE}/sitemap.xml\n# Agents: see {pp.SITE}/llms.txt\n")
+    return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /embed/\nDisallow: /compare\nDisallow: /track\nSitemap: {pp.SITE}/sitemap.xml\n# Agents: see {pp.SITE}/llms.txt\n")
 
 
 _hiring = {"at": 0.0, "rows": []}
