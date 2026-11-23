@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import core
+import coverage
 import db
 import publication
 import telem
@@ -1454,7 +1455,7 @@ def _sitemap_body():
     groups = pp.groups()
     of = lambda name: max((changed.get(i, "") for i in groups.get(name, [])), default="")
     today = db.now()[:10]
-    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/growth", today), ("/findings", today), ("/findings/ai-hiring", today), ("/findings/open-source-stars", today), ("/findings/ai-valuations", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
+    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/growth", today), ("/findings", today), ("/coverage", today), ("/findings/ai-hiring", today), ("/findings/open-source-stars", today), ("/findings/ai-valuations", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
     urls += [(pp.subject_path(n), of(n)) for n in groups]
     urls += [(pp.versus_path(a, b), max(of(a), of(b))) for a, b in _pairs()]
     names = {n.lower(): n for n in groups}
@@ -1558,6 +1559,21 @@ def _valuation_rows(today=None):
     if today is None:
         _valuations.update(at=time.time(), rows=rows)
     return rows
+
+
+_cover = {"at": 0.0, "sets": []}
+
+
+def _coverage():
+    if time.time() - _cover["at"] > 600:
+        valued = {r["metric_id"] for r in db.q("SELECT DISTINCT metric_id FROM observations WHERE value IS NOT NULL")}
+        _cover.update(at=time.time(), sets=coverage.table(db.q("SELECT id, title, company FROM metrics WHERE title LIKE '% · %'"), valued))
+    return _cover["sets"]
+
+
+@app.get("/coverage")
+def public_coverage():
+    return HTMLResponse(pp.coverage_page(_coverage()))
 
 
 @app.get("/findings")

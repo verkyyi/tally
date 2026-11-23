@@ -248,6 +248,31 @@ def valuations_page(rows, cards):
     return shell("Private AI valuations now vs a year ago: who multiplied fastest | Tally", desc, "/findings/ai-valuations", body)
 
 
+def coverage_page(sets):
+    """What the record covers: each kind of subject, the figures each should carry, and what is on record today."""
+    import coverage
+    subjects = sum(len(rows) for _, _, _, rows, _ in sets)
+    desc = "; ".join(f"{len(rows)} {name.lower()} ({share:.0%} of their standard figures on record)" for name, _, _, rows, share in sets)
+    body = ('<h1 style="margin-top:22px">What Tally covers</h1>'
+            f'<p class="lede">Tally keeps a fixed set of figures for each subject it follows: {esc(desc)}. A dot is a figure on record with its source and history; an empty cell is one Tally does not have yet.</p>')
+    for name, key, figures, rows, share in sets:
+        full = sum(1 for _, cs in rows if all(c and c["_has"] for c in cs))
+        head = "".join(f"<th>{esc(coverage.label(f))}</th>" for f in figures)
+        trs = ""
+        for who, cs in rows:
+            tds = "".join(f'<td style="font-weight:400">' + (f'<a href="{number_path(c)}" title="{esc(c["title"])}" style="text-decoration:none;color:#0a8f5b">●</a>' if c and c["_has"]
+                          else '<span style="color:#98a2b3" title="tracked, no value yet">○</span>' if c else '<span style="color:#c9ced8" title="not tracked yet">·</span>') + "</td>" for c in cs)
+            trs += f'<tr><td style="font:15px var(--display);color:var(--ink)"><a href="{subject_path(who)}">{esc(who)}</a></td>{tds}</tr>'
+        body += (f'<h2 id="{key}">{esc(name)}</h2><p class="q">{len(rows)} followed · {share:.0%} of the standard figures on record · {full} complete</p>'
+                 f'<div class="card" style="overflow-x:auto"><table class="pts"><tr><th></th>{head}</tr>{trs}</table></div>')
+    body += ('<h2>How a company gets on the list</h2><p>A private company is followed when it meets one of three tests: a latest valuation of at least $1 billion or at least $100 million raised; '
+             'a place on a published list of leading AI or cloud companies; or people asking Tally for its numbers. The list is reviewed monthly. '
+             'A company that is acquired, lists its shares or closes stops being read, and its history stays on record.</p>'
+             '<p class="q">● on record · ○ tracked, no value yet · · not tracked yet. Missing a company or a figure? <a href="/wanted">Ask for it</a>.</p>')
+    return shell("What Tally covers: companies, figures and gaps | Tally", f"{subjects} subjects followed: {desc}. Every figure with its source and history."[:300], "/coverage", body,
+                 ld_json(crumbs(("Coverage", "/coverage"))))
+
+
 def findings_page(rows, stars=(), valuations=()):
     """Findings: short pages built from the record, each one a question the history answers."""
     body = ('<h1 style="margin-top:22px">Findings</h1><p class="q">What the record shows when its numbers are put side by side. Each finding is rebuilt from the data every day, and every figure opens to its history and source.</p>'
@@ -400,7 +425,7 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 {body}
 <script src="/static/pub.js?v=13" defer></script>
 <footer>The record is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>, for the compilation Tally makes: <a href="/terms#data">what that covers</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>, or take the whole record from the <a href="https://github.com/verkyyi/tally-data" rel="noopener">open dataset</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
-<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/findings">Findings</a> · <a href="/corrections">Corrections</a> · <a href="/growth">Growth</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
+<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/findings">Findings</a> · <a href="/coverage">Coverage</a> · <a href="/corrections">Corrections</a> · <a href="/growth">Growth</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
 
 _PATHS = {"at": 0.0, "by_id": {}, "by_path": {}}
