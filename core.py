@@ -335,6 +335,14 @@ def resolve_direct(m, exclude_domain=None, fresh=False):
     if not ex or not isinstance(ex.get("value"), (int, float)):
         return None
     page = next((p["content"] for p in pages if p["url"] == ex.get("evidence_url")), "")
+    if not page and ex.get("evidence_url") and telem.may_read(ex["evidence_url"]):
+        # The value came from what a search provider said about a page that was not among those read. A summary cannot be
+        # checked against its page, so the page is read now and the value taken from its own words, or not at all.
+        got = [p for p in telem.fetch([ex["evidence_url"]], m["id"], fresh=True) if p["ok"]]
+        again = llm.extract_direct(m["question"], m.get("unit") or "", got, skill_text(m)) if got else None
+        if again and isinstance(again.get("value"), (int, float)):
+            ex, page = again, next((p["content"] for p in got if p["url"] == again.get("evidence_url")), got[0]["content"])
+            ex["evidence_url"] = ex.get("evidence_url") if any(p["url"] == ex.get("evidence_url") for p in got) else got[0]["url"]
     m["_read"] = ex["value"]  # what this read found, whether or not it passes the review: run_now uses it to tell "unchanged" from "nothing found"
     passed = evidence.assess(m, ex, page)
     lessons.note(lessons.kind_of(m.get("title")), ex.get("evidence_url"), passed, (ex.get("_review") or {}).get("reason"))  # how this page did for this kind of number
