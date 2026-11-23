@@ -1531,8 +1531,8 @@ def _stars_rows():
 
 _valuations = {"at": 0, "rows": []}
 # Left out of the valuation finding until the record has every round: a missing round overstates the change.
-# Harvey: the $5B (Jun 2025) and $8B (Dec 2025) rounds are not on record yet (2026-11-23).
-_VALUATION_HOLD = {"harvey"}
+# Names in lower case. Harvey was held on 2026-11-23 until its $5B and $8B rounds were on record.
+_VALUATION_HOLD = set()
 
 
 def _valuation_rows(today=None):
