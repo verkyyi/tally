@@ -21,6 +21,11 @@ class QuoteText(unittest.TestCase):
         page = "Rival Corp raised $400 million last year.\nSuno pocketed $400 million in its latest funding round, valuing it at $5.4 billion."
         self.assertTrue(evidence.sentence(400000000, page, "Suno Series D, $400 million at a $5.4 billion valuation").startswith("Suno pocketed"))
 
+    def test_a_footnote_mark_is_not_the_figure(self):
+        page = "After that, the founders contacted the general counsel about their results.[5]\nIn June 2025 the company raised $300 million at a $5 billion valuation.[9]"
+        self.assertTrue(evidence.sentence(5000000000, page).startswith("In June 2025"))
+        self.assertIsNone(evidence.sentence(5000000000, "They contacted the general counsel about their results.[5]"))
+
 
 if __name__ == "__main__":
     unittest.main()

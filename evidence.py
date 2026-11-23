@@ -132,9 +132,13 @@ def sentence(value, page, like=""):
     import core
     want = set(re.findall(r"[a-z0-9]+", _squash(like)))
     best, score = None, -1
+    big = finite(value) and abs(value) >= 1e6
     for part in re.split(r"(?<=[.!?])\s+|\n+", page or ""):
         part = part.strip()
-        if 20 <= len(part) <= 500 and core.supported(value, part):
+        bare = re.sub(r"\[\d+\]", "", part)  # a footnote mark ("[5]") is not a figure
+        if 20 <= len(part) <= 500 and core.supported(value, bare):
+            if big and not re.search(r"[$€£]|\b(?:million|billion|trillion|bn|mn)\b|\d\s?[MBT]\b|\d{1,3}(?:,\d{3}){2,}|\d{7,}", bare, re.I):
+                continue  # millions and more are written with a currency sign, a scale word or all their digits; a bare "5" is something else
             n = len(want & set(re.findall(r"[a-z0-9]+", _squash(part))))
             if n > score:
                 best, score = part, n

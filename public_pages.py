@@ -240,7 +240,8 @@ def valuations_page(rows, cards):
             + '<h2 style="margin:28px 0 8px">How this is counted</h2><p class="q">A valuation is the figure reported with a funding round, a share sale or an acquisition, read from the announcement or the news report that carried it; nothing is estimated. '
             '"A year ago" is the last valuation on record dated at least twelve months before today, with the month it was set. '
             'A company appears only if a newer valuation was reported within the past twelve months; companies with a single valuation on record, or none that old, are left out. '
-            'Valuations of private companies are reported, not audited, and a price paid for a small share sale can differ from a full round.</p>'
+            'Valuations of private companies are reported, not audited, and a price paid for a small share sale can differ from a full round. '
+            'A round missing from the record makes the change look larger than it was: <a href="/corrections">tell us</a> if you see one.</p>'
             '<p class="q">Free to quote and chart with a link to this page (CC BY 4.0). Every row opens the full history, with a source for each point and a CSV.</p>'
             '<div class="cta"><a class="btn" href="/top">Rankings</a><a class="btn ghost" href="/findings">More findings</a></div>')
     desc = ("Private AI and software company valuations, now and a year ago, each from the round that set it. " + _valuations_lede(rows[:2]))[:300]
