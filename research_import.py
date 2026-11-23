@@ -4,6 +4,7 @@ A point is kept only when its page can be opened here, the quote is on that page
 Nothing is estimated and nothing is overwritten: a date that already holds this value is left as it is.
 
     python research_import.py FILE.json "Subject · figure" UNIT ["question"] [--write]
+    python research_import.py COMPANY.json --series 0 [--min 1] [--drop 2026-06-30,...] [--write]
 
 Without --write it only reports what it would do."""
 import json
@@ -96,9 +97,22 @@ def main(argv):
     import core
     import db
     write = "--write" in argv
+    least = int(argv[argv.index("--min") + 1]) if "--min" in argv else 3  # a company's standard figures are kept from their first verified date
+    pick = int(argv[argv.index("--series") + 1]) if "--series" in argv else None  # one series of a company file
+    drop = set(argv[argv.index("--drop") + 1].split(",")) if "--drop" in argv else set()  # dates a reviewer took out
+    for flag in ("--min", "--series", "--drop"):
+        if flag in argv:
+            i = argv.index(flag)
+            del argv[i:i + 2]
     argv = [a for a in argv if a != "--write"]
-    doc, title, unit = json.load(open(argv[0])), argv[1], argv[2]
-    question = argv[3] if len(argv) > 3 else doc.get("request") or title
+    doc = json.load(open(argv[0]))
+    if pick is not None:
+        doc = doc["series"][pick]
+        title, unit, question = doc["title"], doc["unit"], doc.get("question") or doc["title"]
+    else:
+        title, unit = argv[1], argv[2]
+        question = argv[3] if len(argv) > 3 else doc.get("request") or title
+    doc["points"] = [p for p in doc.get("points") or [] if p.get("date") not in drop]
     checked = check(doc.get("points") or [], _read)
     for p, verdict in checked:
         if verdict != "ok":
@@ -108,8 +122,8 @@ def main(argv):
     add = new_points(checked, have)
     days = {p["date"] for p in add} | {d for d, _ in have}
     print(f"{title}: {'on record as ' + str(m['id']) if m else 'NEW'} | verified {sum(v == 'ok' for _, v in checked)} of {len(checked)} | to add {len(add)} | dates after {len(days)}")
-    if not m and len({p['date'] for p in add}) < 3:
-        print("  not created: fewer than three verified dates"); return
+    if not m and len({p['date'] for p in add}) < least:
+        print(f"  not created: fewer than {least} verified dates"); return
     if not write or not add:
         return
     if not m:
