@@ -102,16 +102,31 @@ def new_points(checked, have):
     return keep
 
 
+_AGENTS = ("Mozilla/5.0 (compatible; TallyBot/1.0; +https://tallycatalog.com)",
+           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15")
+
+
+def page_words(raw):
+    """A page's text as a reader sees it, followed by the text it carries inside its scripts: many sites keep the article
+    there and draw it in the browser, and a sentence found there is still the page's own."""
+    import html
+    import agent
+    if raw.lstrip()[:1] != "<":
+        return raw
+    inner = html.unescape(re.sub(r"(?s)<[^>]+>", " ", raw.replace("\\u003c", "<").replace("\\u003e", ">").replace("\\u0026", "&").replace('\\"', '"').replace("\\n", " ")))
+    return agent.page_text(raw) + "\n" + inner
+
+
 def _read(url):
     import httpx
-    import agent
-    try:
-        r = httpx.get(url, timeout=40, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0 (compatible; TallyBot/1.0; +https://tallycatalog.com)"})
-        if r.status_code != 200:
-            return None
-        return agent.page_text(r.text) if r.text.lstrip()[:1] == "<" else r.text
-    except Exception:
-        return None
+    for ua in _AGENTS:  # first as what it is; a site that turns a bot away is asked once more as a browser would
+        try:
+            r = httpx.get(url, timeout=40, follow_redirects=True, headers={"User-Agent": ua, "Accept-Language": "en"})
+        except Exception:
+            continue
+        if r.status_code == 200 and len(r.text) > 400:
+            return page_words(r.text)
+    return None
 
 
 def main(argv):

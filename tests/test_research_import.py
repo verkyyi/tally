@@ -38,5 +38,11 @@ class ResearchImport(unittest.TestCase):
         self.assertEqual(len(ri.new_points(checked, {("2025-04-11", 32e9)})), 1)  # the later repeat does not follow a value already on record
 
 
+    def test_a_sentence_kept_inside_the_pages_scripts_is_found(self):
+        raw = '<html><body><div id="root"></div><script>window.__DATA__={"body":"\\u003cp\\u003eMore than 17,000 customers trust Acme\\u003c/p\\u003e"}</script></body></html>'
+        self.assertTrue(ri.on_page("More than 17,000 customers trust Acme", ri.page_words(raw)))
+        self.assertFalse(ri.on_page("More than 18,000 customers trust Acme", ri.page_words(raw)))
+
+
 if __name__ == "__main__":
     unittest.main()
