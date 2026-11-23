@@ -1632,6 +1632,33 @@ def api_request_open():
     return {"n": db.one("SELECT COUNT(*) n FROM requests WHERE status='received'")["n"]}
 
 
+class More(BaseModel):
+    text: str
+
+
+@app.post("/api/request/{token}/more")
+def api_request_more(token: str, body: More, request: Request):
+    """Continue a finished research with a wish of the reader's own: more figures, another definition, further back. A Pro feature."""
+    r = db.one("SELECT * FROM requests WHERE token=?", (token,))
+    if not r or r["status"] not in ("delivered", "unverified"):
+        raise HTTPException(404, "no finished research under that address")
+    fetched("refine_ask")  # how many readers reach for this, signed in or not
+    u = viewer(request)
+    if not u:
+        raise HTTPException(401, "Continuing a research in your own direction is part of Tally Pro. Sign in to go on.")
+    if u["plan"] != "pro":
+        raise HTTPException(402, "Continuing a research in your own direction is part of Tally Pro.")
+    text = " ".join((body.text or "").split())[:300]
+    if len(text) < 5 or re.search(r"https?://|<|>", text):
+        raise HTTPException(422, "Say in a sentence what to add or change.")
+    if db.one("SELECT COUNT(*) n FROM requests WHERE user=? AND created_at>=?", (u["id"], db.now()[:10]))["n"] >= 30:
+        raise HTTPException(429, "That is today's allowance of follow-ups. They start again tomorrow.")
+    root = r["parent"] or r["id"]
+    new = secrets.token_urlsafe(9)
+    db.run("INSERT INTO requests(token,text,status,created_at,parent,user,links) VALUES(?,?,?,?,?,?,?)", (new, text, "received", db.now(), root, u["id"], r.get("links")))
+    return {"path": f"/request/{new}"}
+
+
 @app.get("/request/{token}.json")
 def api_request_state(token: str):
     r = db.one("SELECT * FROM requests WHERE token=?", (token,))

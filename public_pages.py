@@ -320,6 +320,14 @@ def delivery_page(r, state, name, rows):
             + (f'<h2>What the record says</h2><p>{esc(r["analysis"])}</p>' if r.get("analysis") else f'<h2>What the record says</h2><p>{esc(" ".join(says))}</p>' if says else "")
             + f'<h2>The figures</h2><div class="card" style="overflow-x:auto"><table class="pts"><tr><th>Figure</th><th>Latest</th><th>As of</th><th>Points</th><th>History</th><th>File</th></tr>{trs}</table></div>'
             + (f'<h2>What could not be verified</h2><p>{esc(state["note"])}</p>' if state.get("note") else "")
+            + ('<h2>Continue this research</h2><div class="card"><form onsubmit="return more(event)"><input name="text" maxlength="300" required '
+               f'placeholder="Add revenue by year — go back to the first round — only post-money valuations" style="width:100%;font:16px var(--display);padding:11px 13px;border-radius:9px;border:1px solid var(--line)">'
+               '<div class="cta" style="margin-top:12px"><button class="btn" style="border:0;cursor:pointer;font:600 15px var(--display)">Continue</button>'
+               '<span class="meta" style="align-self:center;margin:0">Pro: the researcher picks up where it stopped and follows your direction.</span></div><p class="meta" id="mm"></p></form></div>'
+               '<script>async function more(e){e.preventDefault();const m=document.getElementById("mm");m.textContent="Sending…";'
+               'const r=await fetch("/api/request/"+location.pathname.split("/").pop()+"/more",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:e.target.text.value})});'
+               'const d=await r.json().catch(()=>({}));if(r.ok&&d.path){location.href=d.path}else if(r.status==401||r.status==402){m.innerHTML=(d.detail||"")+\' <a href="/app">See Tally Pro</a>\'}'
+               'else{m.textContent=d.detail||"That did not go through."}return false}</script>')
             + f'<div class="share"><a href="{sub}">Open the page of {esc(name)}</a><a href="{sub}.json">All figures as JSON</a>'
               f'<button type="button" data-copy="{SITE}/request/{esc(r["token"])}">Copy the link to this page</button></div>'
             + f'<p class="meta">Researched {esc((r.get("done_at") or r.get("created_at") or "")[:10])}. The figures stay on record and are read again as they change. Every value opens to its source.</p>'

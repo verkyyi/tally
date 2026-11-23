@@ -56,6 +56,20 @@ class Requests(unittest.TestCase):
         for want in ("Acme: the numbers on record", "1 figures and 2 dated points", "latest valuation", "$3B", "history.csv", "What could not be verified", "revenue", "noindex"):
             self.assertIn(want, page)
 
+    def test_continuing_a_research_is_for_pro_and_counts_who_reaches_for_it(self):
+        path = self.c.post("/api/request", json={"text": "Acme"}, headers=self.h).json()["path"]
+        tok = path.split("/")[-1]
+        self.assertEqual(self.c.post(f"/api/request/{tok}/more", json={"text": "add revenue by year"}, headers=self.h).status_code, 404)  # not finished yet
+        db.run("UPDATE requests SET status='delivered', links='/c/acme', session='s1' WHERE id=1")
+        self.assertEqual(self.c.post(f"/api/request/{tok}/more", json={"text": "add revenue by year"}, headers=self.h).status_code, 401)
+        self.assertEqual(db.one("SELECT n FROM fetches WHERE kind='refine_ask'")["n"], 1)
+        with patch("main.viewer", return_value={"id": "u1", "plan": "free"}):
+            self.assertEqual(self.c.post(f"/api/request/{tok}/more", json={"text": "add revenue by year"}, headers=self.h).status_code, 402)
+        with patch("main.viewer", return_value={"id": "u1", "plan": "pro"}):
+            new = self.c.post(f"/api/request/{tok}/more", json={"text": "add revenue by year"}, headers=self.h).json()["path"]
+        row = db.one("SELECT * FROM requests WHERE token=?", (new.split("/")[-1],))
+        self.assertEqual((row["parent"], row["user"], row["status"], row["links"]), (1, "u1", "received", "/c/acme"))
+
     def test_one_visitor_cannot_take_every_slot(self):
         main._asked_by.clear()
         codes = [self.c.post("/api/request", json={"text": f"Company {i}"}, headers=self.h | {"x-forwarded-for": "203.0.113.9"}).status_code for i in range(5)]

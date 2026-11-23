@@ -88,6 +88,9 @@ MIGRATIONS = [
     "CREATE TABLE IF NOT EXISTS fetches(day TEXT, kind TEXT, metric_id INTEGER DEFAULT 0, n INTEGER DEFAULT 0, PRIMARY KEY(day, kind, metric_id))",  # data addresses read by scripts and agents (json, md, csv, svg, embed, llms, search)
     "ALTER TABLE requests ADD COLUMN steps TEXT",  # what the research is doing, as it happens: a JSON list of short lines
     "ALTER TABLE requests ADD COLUMN analysis TEXT",  # what the figures show together, as the researcher wrote it; built only from the points
+    "ALTER TABLE requests ADD COLUMN session TEXT",  # the research session, so a follow-up continues it and does not start over
+    "ALTER TABLE requests ADD COLUMN parent INTEGER",  # a follow-up belongs to the request it continues
+    "ALTER TABLE requests ADD COLUMN user TEXT",  # who asked a follow-up (a Pro feature); the first, free request has no account
     "ALTER TABLE requests ADD COLUMN email TEXT",  # where to say the research is finished; erased once that message is sent
     "ALTER TABLE metrics ADD COLUMN read_failures INTEGER DEFAULT 0",  # daily reads in a row that produced no usable value; any good reading resets it
     "ALTER TABLE metrics ADD COLUMN repaired_at TEXT",                 # when an agent last tried to repair this number's recipe

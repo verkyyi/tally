@@ -537,6 +537,16 @@ def requests():
             steps = json.loads((db.one("SELECT steps FROM requests WHERE id=?", (rid,)) or {}).get("steps") or "[]") + [x[:160] for x in a[2:]]
             db.run("UPDATE requests SET steps=?, status=CASE WHEN status='received' THEN 'researching' ELSE status END WHERE id=?", (json.dumps(steps[-80:]), rid))
             return
+        if a[1] == "more":  # a follow-up filed by the operator, to try the Pro path without an account
+            import secrets
+            root = db.one("SELECT * FROM requests WHERE id=?", (int(a[0]),))
+            tok = secrets.token_urlsafe(9)
+            db.run("INSERT INTO requests(token,text,status,created_at,parent,user,links) VALUES(?,?,?,?,?,?,?)", (tok, " ".join(a[2:])[:300], "received", db.now(), root["parent"] or root["id"], "tally", root.get("links")))
+            print("/request/" + tok)
+            return
+        if a[1] == "session":
+            db.run("UPDATE requests SET session=? WHERE id=?", (a[2][:80], int(a[0])))
+            return
         if a[1] == "analysis":
             db.run("UPDATE requests SET analysis=? WHERE id=?", (" ".join(a[2:])[:900], int(a[0])))
             return
@@ -559,7 +569,8 @@ def requests():
             if alerts.send(r["email"], f"Tally: {r['text']}"[:120], text, html):
                 db.run("UPDATE requests SET email=NULL WHERE id=?", (rid,))
     for r in db.q("SELECT * FROM requests WHERE status IN ('received','researching') OR id=? ORDER BY id", (int(a[0]) if a else 0,)):
-        print(r["id"], r["status"], r["created_at"], "|", r["text"], "|", r["token"], flush=True)
+        root = db.one("SELECT session, text FROM requests WHERE id=?", (r["parent"],)) if r.get("parent") else None
+        print(r["id"], r["status"], r["created_at"], "|", r["text"], "|", r["token"], *(["|", (root or {}).get("session") or "-", "|", (root or {}).get("text") or "-"] if r.get("parent") else []), flush=True)
 
 
 if __name__ == "__main__":
