@@ -6,7 +6,7 @@ After=network-online.target tally.service
 User=tally
 WorkingDirectory=/opt/tally/app
 EnvironmentFile=/opt/tally/app/.env
-Environment=TALLY_LOCAL=1 TALLY_AGENT_USER=tallyagent TALLY_CLAUDE=/home/tallyagent/.local/bin/claude TALLY_AGENT_DIR=/home/tallyagent/work TALLY_SITE=http://127.0.0.1:8000
+Environment=TALLY_LOCAL=1 TALLY_AGENT_USER=tallyagent TALLY_CLAUDE=/home/tallyagent/bin/claude-run TALLY_AGENT_DIR=/home/tallyagent/work TALLY_SITE=http://127.0.0.1:8000
 ExecStart=/opt/tally/app/.venv/bin/python /opt/tally/app/infra/request_worker.py
 Restart=always
 RestartSec=10
