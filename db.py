@@ -82,6 +82,7 @@ MIGRATIONS = [
     "CREATE TABLE IF NOT EXISTS lessons_source(kind TEXT, host TEXT, ok INTEGER DEFAULT 0, bad INTEGER DEFAULT 0, why TEXT, last_ok_url TEXT, at TEXT, PRIMARY KEY(kind, host))",  # how each site has done for each kind of number
     "CREATE TABLE IF NOT EXISTS lessons_entity(company TEXT PRIMARY KEY, pages_json TEXT, status TEXT, ticker TEXT, at TEXT)",  # a company's own pages that have stated numbers, and whether it is private, listed or acquired
     "CREATE TABLE IF NOT EXISTS demand(q TEXT PRIMARY KEY, at TEXT, status TEXT, metric_id INTEGER)",  # asks Tally went and looked up itself, and how each ended
+    "CREATE TABLE IF NOT EXISTS requests(id INTEGER PRIMARY KEY, token TEXT UNIQUE, text TEXT, status TEXT, note TEXT, links TEXT, created_at TEXT, done_at TEXT)",  # what a visitor asked Tally to research: a company or a figure, and how it ended
     "CREATE TABLE IF NOT EXISTS gsc(day TEXT PRIMARY KEY, clicks INTEGER, impressions INTEGER)",  # Google Search Console, per day, as read from its performance report
     "CREATE TABLE IF NOT EXISTS asks(day TEXT, q TEXT, via TEXT, found INTEGER DEFAULT 0, n INTEGER DEFAULT 0, PRIMARY KEY(day, q, via))",  # what people and agents searched for, and whether the record had it; words only, nothing about who asked
     "CREATE TABLE IF NOT EXISTS fetches(day TEXT, kind TEXT, metric_id INTEGER DEFAULT 0, n INTEGER DEFAULT 0, PRIMARY KEY(day, kind, metric_id))",  # data addresses read by scripts and agents (json, md, csv, svg, embed, llms, search)

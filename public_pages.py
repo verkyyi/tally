@@ -248,6 +248,40 @@ def valuations_page(rows, cards):
     return shell("Private AI valuations now vs a year ago: who multiplied fastest | Tally", desc, "/findings/ai-valuations", body)
 
 
+REQUEST_STATES = {"received": "Received. Research starts within a day.", "researching": "Being researched now.",
+                  "delivered": "Delivered. Every point below is on record with its source.", "unverified": "Not delivered: the figures could not be verified."}
+
+
+def request_page():
+    """Ask for a company's numbers: one sentence in, a sourced history out."""
+    body = ('<h1 style="margin-top:22px">Ask for a company\'s numbers</h1>'
+            '<p class="lede">Name a company, or a figure about one. Tally researches it, checks every point against the page it came from, and hands back the history with its sources.</p>'
+            '<div class="card"><form id="rq" onsubmit="return send(event)"><input name="text" maxlength="200" required placeholder="Figure AI — or — Duolingo daily active users" '
+            'style="width:100%;font:17px var(--display);padding:12px 14px;border-radius:9px;border:1px solid var(--line)">'
+            '<input name="site" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">'
+            '<div class="cta" style="margin-top:14px"><button class="btn" style="border:0;cursor:pointer;font:600 16px var(--display)">Ask Tally</button></div><p class="meta" id="rqm"></p></form></div>'
+            '<h2>What you get</h2><ul><li><b>A company</b>: its standard figures (valuation, funding, revenue, headcount where public) and any other figure with a dated public record.</li>'
+            '<li><b>A figure</b>: its history as dated points, each with the source page and the sentence that states it, a chart, and a file to download.</li>'
+            '<li><b>Or a plain answer</b> that it could not be verified, with what was found.</li></ul>'
+            '<p class="q">Results are published in the open record. Samples: <a href="/c/duolingo/daily-active-users">Duolingo daily active users</a>, '
+            '<a href="/c/perplexity">Perplexity</a>, <a href="/findings/ai-valuations">AI valuations in a year</a>. See <a href="/coverage">what is covered today</a>.</p>'
+            '<script>async function send(e){e.preventDefault();const f=e.target,m=document.getElementById("rqm");m.textContent="Sending…";'
+            'const r=await fetch("/api/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:f.text.value,site:f.site.value})});'
+            'const d=await r.json().catch(()=>({}));if(r.ok&&d.path){location.href=d.path}else{m.textContent=d.detail||"That did not go through. Try again in a moment."}return false}</script>')
+    return shell("Ask for a company's numbers, with sources | Tally", "Name a company or a figure about one. Tally researches it and hands back the history, every point with its source.", "/request", body)
+
+
+def request_status_page(r):
+    links = [l for l in (r.get("links") or "").split("\n") if l.startswith("/")]
+    body = (f'<div class="crumb"><a href="/request">Ask</a> / Your request</div><h1>{esc(r["text"])}</h1>'
+            f'<p class="lede">{esc(REQUEST_STATES.get(r["status"], r["status"]))}</p>'
+            + (f'<p>{esc(r["note"])}</p>' if r.get("note") else "")
+            + ("<ul>" + "".join(f'<li><a href="{esc(l)}">{esc(SITE + l)}</a></li>' for l in links) + "</ul>" if links else "")
+            + f'<p class="meta">Asked {esc((r.get("created_at") or "")[:10])}. Keep this page\'s address: the result appears here.</p>'
+            '<div class="cta"><a class="btn ghost" href="/request">Ask for another</a></div>')
+    return shell("Your request | Tally", "The state of a research request.", f"/request/{r['token']}", body).replace('<meta name="twitter:card"', '<meta name="robots" content="noindex"><meta name="twitter:card"', 1)
+
+
 def coverage_page(sets):
     """What the record covers: each kind of subject, the figures each should carry, and what is on record today."""
     import coverage
@@ -268,7 +302,7 @@ def coverage_page(sets):
     body += ('<h2>How a company gets on the list</h2><p>A private company is followed when it meets one of three tests: a latest valuation of at least $1 billion or at least $100 million raised; '
              'a place on a published list of leading AI or cloud companies; or people asking Tally for its numbers. The list is reviewed monthly. '
              'A company that is acquired, lists its shares or closes stops being read, and its history stays on record.</p>'
-             '<p class="q">● on record · ○ tracked, no value yet · · not tracked yet. Missing a company or a figure? <a href="/wanted">Ask for it</a>.</p>')
+             '<p class="q">● on record · ○ tracked, no value yet · · not tracked yet. Missing a company or a figure? <a href="/request">Ask for it</a>.</p>')
     return shell("What Tally covers: companies, figures and gaps | Tally", f"{subjects} subjects followed: {desc}. Every figure with its source and history."[:300], "/coverage", body,
                  ld_json(crumbs(("Coverage", "/coverage"))))
 
@@ -425,7 +459,7 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 {body}
 <script src="/static/pub.js?v=13" defer></script>
 <footer>The record is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>, for the compilation Tally makes: <a href="/terms#data">what that covers</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>, or take the whole record from the <a href="https://github.com/verkyyi/tally-data" rel="noopener">open dataset</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
-<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/findings">Findings</a> · <a href="/coverage">Coverage</a> · <a href="/corrections">Corrections</a> · <a href="/growth">Growth</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
+<a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/findings">Findings</a> · <a href="/request">Ask</a> · <a href="/coverage">Coverage</a> · <a href="/corrections">Corrections</a> · <a href="/growth">Growth</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 
 
 _PATHS = {"at": 0.0, "by_id": {}, "by_path": {}}

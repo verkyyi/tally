@@ -528,6 +528,17 @@ def period_history():
             print(m["id"], m["title"], core.period_label("month", start), "| found", len(found), "| dated in the month", len(kept), "| value", core.count_value(m["id"], start) if kept else None, flush=True)
 
 
+def requests():
+    """What visitors asked to have researched. `requests` lists the open ones; `requests ID STATUS "note" /path ...` closes or updates one."""
+    a = sys.argv[2:]
+    if a:
+        rid, status, note, links = int(a[0]), a[1], (a[2] if len(a) > 2 else ""), "\n".join(a[3:])
+        assert status in ("received", "researching", "delivered", "unverified"), status
+        db.run("UPDATE requests SET status=?, note=?, links=?, done_at=? WHERE id=?", (status, note, links, db.now() if status in ("delivered", "unverified") else None, rid))
+    for r in db.q("SELECT * FROM requests WHERE status IN ('received','researching') OR id=? ORDER BY id", (int(a[0]) if a else 0,)):
+        print(r["id"], r["status"], r["created_at"], "|", r["text"], "|", r["token"], flush=True)
+
+
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "stocks": stocks, "growth": growth, "gsc": gsc, "cited_history": cited_history, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "stocks": stocks, "growth": growth, "gsc": gsc, "requests": requests, "cited_history": cited_history, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()

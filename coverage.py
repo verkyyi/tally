@@ -8,8 +8,6 @@ SETS = (
      ("latest valuation", "total funding raised", "latest round size", "open roles, all teams")),
     ("Listed companies", "listed",
      ("annual revenue", "quarterly revenue", "quarterly net income", "quarterly operating income (loss)", "shares outstanding")),
-    ("Open-source projects", "open-source",
-     ("github stars", ("pypi downloads, weekly", "npm downloads, weekly"))),
 )
 LABEL = {"open roles, all teams": "open roles", "quarterly operating income (loss)": "quarterly operating income",
          ("pypi downloads, weekly", "npm downloads, weekly"): "weekly downloads (PyPI or npm)", "github stars": "GitHub stars"}

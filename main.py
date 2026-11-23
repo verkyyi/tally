@@ -1455,7 +1455,7 @@ def _sitemap_body():
     groups = pp.groups()
     of = lambda name: max((changed.get(i, "") for i in groups.get(name, [])), default="")
     today = db.now()[:10]
-    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/growth", today), ("/findings", today), ("/coverage", today), ("/findings/ai-hiring", today), ("/findings/open-source-stars", today), ("/findings/ai-valuations", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
+    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/growth", today), ("/findings", today), ("/coverage", today), ("/request", today), ("/findings/ai-hiring", today), ("/findings/open-source-stars", today), ("/findings/ai-valuations", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
     urls += [(pp.subject_path(n), of(n)) for n in groups]
     urls += [(pp.versus_path(a, b), max(of(a), of(b))) for a, b in _pairs()]
     names = {n.lower(): n for n in groups}
@@ -1485,7 +1485,7 @@ def indexnow_key():
 
 @app.get("/robots.txt")
 def robots():
-    return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /embed/\nDisallow: /compare\nDisallow: /track\nSitemap: {pp.SITE}/sitemap.xml\n# Agents: see {pp.SITE}/llms.txt\n")
+    return PlainTextResponse(f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /embed/\nDisallow: /compare\nDisallow: /track\nDisallow: /request/\nSitemap: {pp.SITE}/sitemap.xml\n# Agents: see {pp.SITE}/llms.txt\n")
 
 
 _hiring = {"at": 0.0, "rows": []}
@@ -1569,6 +1569,38 @@ def _coverage():
         valued = {r["metric_id"] for r in db.q("SELECT DISTINCT metric_id FROM observations WHERE value IS NOT NULL")}
         _cover.update(at=time.time(), sets=coverage.table(db.q("SELECT id, title, company FROM metrics WHERE title LIKE '% · %'"), valued))
     return _cover["sets"]
+
+
+class Ask(BaseModel):
+    text: str
+    site: str = ""  # left empty by people; a script that fills every field gives itself away
+
+
+@app.get("/request")
+def public_request():
+    return HTMLResponse(pp.request_page())
+
+
+@app.post("/api/request")
+def api_request(body: Ask, request: Request):
+    text = " ".join((body.text or "").split())[:200]
+    if body.site or len(text) < 3 or not _human(request) or re.search(r"https?://|<|>", text):
+        raise HTTPException(422, "Name a company, or a figure about one, in a few words.")
+    if db.one("SELECT COUNT(*) n FROM requests WHERE created_at>=?", (db.now()[:10],))["n"] >= 60:
+        raise HTTPException(429, "Tally has taken all the requests it can research today. Please come back tomorrow.")
+    same = db.one("SELECT token FROM requests WHERE lower(text)=? AND status IN ('received','researching')", (text.lower(),))
+    token = same["token"] if same else secrets.token_urlsafe(9)
+    if not same:
+        db.run("INSERT INTO requests(token,text,status,created_at) VALUES(?,?,?,?)", (token, text, "received", db.now()))
+    return {"path": f"/request/{token}"}
+
+
+@app.get("/request/{token}")
+def public_request_status(token: str):
+    r = db.one("SELECT * FROM requests WHERE token=?", (token,))
+    if not r:
+        raise HTTPException(404, "no such request")
+    return HTMLResponse(pp.request_status_page(r), headers={"X-Robots-Tag": "noindex"})
 
 
 @app.get("/coverage")

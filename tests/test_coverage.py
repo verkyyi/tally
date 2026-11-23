@@ -14,11 +14,11 @@ class Coverage(unittest.TestCase):
         return coverage.table(ms, {1, 2, 3, 4, 5, 7, 9, 10})
 
     def test_subjects_land_in_one_set_and_the_share_counts_values_only(self):
-        private, listed, code = self.sets()
+        private, listed = self.sets()
         self.assertEqual([r[0] for r in private[3]], ["Acme", "Beta"])  # fullest first
         self.assertAlmostEqual(private[4], 5 / 8)  # Beta's funding is tracked but has no value
         self.assertEqual([r[0] for r in listed[3]], ["Big"])  # a company with filed revenue is listed, whatever else it carries
-        self.assertEqual(code[4], 1.0)  # either package registry fills the downloads figure
+        self.assertNotIn("lib", [r[0] for s in self.sets() for r in s[3]])  # a project that is not a company is outside the scope
 
     def test_page_shows_each_state(self):
         h = pp.coverage_page(self.sets())
