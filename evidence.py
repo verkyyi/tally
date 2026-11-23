@@ -46,9 +46,11 @@ def assess(m, ex, page):
     ex.pop("_structured", None)  # text/model output cannot claim the API-adapter exemption
     quote = ex.get("quote") or ""
     squash = _squash
-    if page and finite(ex.get("value")) and (not quote or squash(quote) not in squash(page)):
+    subject = squash(m.get("company") or (m.get("title") or "").split(" \u00b7 ")[0])
+    if page and finite(ex.get("value")) and subject and subject in squash(page) and (not quote or squash(quote) not in squash(page)):
         # The quotation is a summary ("Series D, $400 million, June 2026") and not the page's words: the page's own sentence
-        # stating the value is what gets reviewed and kept. A page that does not state the value still fails below.
+        # stating the value is what gets reviewed and kept. Only on a page that names the company or project; a page that
+        # does not, or does not state the value, still fails below.
         quote = ex["quote"] = sentence(ex["value"], page, quote) or quote
     reason = None
     if not finite(ex.get("value")) or not sources.readable(ex.get("evidence_url")):
@@ -138,10 +140,7 @@ def historical(m, point, page):
     """Historical points must preserve the same semantics; their date is not read time. The quotation is the point's own when
     the page holds it, else the sentence of the page that states the value. A point dated to the month ("2024-10-01" for a
     round announced on the 28th) takes the day the page gives; a date the page puts in another month is not accepted."""
-    quote = point.get("quote")
-    if not quote or _squash(quote) not in _squash(page or ""):
-        quote = sentence(point.get("value"), page, quote or "")
-    candidate = {"value": point.get("value"), "quote": quote, "evidence_url": point.get("url")}
+    candidate = {"value": point.get("value"), "quote": point.get("quote") or "", "evidence_url": point.get("url")}  # assess finds the page's sentence when there is no quotation
     context = dict(m, id=None)
     if not day(point.get("date")) or not assess(context, candidate, page):
         return False
@@ -151,5 +150,5 @@ def historical(m, point, page):
             hold(m, candidate, "Historical date differs from the evidenced fact date")
             return False
         point["date"] = found
-    point["quote"] = point.get("quote") or quote
+    point["quote"] = candidate.get("quote") or point.get("quote")
     return True
