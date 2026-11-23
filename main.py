@@ -1612,9 +1612,18 @@ def api_request(body: Ask, request: Request):
     return {"path": f"/request/{token}"}
 
 
-def _request_state(r):
-    return {"text": r["text"], "status": r["status"], "state": pp.REQUEST_STATES.get(r["status"], r["status"]), "note": r.get("note") or "",
-            "steps": json.loads(r.get("steps") or "[]")[-40:], "links": [l for l in (r.get("links") or "").split("\n") if l.startswith("/")]}
+def _request_state(r, figures=False):
+    st = {"text": r["text"], "status": r["status"], "state": pp.REQUEST_STATES.get(r["status"], r["status"]), "note": r.get("note") or "",
+          "steps": json.loads(r.get("steps") or "[]")[-40:], "links": [l for l in (r.get("links") or "").split("\n") if l.startswith("/")]}
+    company = next((l[3:] for l in st["links"] if l.startswith("/c/") and "/" not in l[3:]), None)
+    if figures and company and r["status"] == "researching":  # the figures already on record, drawn while the rest is still researched
+        st["figures"] = []
+        for m, t, n in _subject_rows(company)[1]:
+            if t.get("value") is not None:
+                pts = core.series(m["id"])
+                st["figures"].append({"figure": m["title"].split(" · ", 1)[-1], "path": pp.number_path(m), "value": " ".join(x for x in pp.fmt(t["value"], t["unit"]) if x),
+                                      "points": len(pts), "spark": pp.spark(pts, 220, 44) if len(pts) > 1 else ""})
+    return st
 
 
 @app.get("/api/request/open")
@@ -1628,7 +1637,7 @@ def api_request_state(token: str):
     r = db.one("SELECT * FROM requests WHERE token=?", (token,))
     if not r:
         raise HTTPException(404, "no such request")
-    return JSONResponse(_request_state(r), headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
+    return JSONResponse(_request_state(r, figures=True), headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
 
 
 @app.get("/request/{token}")

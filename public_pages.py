@@ -283,7 +283,7 @@ def request_status_page(r, state=None):
     live = st["status"] in ("received", "researching")
     body = (f'<div class="crumb"><a href="/">Tally</a> / Research</div><h1>{esc(r["text"])}</h1>'
             f'<p class="lede" id="rs">{esc(st["state"])}{"<span class=think>working</span>" if live else ""}</p><p id="rn">{esc(st["note"])}</p>'
-            f'<ul id="rl">{links}</ul><ul class="feed" id="rf">{steps}</ul>'
+            f'<ul id="rl">{links}</ul><div class="grid" id="rg" style="margin:10px 0 16px"></div><ul class="feed" id="rf">{steps}</ul>'
             f'<p class="meta">Asked {esc((r.get("created_at") or "")[:10])}. Keep this page\'s address: the result appears here.</p>'
             '<div class="cta"><a class="btn ghost" href="/">Search another</a></div>')
     if live:
@@ -291,7 +291,7 @@ def request_status_page(r, state=None):
                  'async function tick(){try{const d=await (await fetch(location.pathname+".json",{cache:"no-store"})).json();const on=d.status=="received"||d.status=="researching";'
                  'document.getElementById("rs").innerHTML=E(d.state)+(on?\'<span class="think">working</span>\':"");document.getElementById("rn").textContent=d.note;'
                  'document.getElementById("rl").innerHTML=d.links.map(l=>\'<li><a href="\'+E(l)+\'">\'+E(location.origin+l)+"</a></li>").join("");'
-                 'if(d.steps.length!=seen){seen=d.steps.length;document.getElementById("rf").innerHTML=d.steps.map((x,i)=>\'<li class="\'+(on&&i==d.steps.length-1?"live":"ok")+\'">\'+E(x)+"</li>").join("")}'
+                 'document.getElementById("rg").innerHTML=(d.figures||[]).map(f=>\'<a class="t" href="\'+E(f.path)+\'"><b>\'+E(f.figure)+\'</b><div class="v">\'+E(f.value)+\'</div>\'+f.spark+\'<div class="m"><span>\'+f.points+\' points</span></div></a>\').join("");if(d.steps.length!=seen){seen=d.steps.length;document.getElementById("rf").innerHTML=d.steps.map((x,i)=>\'<li class="\'+(on&&i==d.steps.length-1?"live":"ok")+\'">\'+E(x)+"</li>").join("")}'
                  'if(!on){if(d.status=="delivered")location.reload();return}}catch(e){}setTimeout(tick,2000)}tick()</script>')
     return shell("Your request | Tally", "The state of a research request.", f"/request/{r['token']}", body).replace('<meta name="twitter:card"', '<meta name="robots" content="noindex"><meta name="twitter:card"', 1)
 
@@ -317,7 +317,7 @@ def delivery_page(r, state, name, rows):
     sub = subject_path(name)
     body = (f'<div class="crumb"><a href="/">Tally</a> / Research</div><h1>{esc(name)}: the numbers on record</h1>'
             f'<p class="lede">{len(held)} figures and {points} dated points, each with the page and the sentence that states it. You asked for: {esc(r["text"])}.</p>'
-            + (f'<h2>What the record says</h2><p>{esc(" ".join(says))}</p>' if says else "")
+            + (f'<h2>What the record says</h2><p>{esc(r["analysis"])}</p>' if r.get("analysis") else f'<h2>What the record says</h2><p>{esc(" ".join(says))}</p>' if says else "")
             + f'<h2>The figures</h2><div class="card" style="overflow-x:auto"><table class="pts"><tr><th>Figure</th><th>Latest</th><th>As of</th><th>Points</th><th>History</th><th>File</th></tr>{trs}</table></div>'
             + (f'<h2>What could not be verified</h2><p>{esc(state["note"])}</p>' if state.get("note") else "")
             + f'<div class="share"><a href="{sub}">Open the page of {esc(name)}</a><a href="{sub}.json">All figures as JSON</a>'

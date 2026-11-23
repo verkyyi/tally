@@ -16,6 +16,10 @@ Quality rules beyond BRIEF.md:
 
 Budget: about 25 searches and 30 page reads in total.
 
+Write the file after EACH series is finished (the whole document so far, valid JSON every time), so the reader sees results while you work; then go on to the next series and write it again.
+
+When all series are done, add `analysis`: three or four plain sentences on what these figures show together (how fast the company grew, what changed and when, what is notably absent from the public record). Use only values and dates that are in the points; no forecasts, no opinions, no adjectives of praise.
+
 Write ONE JSON file to the path given:
-{"subject": "...", "status": "private|listed|acquired|closed", "status_source": "url", "series": [{"title": "Subject · figure name", "unit": "USD|employees|customers|users|...", "question": "plain question this figure answers", "points": [...as in BRIEF.md...], "notes": "definition and caveats"}], "not_found": ["figures looked for with no dated public record, and why"], "searches": 0, "pages_read": 0}
+{"subject": "...", "status": "private|listed|acquired|closed", "status_source": "url", "series": [{"title": "Subject · figure name", "unit": "USD|employees|customers|users|...", "question": "plain question this figure answers", "points": [...as in BRIEF.md...], "notes": "definition and caveats"}], "analysis": "…", "not_found": ["figures looked for with no dated public record, and why"], "searches": 0, "pages_read": 0}
 Use these exact figure names where they apply: "latest valuation", "latest round size", "total funding raised", "headcount". Final reply: one line per series (title, number of points) and the not_found list.

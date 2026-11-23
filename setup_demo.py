@@ -537,6 +537,9 @@ def requests():
             steps = json.loads((db.one("SELECT steps FROM requests WHERE id=?", (rid,)) or {}).get("steps") or "[]") + [x[:160] for x in a[2:]]
             db.run("UPDATE requests SET steps=?, status=CASE WHEN status='received' THEN 'researching' ELSE status END WHERE id=?", (json.dumps(steps[-80:]), rid))
             return
+        if a[1] == "analysis":
+            db.run("UPDATE requests SET analysis=? WHERE id=?", (" ".join(a[2:])[:900], int(a[0])))
+            return
         if a[1] == "link":  # a result that is already on record, shown before the research is over
             rid = int(a[0])
             have = [l for l in ((db.one("SELECT links FROM requests WHERE id=?", (rid,)) or {}).get("links") or "").split("\n") if l]

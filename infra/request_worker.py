@@ -86,7 +86,7 @@ def is_figure(text):
                           r"margin|income|profit|share|rides|shipments?|history|over time|per (week|month|year|quarter))\b", text.lower()))
 
 
-def research(rid, text, out):
+def research(rid, text, out, got):
     brief = "BRIEF.md" if is_figure(text) else "SUBJECT.md"
     today = datetime.date.today().isoformat()
     ask = (f"Today is {today}. Read {HERE}/research/{brief} (and BRIEF.md beside it) and follow it exactly. "
@@ -96,14 +96,22 @@ def research(rid, text, out):
     p = subprocess.Popen(run + ["-p", ask, "--output-format", "stream-json", "--verbose", "--allowedTools", "WebSearch,WebFetch,Read,Write",
                           "--disallowedTools", "Bash,Edit,Agent", "--strict-mcp-config", "--add-dir", os.path.dirname(out)],
                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, cwd=os.path.dirname(out))
-    start, last, waiting = time.time(), 0.0, []
+    start, last, waiting, wrote = time.time(), 0.0, [], False
     for line in p.stdout:
         try:
             s = step_of(json.loads(line))
         except ValueError:
             s = None
+        if wrote:  # the file the session wrote a moment ago is on disk now: bring in the series it finished, so they show while it goes on
+            wrote = False
+            try:
+                bring(rid, text, out, got)
+            except Exception as e:
+                print("partial import failed:", type(e).__name__, str(e)[:120], flush=True)
         if s:
-            waiting.append(s)
+            wrote = s.startswith("Writing")
+            if not wrote:
+                waiting.append(s)
         if waiting and time.time() - last > 5:
             tell(rid, "step", *waiting[-6:])
             waiting, last = [], time.time()
@@ -115,13 +123,13 @@ def research(rid, text, out):
         tell(rid, "step", *waiting[-6:])
 
 
-def deliver(rid, text, out):
-    try:
-        doc = json.load(open(out))
-    except (OSError, ValueError):
-        tell(rid, "unverified", "The research did not finish. Nothing was written; you can ask again.")
-        return
+def bring(rid, text, out, got):
+    """Bring the series the session has finished into the record. got: {"done": how many are in, "written": [...], "missed": [...], "doc": the last document read}."""
+    doc = json.load(open(out))
     series = doc.get("series") or []
+    got["doc"] = doc
+    if len(series) <= got["done"]:
+        return
     name = re.sub(r"[^a-z0-9]+", "-", (doc.get("subject") or text).lower()).strip("-")
     remote = f"/var/tmp/tally-req/{rid}-{name}.json"
     b64 = base64.b64encode(json.dumps(doc).encode()).decode()
@@ -130,19 +138,37 @@ def deliver(rid, text, out):
         json.dump(doc, open(remote, "w"))
     elif "stored" not in server(f"mkdir -p /var/tmp/tally-req && echo {b64} | base64 -d > {remote} && echo stored"):
         raise RuntimeError(f"request {rid}: the result did not reach the server; left open")  # never reported to the asker as a failed research
-    tell(rid, "step", f"Checking {sum(len(s.get('points') or []) for s in series)} points against their pages")
-    written, missed = [], []
-    for k, s in enumerate(series):
-        figure = (s.get("title") or "").split(" · ")[-1].strip().lower()
-        least = 1 if figure in STANDARD else 3
+    for k in range(got["done"], len(series)):
+        s = series[k]
+        title = s.get("title") or "?"
+        figure = title.split(" · ")[-1].strip()
+        least = 1 if figure.lower() in STANDARD else 3
         log = server(f"{APP} research_import.py {remote} --series {k} --min {least} --write 2>&1 | tail -6")
-        (written if "written:" in log or ("on record as" in log and "to add 0" in log) else missed).append(s.get("title") or "?")
+        ok = "written:" in log or ("on record as" in log and "to add 0" in log)
+        (got["written"] if ok else got["missed"]).append(title)
+        m = re.search(r"verified (\d+) of (\d+)", log)
+        tell(rid, "step", (f"{figure}: {m.group(1)} of {m.group(2)} points verified against their pages" + ("" if ok else ", not enough to keep")) if m else f"{figure}: checked")
+        if ok and len(got["written"]) == 1:
+            tell(rid, "link", "/c/" + re.sub(r"[^a-z0-9]+", "-", title.split(" · ")[0].lower()).strip("-"))
+    got["done"] = len(series)
+
+
+def deliver(rid, text, out, got=None):
+    got = got or {"done": 0, "written": [], "missed": [], "doc": None}
+    try:
+        bring(rid, text, out, got)
+    except (OSError, ValueError):
+        if not got["written"]:
+            tell(rid, "unverified", "The research did not finish. Nothing was written; you can ask again.")
+            return
+    doc, written, missed = got["doc"] or {}, got["written"], got["missed"]
     lost = [str(x)[:90] for x in (doc.get("not_found") or [])][:4]
-    note = (f"On record: {', '.join(t.split(' · ')[-1] for t in written)}. " if written else "") \
-        + (f"Not enough verified points: {', '.join(t.split(' · ')[-1] for t in missed)}. " if missed else "") \
+    note = (f"Not enough verified points: {', '.join(t.split(' · ')[-1] for t in missed)}. " if missed else "") \
         + (f"No dated public record found for: {'; '.join(lost)}." if lost else "")
     subject = (written[0].split(" · ")[0] if written else "")
     link = "/c/" + re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-") if subject else ""
+    if written and isinstance(doc.get("analysis"), str) and doc["analysis"].strip():
+        server(f"{APP} setup_demo.py requests {rid} analysis {shlex.quote(' '.join(doc['analysis'].split())[:900])}")
     server(f"{APP} setup_demo.py requests {rid} {'delivered' if written else 'unverified'} {shlex.quote(note[:600])} {link}")
 
 
@@ -161,8 +187,9 @@ def handle_all():
         rid, text = int(m.group(1)), m.group(2)
         tell(rid, "step", "Starting the research")
         out = os.path.join(WORK, f"req-{rid}.json") if WORK else os.path.join(tempfile.mkdtemp(prefix="tally-req-"), "result.json")
-        research(rid, text, out)
-        deliver(rid, text, out)
+        got = {"done": 0, "written": [], "missed": [], "doc": None}
+        research(rid, text, out, got)
+        deliver(rid, text, out, got)
         print(datetime.datetime.now().isoformat(timespec="seconds"), "request", rid, text, flush=True)
 
 
