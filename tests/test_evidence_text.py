@@ -17,6 +17,10 @@ class QuoteText(unittest.TestCase):
         self.assertEqual(evidence.sentence(4500000000, page), "The deal valued Sierra at $4.5 billion, up from $1 billion in January.")
         self.assertIsNone(evidence.sentence(10000000000, page))
 
+    def test_of_two_sentences_the_one_like_the_summary(self):
+        page = "Rival Corp raised $400 million last year.\nSuno pocketed $400 million in its latest funding round, valuing it at $5.4 billion."
+        self.assertTrue(evidence.sentence(400000000, page, "Suno Series D, $400 million at a $5.4 billion valuation").startswith("Suno pocketed"))
+
 
 if __name__ == "__main__":
     unittest.main()

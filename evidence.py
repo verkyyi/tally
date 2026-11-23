@@ -46,6 +46,10 @@ def assess(m, ex, page):
     ex.pop("_structured", None)  # text/model output cannot claim the API-adapter exemption
     quote = ex.get("quote") or ""
     squash = _squash
+    if page and finite(ex.get("value")) and (not quote or squash(quote) not in squash(page)):
+        # The quotation is a summary ("Series D, $400 million, June 2026") and not the page's words: the page's own sentence
+        # stating the value is what gets reviewed and kept. A page that does not state the value still fails below.
+        quote = ex["quote"] = sentence(ex["value"], page, quote) or quote
     reason = None
     if not finite(ex.get("value")) or not sources.readable(ex.get("evidence_url")):
         reason = "Invalid number or disallowed source"
@@ -114,15 +118,20 @@ def rejection(m, ex):
     return None
 
 
-def sentence(value, page):
+def sentence(value, page, like=""):
     """The sentence of the page that states this value, in the page's own words, or None. A past point reported with its
-    date, value and page but no quotation is checked against this sentence."""
+    date, value and page but no quotation is checked against this sentence; so is a value whose quotation was a summary
+    of the page and not its words. Of several sentences stating the value, the one sharing most words with `like` is taken."""
     import core
+    want = set(re.findall(r"[a-z0-9]+", _squash(like)))
+    best, score = None, -1
     for part in re.split(r"(?<=[.!?])\s+|\n+", page or ""):
         part = part.strip()
         if 20 <= len(part) <= 500 and core.supported(value, part):
-            return part
-    return None
+            n = len(want & set(re.findall(r"[a-z0-9]+", _squash(part))))
+            if n > score:
+                best, score = part, n
+    return best
 
 
 def historical(m, point, page):
@@ -131,7 +140,7 @@ def historical(m, point, page):
     round announced on the 28th) takes the day the page gives; a date the page puts in another month is not accepted."""
     quote = point.get("quote")
     if not quote or _squash(quote) not in _squash(page or ""):
-        quote = sentence(point.get("value"), page)
+        quote = sentence(point.get("value"), page, quote or "")
     candidate = {"value": point.get("value"), "quote": quote, "evidence_url": point.get("url")}
     context = dict(m, id=None)
     if not day(point.get("date")) or not assess(context, candidate, page):
