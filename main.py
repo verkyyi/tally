@@ -1452,7 +1452,7 @@ def _sitemap_body():
     groups = pp.groups()
     of = lambda name: max((changed.get(i, "") for i in groups.get(name, [])), default="")
     today = db.now()[:10]
-    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/growth", today), ("/findings", today), ("/findings/ai-hiring", today), ("/findings/open-source-stars", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
+    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/growth", today), ("/findings", today), ("/findings/ai-hiring", today), ("/findings/open-source-stars", today), ("/findings/ai-valuations", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
     urls += [(pp.subject_path(n), of(n)) for n in groups]
     urls += [(pp.versus_path(a, b), max(of(a), of(b))) for a, b in _pairs()]
     names = {n.lower(): n for n in groups}
@@ -1529,9 +1529,41 @@ def _stars_rows():
     return _stars["rows"]
 
 
+_valuations = {"at": 0, "rows": []}
+
+
+def _valuation_rows(today=None):
+    """Private companies whose valuation was set again in the past twelve months, with the valuation that stood a year ago:
+    [(metric, then, now, times)], biggest multiple first. "Then" is the last valuation on record dated a year or more
+    before today; a company with no valuation that old is left out, and so is one with nothing new in the year. Kept an hour."""
+    if today is None and time.time() - _valuations["at"] < 3600 and _valuations["rows"]:
+        return _valuations["rows"]
+    day = today or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    ago = (datetime.strptime(day, "%Y-%m-%d") - timedelta(days=365)).strftime("%Y-%m-%d")
+    out = []
+    for m in db.q("SELECT * FROM metrics WHERE lower(title) LIKE '% · latest valuation'"):
+        steps = []
+        for p in core.series(m["id"]):
+            if p["value"] and (not steps or steps[-1]["value"] != p["value"]):
+                steps.append(p)
+        before = [p for p in steps if p["at"][:10] <= ago]
+        if len(steps) >= 2 and before and steps[-1]["at"][:10] > ago:
+            out.append((m, before[-1], steps[-1], steps[-1]["value"] / before[-1]["value"]))
+    rows = sorted(out, key=lambda r: -r[3])
+    if today is None:
+        _valuations.update(at=time.time(), rows=rows)
+    return rows
+
+
 @app.get("/findings")
 def public_findings():
-    return HTMLResponse(pp.findings_page(_hiring_rows(), _stars_rows()))
+    return HTMLResponse(pp.findings_page(_hiring_rows(), _stars_rows(), _valuation_rows()))
+
+
+@app.get("/findings/ai-valuations")
+def public_finding_valuations():
+    rows = _valuation_rows()
+    return HTMLResponse(pp.valuations_page(rows, [(m, tile(m, None), core.series(m["id"])) for m, _, _, _ in rows[:6]]))
 
 
 @app.get("/findings/open-source-stars")

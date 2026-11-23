@@ -213,13 +213,49 @@ def stars_page(rows, cards):
     return shell("Fastest-growing open-source AI and developer projects by GitHub stars | Tally", desc, "/findings/open-source-stars", body)
 
 
-def findings_page(rows, stars=()):
+def _money(m, v):
+    return " ".join(x for x in fmt(v, m.get("unit")) if x)
+
+
+def _valuations_lede(rows):
+    say = lambda m, a, b, x: f'{subject(m)} is valued at {_money(m, b["value"])} ({_utc(b["at"]).strftime("%B %Y")}), {"%.1f times" % x if x >= 1.5 else ("%.0f%% above" % ((x - 1) * 100) if x >= 1 else "%.0f%% below" % ((1 - x) * 100))} the {_money(m, a["value"])} that stood a year ago'
+    return "; ".join(say(*r) for r in rows[:3]) + "." if rows else ""
+
+
+def valuations_page(rows, cards):
+    """A finding from the record: how far private-company valuations moved in a year."""
+    line = lambda m, a, b, x: (f'<tr><td><a href="{number_path(m)}"><b>{esc(subject(m))}</b></a></td><td>{esc(_money(m, a["value"]))} <span style="color:#667085">(set {_utc(a["at"]).strftime("%b %Y")})</span></td>'
+                               f'<td>{esc(_money(m, b["value"]))} <span style="color:#667085">({_utc(b["at"]).strftime("%b %Y")})</span></td>'
+                               f'<td style="white-space:nowrap;font-weight:600;color:{"#0a8f5b" if x > 1.005 else ("#c0392b" if x < 0.995 else "inherit")}">{"×%.1f" % x if x >= 1.5 else "%+.0f%%" % ((x - 1) * 100)}</td></tr>')
+    up, down = [r for r in rows if r[3] > 1], [r for r in rows if r[3] < 1]
+    fell = ("Lower than a year ago: " + ", ".join(subject(m) for m, _, _, _ in down) + ". ") if down else ""
+    body = ('<div class="crumb"><a href="/findings">Findings</a> / Valuations</div>'
+            '<h1 style="margin-top:8px">How far private AI and software valuations moved in a year</h1>'
+            f'<p class="lede">{esc(_valuations_lede(rows))}</p>'
+            f'<p class="q">{len(rows)} private companies whose valuation was set again in the past twelve months, each against the valuation that stood a year ago. {len(up)} are higher. {esc(fell)}'
+            'Rebuilt from the record every day.</p>'
+            + share_bar("/findings/ai-valuations", "Private AI valuations, now vs a year ago: " + _valuations_lede(rows[:2]))
+            + '<div style="overflow-x:auto;margin-top:14px"><table class="pts"><tr><th>Company</th><th>A year ago</th><th>Latest</th><th>Change</th></tr>' + "".join(line(*r) for r in rows) + '</table></div>'
+            + (f'<h2 style="margin:28px 0 10px">The six biggest step-ups, over their whole history</h2><div class="cards">{"".join(landing_card(m, t, pts) for m, t, pts in cards)}</div>' if cards else "")
+            + '<h2 style="margin:28px 0 8px">How this is counted</h2><p class="q">A valuation is the figure reported with a funding round, a share sale or an acquisition, read from the announcement or the news report that carried it; nothing is estimated. '
+            '"A year ago" is the last valuation on record dated at least twelve months before today, with the month it was set. '
+            'A company appears only if a newer valuation was reported within the past twelve months; companies with a single valuation on record, or none that old, are left out. '
+            'Valuations of private companies are reported, not audited, and a price paid for a small share sale can differ from a full round.</p>'
+            '<p class="q">Free to quote and chart with a link to this page (CC BY 4.0). Every row opens the full history, with a source for each point and a CSV.</p>'
+            '<div class="cta"><a class="btn" href="/top">Rankings</a><a class="btn ghost" href="/findings">More findings</a></div>')
+    desc = ("Private AI and software company valuations, now and a year ago, each from the round that set it. " + _valuations_lede(rows[:2]))[:300]
+    return shell("Private AI valuations now vs a year ago: who multiplied fastest | Tally", desc, "/findings/ai-valuations", body)
+
+
+def findings_page(rows, stars=(), valuations=()):
     """Findings: short pages built from the record, each one a question the history answers."""
     body = ('<h1 style="margin-top:22px">Findings</h1><p class="q">What the record shows when its numbers are put side by side. Each finding is rebuilt from the data every day, and every figure opens to its history and source.</p>'
             f'<a class="card" style="display:block;text-decoration:none;margin:14px 0" href="/findings/ai-hiring"><b style="font-size:18px">Who is hiring fastest in AI: open roles now and a year ago</b>'
             f'<p class="q" style="margin:6px 0 0">{esc(_hiring_lede(rows))}</p></a>'
             f'<a class="card" style="display:block;text-decoration:none;margin:14px 0" href="/findings/open-source-stars"><b style="font-size:18px">The fastest-growing open-source AI and developer projects, by GitHub stars</b>'
-            f'<p class="q" style="margin:6px 0 0">{esc(_stars_lede(stars))}</p></a>')
+            f'<p class="q" style="margin:6px 0 0">{esc(_stars_lede(stars))}</p></a>'
+            f'<a class="card" style="display:block;text-decoration:none;margin:14px 0" href="/findings/ai-valuations"><b style="font-size:18px">How far private AI and software valuations moved in a year</b>'
+            f'<p class="q" style="margin:6px 0 0">{esc(_valuations_lede(valuations))}</p></a>')
     return shell("Findings from the record | Tally", "Short, sourced findings built from Tally's history of company numbers: hiring, funding, prices and open-source traction.", "/findings", body)
 
 
