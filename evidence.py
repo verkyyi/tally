@@ -141,7 +141,9 @@ def historical(m, point, page):
     the page holds it, else the sentence of the page that states the value. A point dated to the month ("2024-10-01" for a
     round announced on the 28th) takes the day the page gives; a date the page puts in another month is not accepted."""
     candidate = {"value": point.get("value"), "quote": point.get("quote") or "", "evidence_url": point.get("url")}  # assess finds the page's sentence when there is no quotation
-    context = dict(m, id=None)
+    # The question says "latest" or "current"; a past point answers it as of its own date, and a later figure does not make it wrong.
+    context = dict(m, id=None, question=f"{m.get('question') or ''} (This is a past value of the number: answer for {point.get('date')}, "
+                                        "when it was the most recent figure. That a newer figure exists today is expected and is not a mismatch.)")
     if not day(point.get("date")) or not assess(context, candidate, page):
         return False
     found = day(candidate["_review"].get("effective_date"))
