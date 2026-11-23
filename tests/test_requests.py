@@ -45,6 +45,17 @@ class Requests(unittest.TestCase):
         self.assertEqual(self.c.get("/api/request/open").json(), {"n": 0})
         self.assertIn("Reading: acme.com", self.c.get(path).text)
 
+    def test_a_delivered_request_is_a_page_of_the_companys_figures(self):
+        path = self.c.post("/api/request", json={"text": "Acme"}, headers=self.h).json()["path"]
+        mid, _ = db.run("INSERT INTO metrics(question,title,kind,unit,created_by,created_at,company,curated) VALUES('q','Acme · latest valuation','direct','USD','tally',?, 'Acme',1)", (db.now(),))
+        for day, v in (("2024-01-10", 1e9), ("2025-06-01", 3e9)):
+            db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote) VALUES(?,?,?,?,?,0,?)", (mid, v, day + "T00:00:00Z", "https://acme.example/news", "source_history", "valued at"))
+        main.pp._PATHS.update(at=0.0)
+        db.run("UPDATE requests SET status='delivered', note='No dated public record found for: revenue.', links='/c/acme', done_at=? WHERE id=1", (db.now(),))
+        page = self.c.get(path).text
+        for want in ("Acme: the numbers on record", "1 figures and 2 dated points", "latest valuation", "$3B", "history.csv", "What could not be verified", "revenue", "noindex"):
+            self.assertIn(want, page)
+
     def test_one_visitor_cannot_take_every_slot(self):
         main._asked_by.clear()
         codes = [self.c.post("/api/request", json={"text": f"Company {i}"}, headers=self.h | {"x-forwarded-for": "203.0.113.9"}).status_code for i in range(5)]

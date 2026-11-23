@@ -292,8 +292,40 @@ def request_status_page(r, state=None):
                  'document.getElementById("rs").innerHTML=E(d.state)+(on?\'<span class="think">working</span>\':"");document.getElementById("rn").textContent=d.note;'
                  'document.getElementById("rl").innerHTML=d.links.map(l=>\'<li><a href="\'+E(l)+\'">\'+E(location.origin+l)+"</a></li>").join("");'
                  'if(d.steps.length!=seen){seen=d.steps.length;document.getElementById("rf").innerHTML=d.steps.map((x,i)=>\'<li class="\'+(on&&i==d.steps.length-1?"live":"ok")+\'">\'+E(x)+"</li>").join("")}'
-                 'if(!on)return}catch(e){}setTimeout(tick,2000)}tick()</script>')
+                 'if(!on){if(d.status=="delivered")location.reload();return}}catch(e){}setTimeout(tick,2000)}tick()</script>')
     return shell("Your request | Tally", "The state of a research request.", f"/request/{r['token']}", body).replace('<meta name="twitter:card"', '<meta name="robots" content="noindex"><meta name="twitter:card"', 1)
+
+
+def delivery_page(r, state, name, rows):
+    """What a research request hands back: the company's figures in one table, what the record says about them in plain
+    sentences, what could not be verified, and the files. rows: [(metric, tile, points)]."""
+    rows = sorted(rows, key=lambda x: (-len(x[2]), x[0]["title"]))
+    held = [(m, t, pts) for m, t, pts in rows if t.get("value") is not None]
+    points = sum(len(pts) for _, _, pts in held)
+    says = [x for x in (story(m, pts) for m, _, pts in held) if x][:5]
+    trs = ""
+    for m, t, pts in rows:
+        txt, unit = fmt(t.get("value"), t.get("unit"))
+        figure = m["title"].split(" · ", 1)[-1]
+        last = pts[-1]["at"][:10] if pts else ""
+        latest = (esc(txt) + (f' <small style="font:12px var(--mono);color:#667085;font-weight:400">{esc(unit)}</small>' if unit else "")) if txt else '<span style="color:#98a2b3;font-weight:400">no value yet</span>'
+        trs += (f'<tr><td style="font:15px var(--display);color:var(--ink)"><a href="{number_path(m)}">{esc(figure)}</a></td>'
+                f'<td>{latest}</td>'
+                f'<td style="font:13px var(--mono);color:var(--mute);font-weight:400">{esc(last)}</td><td style="font-weight:400">{len(pts)}</td>'
+                f'<td style="width:170px">{spark(pts, 160, 34) if len(pts) > 1 else ""}</td>'
+                f'<td style="font-weight:400"><a href="{number_path(m)}/history.csv">CSV</a></td></tr>')
+    sub = subject_path(name)
+    body = (f'<div class="crumb"><a href="/">Tally</a> / Research</div><h1>{esc(name)}: the numbers on record</h1>'
+            f'<p class="lede">{len(held)} figures and {points} dated points, each with the page and the sentence that states it. You asked for: {esc(r["text"])}.</p>'
+            + (f'<h2>What the record says</h2><p>{esc(" ".join(says))}</p>' if says else "")
+            + f'<h2>The figures</h2><div class="card" style="overflow-x:auto"><table class="pts"><tr><th>Figure</th><th>Latest</th><th>As of</th><th>Points</th><th>History</th><th>File</th></tr>{trs}</table></div>'
+            + (f'<h2>What could not be verified</h2><p>{esc(state["note"])}</p>' if state.get("note") else "")
+            + f'<div class="share"><a href="{sub}">Open the page of {esc(name)}</a><a href="{sub}.json">All figures as JSON</a>'
+              f'<button type="button" data-copy="{SITE}/request/{esc(r["token"])}">Copy the link to this page</button></div>'
+            + f'<p class="meta">Researched {esc((r.get("done_at") or r.get("created_at") or "")[:10])}. The figures stay on record and are read again as they change. Every value opens to its source.</p>'
+            '<div class="cta"><a class="btn ghost" href="/">Search another</a></div>')
+    return shell(f"{name}: the numbers on record | Tally", f"{len(held)} figures and {points} dated points about {name}, each with its source.", f"/request/{r['token']}", body).replace(
+        '<meta name="twitter:card"', '<meta name="robots" content="noindex"><meta name="twitter:card"', 1)
 
 
 def coverage_page(sets):

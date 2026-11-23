@@ -1636,7 +1636,13 @@ def public_request_status(token: str):
     r = db.one("SELECT * FROM requests WHERE token=?", (token,))
     if not r:
         raise HTTPException(404, "no such request")
-    return HTMLResponse(pp.request_status_page(r, _request_state(r)), headers={"X-Robots-Tag": "noindex"})
+    st = _request_state(r)
+    company = next((l[3:] for l in st["links"] if l.startswith("/c/") and "/" not in l[3:]), None)
+    if r["status"] == "delivered" and company:  # the finished research is a page of its own: the figures, what they say, what was not found
+        name, rows = _subject_rows(company)
+        if rows:
+            return HTMLResponse(pp.delivery_page(r, st, name, [(m, t, core.series(m["id"])) for m, t, _ in rows]), headers={"X-Robots-Tag": "noindex"})
+    return HTMLResponse(pp.request_status_page(r, st), headers={"X-Robots-Tag": "noindex"})
 
 
 @app.get("/coverage")
