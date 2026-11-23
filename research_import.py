@@ -45,6 +45,16 @@ def states(value, quote):
     return v == int(v) and int(v) in _WORDS.values() and any(_WORDS[w] == int(v) for w in re.findall(r"[a-z]+", q.lower()) if w in _WORDS)
 
 
+# Sites that collect other people's figures, or estimate them: a point needs the page that first stated it.
+AGGREGATORS = ("crunchbase.com", "pitchbook.com", "tracxn.com", "cbinsights.com", "dealroom.co", "growjo.com", "getlatka.com", "zoominfo.com", "rocketreach.co",
+               "leadiq.com", "craft.co", "owler.com", "bullfincher.io", "companiesmarketcap.com", "macrotrends.net", "statista.com", "similarweb.com", "aifunding.me")
+
+
+def aggregator(url):
+    host = re.sub(r"^www\.", "", re.sub(r"^https?://([^/]+).*$", r"\1", (url or "").lower()))
+    return any(host == a or host.endswith("." + a) for a in AGGREGATORS)
+
+
 def _plain(t):
     return re.sub(r"[^a-z0-9$%.]+", " ", evidence._squash(t)).strip()
 
@@ -60,6 +70,8 @@ def check(points, read):
         url, q = p.get("source_url") or "", p.get("quote") or ""
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", str(p.get("date") or "")) or not evidence.finite(p.get("value")):
             out.append((p, "no date or value")); continue
+        if aggregator(url):
+            out.append((p, "the page collects figures from elsewhere; the first source is needed")); continue
         if not states(p["value"], q):
             out.append((p, "the quote does not state the value")); continue
         if url not in pages:
@@ -73,12 +85,21 @@ def check(points, read):
 def new_points(checked, have):
     """The verified points the record does not hold yet. have: {(day, value)} already on record."""
     seen, out = set(have), []
-    for p, verdict in checked:
-        key = (p["date"], float(p["value"]))
-        if verdict == "ok" and key not in seen:
+    for p, verdict in sorted(checked, key=lambda x: str(x[0].get("date"))):
+        key = (p["date"], float(p["value"])) if verdict == "ok" else None
+        if key and key not in seen:
             seen.add(key)
             out.append(p)
-    return sorted(out, key=lambda p: p["date"])
+    # the same value met again at a later date is the old figure being repeated, not a new point: the first statement stands
+    held = sorted([(d, v, None) for d, v in have] + [(p["date"], float(p["value"]), p) for p in out], key=lambda x: (x[0], x[2] is not None))
+    keep, last = [], None
+    for d, v, p in held:
+        if p is not None and last is not None and v == last:
+            continue
+        last = v
+        if p is not None:
+            keep.append(p)
+    return keep
 
 
 def _read(url):

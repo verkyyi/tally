@@ -25,5 +25,18 @@ class ResearchImport(unittest.TestCase):
         self.assertEqual([p["date"] for p in ri.new_points(checked, {("2026-01-31", 510.0)})], ["2025-01-31"])
 
 
+    def test_a_repeated_value_and_a_collector_of_figures_are_not_points(self):
+        page = "valued at $5 billion. later valued at $32 billion. still valued at $32 billion."
+        pts = [{"date": "2024-09-04", "value": 5e9, "source_url": "u", "quote": "valued at $5 billion"},
+               {"date": "2025-04-11", "value": 32e9, "source_url": "u", "quote": "later valued at $32 billion"},
+               {"date": "2026-07-27", "value": 32e9, "source_url": "u", "quote": "still valued at $32 billion"},
+               {"date": "2026-08-01", "value": 40e9, "source_url": "https://www.crunchbase.com/organization/x", "quote": "valued at $40 billion"}]
+        checked = ri.check(pts, lambda url: page)
+        self.assertIn("collects figures", checked[3][1])
+        self.assertEqual([p["date"] for p in ri.new_points(checked, set())], ["2024-09-04", "2025-04-11"])
+        self.assertEqual(ri.new_points(checked, {("2025-04-11", 32e9)})[0]["date"], "2024-09-04")
+        self.assertEqual(len(ri.new_points(checked, {("2025-04-11", 32e9)})), 1)  # the later repeat does not follow a value already on record
+
+
 if __name__ == "__main__":
     unittest.main()
