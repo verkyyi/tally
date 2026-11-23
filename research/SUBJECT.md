@@ -16,9 +16,11 @@ Quality rules beyond BRIEF.md:
 
 Budget: about 25 searches and 30 page reads in total.
 
-Write the file after EACH series is finished (the whole document so far, valid JSON every time), so the reader sees results while you work; then go on to the next series and write it again.
+A standard figure is a series even when only one dated point can be backed: never move a standard figure with a verified point to `not_found`.
 
-When all series are done, add `analysis`: three or four plain sentences on what these figures show together (how fast the company grew, what changed and when, what is notably absent from the public record). Use only values and dates that are in the points; no forecasts, no opinions, no adjectives of praise.
+Call the Write tool after EACH series is finished (the whole document so far, valid JSON every time), so the reader sees results while you work; then go on to the next series and write it again.
+
+When all series are done, add `analysis`: three or four plain sentences on what these figures show together (how fast the company grew, what changed and when, what is notably absent from the public record). Use only values and dates that are in the points; no forecasts, no opinions, no adjectives of praise. Write amounts the way a reader says them ("$180 million", "$4 billion", "65,000 customers") and dates as month and year ("January 2025"); mention only points you kept in a series.
 
 Write ONE JSON file to the path given:
 {"subject": "...", "status": "private|listed|acquired|closed", "status_source": "url", "series": [{"title": "Subject · figure name", "unit": "USD|employees|customers|users|...", "question": "plain question this figure answers", "points": [...as in BRIEF.md...], "notes": "definition and caveats"}], "analysis": "…", "not_found": ["figures looked for with no dated public record, and why"], "searches": 0, "pages_read": 0}
