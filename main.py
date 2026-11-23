@@ -1673,6 +1673,9 @@ def public_request_status(token: str):
     if not r:
         raise HTTPException(404, "no such request")
     st = _request_state(r)
+    versus = next((l for l in st["links"] if l.startswith("/vs/")), None)
+    if r["status"] == "delivered" and versus:  # a comparison was asked for: its page is the result
+        return RedirectResponse(versus, 302)
     company = next((l[3:] for l in st["links"] if l.startswith("/c/") and "/" not in l[3:]), None)
     if r["status"] == "delivered" and company:  # the finished research is a page of its own: the figures, what they say, what was not found
         name, rows = _subject_rows(company)

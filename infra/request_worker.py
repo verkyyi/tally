@@ -190,6 +190,45 @@ def deliver(rid, text, out, got=None):
     server(f"{APP} setup_demo.py requests {rid} {'delivered' if written else 'unverified'} {shlex.quote(note[:600])} {link}")
 
 
+VERSUS = re.compile(r"^(.{2,60}?)\s+(?:vs\.?|versus|compared (?:to|with)|against)\s+(.{2,60})$", re.I)
+
+
+def on_record(name):
+    """The company's address when the record already has it, else None."""
+    path = "/c/" + re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    try:
+        return path if urllib.request.urlopen(SITE + path, timeout=10).status == 200 else None
+    except Exception:
+        return None
+
+
+def compare(rid, a, b):
+    """Two companies side by side: whichever is not on record yet is researched first, then the comparison page is the result."""
+    paths, notes = [], []
+    for i, name in enumerate((a.strip(), b.strip())):
+        path = on_record(name)
+        if path:
+            tell(rid, "step", f"{name} is already on record")
+        else:
+            tell(rid, "step", f"Researching {name}")
+            got = {"done": 0, "written": [], "missed": [], "doc": None}
+            out = os.path.join(WORK, f"req-{rid}-{i}.json") if WORK else os.path.join(tempfile.mkdtemp(prefix="tally-req-"), "result.json")
+            research(rid, name, out, got, whole=True)
+            try:
+                bring(rid, name, out, got)
+            except (OSError, ValueError):
+                pass
+            path = "/c/" + re.sub(r"[^a-z0-9]+", "-", got["written"][0].split(" · ")[0].lower()).strip("-") if got["written"] else None
+            if not path:
+                notes.append(f"No figure about {name} could be verified.")
+        if path:
+            paths.append(path)
+    if len(paths) == 2 and paths[0] != paths[1]:
+        server(f"{APP} setup_demo.py requests {rid} delivered {shlex.quote(' '.join(notes))} /vs/{paths[0][3:]}/{paths[1][3:]} {paths[0]} {paths[1]}")
+    else:
+        server(f"{APP} setup_demo.py requests {rid} unverified {shlex.quote(' '.join(notes) or 'Two different companies are needed for a comparison.')} {' '.join(paths)}")
+
+
 def waiting():
     try:
         return json.load(urllib.request.urlopen(SITE + "/api/request/open", timeout=10))["n"]
@@ -205,6 +244,11 @@ def handle_all():
         rid, text, resume, about = int(m.group(1)), m.group(2), m.group(4), m.group(5)
         resume = None if resume in (None, "-") else resume
         tell(rid, "step", "Starting the research")
+        pair = VERSUS.match(text) if not about else None
+        if pair:
+            compare(rid, pair.group(1), pair.group(2))
+            print(datetime.datetime.now().isoformat(timespec="seconds"), "request", rid, text, flush=True)
+            continue
         out = os.path.join(WORK, f"req-{rid}.json") if WORK else os.path.join(tempfile.mkdtemp(prefix="tally-req-"), "result.json")
         got = {"done": 0, "written": [], "missed": [], "doc": None}
         if about and not resume:  # a follow-up on a research whose session was not kept: research the company again, with the wish

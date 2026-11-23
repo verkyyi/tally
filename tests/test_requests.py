@@ -70,6 +70,12 @@ class Requests(unittest.TestCase):
         row = db.one("SELECT * FROM requests WHERE token=?", (new.split("/")[-1],))
         self.assertEqual((row["parent"], row["user"], row["status"], row["links"]), (1, "u1", "received", "/c/acme"))
 
+    def test_a_comparison_request_ends_on_the_comparison_page(self):
+        path = self.c.post("/api/request", json={"text": "Acme vs Beta"}, headers=self.h).json()["path"]
+        db.run("UPDATE requests SET status='delivered', links=? WHERE id=1", ("/vs/acme/beta\n/c/acme\n/c/beta",))
+        r = self.c.get(path, follow_redirects=False)
+        self.assertEqual((r.status_code, r.headers["location"]), (302, "/vs/acme/beta"))
+
     def test_one_visitor_cannot_take_every_slot(self):
         main._asked_by.clear()
         codes = [self.c.post("/api/request", json={"text": f"Company {i}"}, headers=self.h | {"x-forwarded-for": "203.0.113.9"}).status_code for i in range(5)]
