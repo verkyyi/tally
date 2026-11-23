@@ -256,7 +256,7 @@ def request_page():
     """Ask for a company's numbers: one sentence in, a sourced history out."""
     body = ('<h1 style="margin-top:22px">Ask for a company\'s numbers</h1>'
             '<p class="lede">Name a company, or a figure about one. Tally researches it, checks every point against the page it came from, and hands back the history with its sources.</p>'
-            '<div class="card"><form id="rq" onsubmit="return send(event)"><input name="text" maxlength="200" required placeholder="Figure AI — or — Duolingo daily active users" '
+            '<div class="card"><form id="rq" name="rq" onsubmit="return send(event)"><input name="text" maxlength="200" required placeholder="Figure AI — or — Duolingo daily active users" '
             'style="width:100%;font:17px var(--display);padding:12px 14px;border-radius:9px;border:1px solid var(--line)">'
             '<input name="email" type="email" maxlength="200" placeholder="Email (optional): one message when it is ready" '
             'style="width:100%;font:15px var(--display);padding:10px 14px;border-radius:9px;border:1px solid var(--line);margin-top:10px">'
@@ -269,7 +269,9 @@ def request_page():
             '<a href="/c/perplexity">Perplexity</a>, <a href="/findings/ai-valuations">AI valuations in a year</a>. See <a href="/coverage">what is covered today</a>.</p>'
             '<script>async function send(e){e.preventDefault();const f=e.target,m=document.getElementById("rqm");m.textContent="Sending…";'
             'const r=await fetch("/api/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:f.text.value,site:f.site.value,email:f.email.value})});'
-            'const d=await r.json().catch(()=>({}));if(r.ok&&d.path){location.href=d.path}else{m.textContent=d.detail||"That did not go through. Try again in a moment."}return false}</script>')
+            'const d=await r.json().catch(()=>({}));if(r.ok&&d.path){location.href=d.path}else{m.textContent=d.detail||"That did not go through. Try again in a moment."}return false}'
+            'const q0=new URLSearchParams(location.search).get("q");if(q0){const f=document.forms.rq;f.text.value=q0.slice(0,200);'
+            'if(document.referrer.startsWith(location.origin))f.requestSubmit()}</script>')
     return shell("Ask for a company's numbers, with sources | Tally", "Name a company or a figure about one. Tally researches it and hands back the history, every point with its source.", "/request", body)
 
 
@@ -469,7 +471,7 @@ def shell(title, desc, path, body, ld=None, image="/static/img/board.png"):
 <div class="sbox"><input type="search" data-suggest autocomplete="off" placeholder="Search a number" aria-label="Search a number"></div>
 <nav style="display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end;font-size:15px"><a href="/changes" style="text-decoration:none">What changed</a><a href="/numbers" style="text-decoration:none">All numbers</a><a href="/app" style="text-decoration:none;font-weight:600">Your board</a></nav></header>
 {body}
-<script src="/static/pub.js?v=13" defer></script>
+<script src="/static/pub.js?v=14" defer></script>
 <footer>The record is free to use with a link back (<a href="https://creativecommons.org/licenses/by/4.0/" rel="license noopener">CC BY 4.0</a>, for the compilation Tally makes: <a href="/terms#data">what that covers</a>); every number has a JSON and a CSV address, see <a href="/llms.txt">llms.txt</a>, or take the whole record from the <a href="https://github.com/verkyyi/tally-data" rel="noopener">open dataset</a>. Tally keeps a running tally of the outside world. Every number shows its evidence; when a value is not on the page, Tally says "no value yet". ·
 <a href="/numbers">All numbers</a> · <a href="/top">Rankings</a> · <a href="/this-week">This week</a> · <a href="/changes">What changed</a> · <a href="/findings">Findings</a> · <a href="/request">Ask</a> · <a href="/coverage">Coverage</a> · <a href="/corrections">Corrections</a> · <a href="/growth">Growth</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer></div></body></html>"""
 

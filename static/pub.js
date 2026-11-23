@@ -66,7 +66,7 @@
       const j = await fetch("/api/suggest?q=" + encodeURIComponent(q)).then(r => r.json()).catch(() => ({ numbers: [] }));
       if (mine !== seq) return;  // a later keystroke already answered
       box.innerHTML = (j.boards || []).map(b => `<a class="board" href="${esc(b.path)}"><span><b>${esc(b.name)}</b> · ${b.vs ? esc(b.note || "side by side") : `all ${b.count} numbers`}</span><em>${b.vs ? "compare" : "board"}</em></a>`).join("") + j.numbers.map(n => `<a href="${esc(n.path)}"><span>${esc(n.title)}</span><em>${esc(n.value)}</em></a>`).join("")
-        + `<a class="new" href="/track?q=${encodeURIComponent(q)}"><span>Create “${esc(q)}” as a new number</span><em>${j.numbers.length ? "not listed?" : esc(j.wanted || "not in the record yet")}</em></a>`;
+        + `<a class="new" href="/request?q=${encodeURIComponent(q)}"><span>Research “${esc(q)}” now, with sources</span><em>${j.numbers.length ? "not listed?" : "not on record yet"}</em></a>`;
       sel = -1; box.hidden = false;
       clearTimeout(settle); settle = setTimeout(() => { if (input.value.trim() === q) tell(q, j.numbers.length + (j.boards || []).length); }, 1500);
       box.onclick = () => tell(q, j.numbers.length + (j.boards || []).length);
