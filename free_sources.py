@@ -310,7 +310,7 @@ JOBS = [("Anduril", "greenhouse", "andurilindustries"), ("Brex", "greenhouse", "
         ("Stripe", "greenhouse", "stripe"), ("Tailscale", "greenhouse", "tailscale"), ("Vercel", "greenhouse", "vercel"), ("Zapier", "ashby", "zapier"),
         ("Cloudflare", "greenhouse", "cloudflare"), ("Datadog", "greenhouse", "datadog"), ("Coinbase", "greenhouse", "coinbase"), ("Airbnb", "greenhouse", "airbnb"),
         ("Palantir", "lever", "palantir"), ("Snowflake", "ashby", "snowflake"),
-        ("Supabase", "ashby", "supabase"), ("PostHog", "ashby", "posthog"), ("ClickHouse", "ashby", "clickhouse"), ("Grafana", "greenhouse", "grafanalabs"),
+        ("Supabase", "ashby", "supabase"), ("PostHog", "ashby", "posthog"), ("ClickHouse", "ashby", "clickhouse"), ("Grafana Labs", "greenhouse", "grafanalabs"),
         ("Redis", "ashby", "redis"), ("Firecrawl", "ashby", "firecrawl"), ("Exa", "ashby", "exa"), ("Ollama", "ashby", "ollama"),
         # added 2026-11-24: boards whose own name matches the company (probed, ambiguous names left out)
         ("Miro", "ashby", "miro"), ("OpenAI", "ashby", "openai"), ("Profound", "ashby", "profound"), ("Midjourney", "ashby", "midjourney"),
@@ -387,7 +387,7 @@ OSS = [
     ("dbt", "dbt-labs/dbt-core", None, "dbt-core"), ("Prisma", "prisma/prisma", "prisma", None), ("Drizzle", "drizzle-team/drizzle-orm", "drizzle-orm", None),
     ("tRPC", "trpc/trpc", "@trpc/server", None), ("Zod", "colinhacks/zod", "zod", None), ("Express", "expressjs/express", "express", None),
     ("NestJS", "nestjs/nest", "@nestjs/core", None), ("Electron", "electron/electron", "electron", None), ("Tauri", "tauri-apps/tauri", None, None),
-    ("Kubernetes", "kubernetes/kubernetes", None, None), ("Terraform", "hashicorp/terraform", None, None), ("Grafana", "grafana/grafana", None, None),
+    ("Kubernetes", "kubernetes/kubernetes", None, None), ("Terraform", "hashicorp/terraform", None, None), ("Grafana Labs", "grafana/grafana", None, None),
     ("Prometheus", "prometheus/prometheus", None, None), ("Redis", "redis/redis", "redis", "redis"), ("ClickHouse", "ClickHouse/ClickHouse", None, None),
     ("Meilisearch", "meilisearch/meilisearch", "meilisearch", "meilisearch"), ("Appwrite", "appwrite/appwrite", "appwrite", None), ("PocketBase", "pocketbase/pocketbase", None, None),
     ("Neovim", "neovim/neovim", None, None), ("VS Code", "microsoft/vscode", None, None), ("Godot", "godotengine/godot", None, None),

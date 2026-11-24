@@ -1065,6 +1065,9 @@ def public_subject(slug: str):
             ms = {i: core.metric(i) for i in ids}
             tk = db.one("SELECT alias FROM aliases WHERE subject=? AND kind='ticker'", (name,))
             return HTMLResponse(pp.subject_page(name, [tile(ms[i], None) for i in ids], ms, {i: core.series(i) for i in ids}, _rivals(name, ms), tk["alias"].upper() if tk else None))
+    al = db.one("SELECT subject FROM aliases WHERE alias=?", (slug.replace("-", " "),))  # a company's former or shorter name
+    if al and pp.slug(al["subject"]) != slug and al["subject"] in pp.groups():
+        return RedirectResponse(f'/c/{pp.slug(al["subject"])}', status_code=301)
     raise HTTPException(404, "nothing tracked under that name yet")
 
 
