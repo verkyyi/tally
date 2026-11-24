@@ -569,6 +569,20 @@ def requests():
         if a[1] == "session":
             db.run("UPDATE requests SET session=? WHERE id=?", (a[2][:80], int(a[0])))
             return
+        if a[1] == "now":  # a figure looked up for this reader alone: kept on the request only when its page states it and it is recent
+            import research_import as ri
+            try:
+                n = json.loads(" ".join(a[2:]))
+                p = {"date": str(n.get("date") or "")[:10], "value": n.get("value"), "source_url": n.get("source_url") or "", "quote": n.get("quote") or ""}
+                fresh = (datetime.now(timezone.utc).date() - datetime.strptime(p["date"], "%Y-%m-%d").date()).days <= 7
+                verdict = ri.check([p], ri._read)[0][1] if fresh else "older than a week"
+            except (ValueError, TypeError, AttributeError) as e:
+                verdict = f"unreadable ({type(e).__name__})"
+            if verdict == "ok":
+                db.run("UPDATE requests SET now=? WHERE id=?", (json.dumps({"label": str(n.get("label") or "share price")[:40], "value": float(p["value"]), "unit": str(n.get("unit") or "USD")[:12],
+                                                                            "date": p["date"], "url": p["source_url"][:400], "quote": p["quote"][:240]}), int(a[0])))
+            print("now:", verdict)
+            return
         if a[1] == "analysis":
             db.run("UPDATE requests SET analysis=? WHERE id=?", (" ".join(a[2:])[:900], int(a[0])))
             return

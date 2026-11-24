@@ -99,7 +99,19 @@ def is_figure(text):
                           r"margin|income|profit|share|rides|shipments?|history|over time|per (week|month|year|quarter))\b", text.lower()))
 
 
+WANTS_NOW = re.compile(r"\b(?:stock|share) price\b|\b(?:current|latest|today'?s?) (?:stock |share )?price\b|\bprice (?:now|today)\b|股价|现价", re.I)
+NOW = (' The reader also wants the share price as it stands now. Add a top-level key "now": {"label": "share price", "value": <number>, "unit": "USD", '
+       '"date": "YYYY-MM-DD", "source_url": "<the page you opened>", "quote": "<the words on that page that state the price>"} taken from the company\'s own '
+       "investor-relations page, its exchange's page, or a dated news report you opened. It is shown to this reader only and never enters the record: "
+       "do NOT make a series for the share price.")
+
+
 def research(rid, text, out, got, resume=None, about=None, whole=False):
+    now = bool(WANTS_NOW.search(text))
+    if now and not resume:  # the price is not a figure to keep: what is left of the request decides the kind of research
+        rest = WANTS_NOW.sub("", text).strip(" ,.?:;-")
+        whole = whole or not is_figure(rest)
+        text = rest or text
     brief = "SUBJECT.md" if whole or not is_figure(text) else "BRIEF.md"
     today = datetime.date.today().isoformat()
     more = (f"Today is {today}. A follow-up from the reader of your research on {about}: «{text}». Continue under the same rules ({HERE}/research/SUBJECT.md and BRIEF.md): "
@@ -109,6 +121,8 @@ def research(rid, text, out, got, resume=None, about=None, whole=False):
     ask = (f"Today is {today}. Read {HERE}/research/{brief} (and BRIEF.md beside it) and follow it exactly. "
            + (f"Request: {text}. Use the SUBJECT.md output format with exactly one series, titled \"<Company> · <figure name>\"." if brief == "BRIEF.md" else f"Company: {text}.")
            + f" Write the result to {out} . Use absolute paths. Read-only web research: no accounts, no posting, no logins.")
+    if now:
+        ask, more = ask + NOW, more + NOW
     run = (["sudo", "-n", "-u", AGENT_USER, "-H"] if AGENT_USER else []) + [CLAUDE]
     p = subprocess.Popen(run + ["-p", more if resume else ask] + (["--resume", resume] if resume else []) + [ "--output-format", "stream-json", "--verbose", "--allowedTools", "WebSearch,WebFetch,Read,Write",
                           "--disallowedTools", "Bash,Edit,Agent", "--strict-mcp-config", "--add-dir", os.path.dirname(out)],
@@ -163,6 +177,8 @@ def bring(rid, text, out, got):
     for k in range(got["done"], len(series)):
         s = series[k]
         title = s.get("title") or "?"
+        if WANTS_NOW.search(title.split(" · ")[-1]):  # a share price is looked up for one reader; it is never a series on record
+            continue
         figure = title.split(" · ")[-1].strip()
         least = 1 if figure.lower() in STANDARD else 3
         log = server(f"{APP} research_import.py {remote} --series {k} --min {least} --write 2>&1 | tail -6")
@@ -199,6 +215,8 @@ def deliver(rid, text, out, got=None):
     subject = (written[0].split(" · ")[0] if written else "")
     link = "/c/" + re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-") if subject else ""
     said = kept_sentences(doc.get("analysis"), missed)
+    if isinstance(doc.get("now"), dict):
+        server(f"{APP} setup_demo.py requests {rid} now {shlex.quote(json.dumps(doc['now'])[:1500])}")
     if written and said:
         server(f"{APP} setup_demo.py requests {rid} analysis {shlex.quote(said[:900])}")
     server(f"{APP} setup_demo.py requests {rid} {'delivered' if written else 'unverified'} {shlex.quote(note[:600])} {link}")

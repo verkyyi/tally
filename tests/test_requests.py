@@ -96,5 +96,24 @@ class Requests(unittest.TestCase):
         self.assertEqual(self.c.get("/request/nope").status_code, 404)
 
 
+    def test_a_price_looked_up_for_the_reader_shows_on_their_page_only(self):
+        import importlib.util, json, sys
+        spec = importlib.util.spec_from_file_location("request_worker", os.path.join(os.path.dirname(main.__file__), "infra", "request_worker.py"))
+        w = importlib.util.module_from_spec(spec); sys.modules["request_worker"] = w; spec.loader.exec_module(w)
+        self.assertTrue(w.WANTS_NOW.search("Nvidia stock price"))
+        self.assertTrue(w.WANTS_NOW.search("Nvidia revenue and the latest share price"))
+        self.assertFalse(w.WANTS_NOW.search("Cursor pro plan price"))
+        import core
+        mid, _ = db.run("INSERT INTO metrics(question,title,kind,unit,created_by,created_at,curated,company) VALUES('q','Acme · shares outstanding','direct','shares','system',?,1,'Acme')", (db.now(),))
+        db.run("INSERT INTO observations(metric_id,value,as_of,origin,seeded) VALUES(?,?,?,?,0)", (mid, 1000000, db.now(), "source_history"))
+        path = self.c.post("/api/request", json={"text": "Acme stock price"}, headers=self.h).json()["path"]
+        now = json.dumps({"label": "share price", "value": 12.5, "unit": "USD", "date": "2026-11-24", "url": "https://ir.acme.example/stock", "quote": "ACME closed at $12.50"})
+        db.run("UPDATE requests SET status='delivered', links='/c/acme', now=? WHERE token=?", (now, path.split("/")[-1]))
+        page = self.c.get(path)
+        self.assertIn("Looked up for you: share price $12.5", page.text)
+        self.assertIn("market value of about $12.5M", page.text)
+        self.assertIn("noindex", page.headers.get("x-robots-tag", ""))
+        self.assertNotIn("12.5", self.c.get("/c/acme").text)  # the company's public page never carries it
+
 if __name__ == "__main__":
     unittest.main()

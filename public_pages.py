@@ -317,8 +317,21 @@ def delivery_page(r, state, name, rows):
                 f'<td style="width:170px">{spark(pts, 160, 34) if len(pts) > 1 else ""}</td>'
                 f'<td style="font-weight:400"><a href="{number_path(m)}/history.csv">CSV</a></td></tr>')
     sub = subject_path(name)
+    looked = ""
+    try:
+        n = json.loads(r.get("now") or "null")
+    except ValueError:
+        n = None
+    if n:  # looked up for this reader alone, shown here and nowhere else
+        txt, unit = fmt(n["value"], n["unit"])
+        shares = next((t["value"] for m, t, _ in rows if m["title"].lower().endswith("· shares outstanding") and t.get("value")), None)
+        worth = f' At {fmt(shares, "shares")[0]} shares outstanding, as last filed, that is a market value of about {fmt(n["value"] * shares, n["unit"])[0]}.' if shares else ""
+        host = re.sub(r"^www\.", "", re.sub(r"^https?://([^/]+).*$", r"\1", n["url"]))
+        looked = (f'<div class="card" style="margin:14px 0"><b>Looked up for you: {esc(n["label"])} {esc(txt)}{(" " + esc(unit)) if unit else ""}</b> as of {esc(n["date"])}, '
+                  f'from <a href="{esc(n["url"])}" rel="nofollow noopener" target="_blank">{esc(host)}</a>.{esc(worth)}'
+                  '<div class="meta" style="margin-top:6px">Read when you asked, for this page only. It is not part of Tally\'s public record and is not kept up to date.</div></div>')
     body = (f'<div class="crumb"><a href="/">Tally</a> / Research</div><h1>{esc(name)}: the numbers on record</h1>'
-            f'<p class="lede">{len(held)} figures and {points} dated points, each with the page and the sentence that states it. You asked for: {esc(r["text"])}.</p>'
+            f'<p class="lede">{len(held)} figures and {points} dated points, each with the page and the sentence that states it. You asked for: {esc(r["text"])}.</p>' + looked
             + (f'<h2>What the record says</h2><p>{esc(r["analysis"])}</p>' if r.get("analysis") else f'<h2>What the record says</h2><p>{esc(" ".join(says))}</p>' if says else "")
             + f'<h2>The figures</h2><div class="card" style="overflow-x:auto"><table class="pts"><tr><th>Figure</th><th>Latest</th><th>As of</th><th>Points</th><th>History</th><th>File</th></tr>{trs}</table></div>'
             + (f'<h2>What could not be verified</h2><p>{esc(state["note"])}</p>' if state.get("note") else "")
