@@ -532,6 +532,9 @@ def requests():
     """What visitors asked to have researched. `requests` lists the open ones; `requests ID STATUS "note" /path ...` closes or updates one."""
     a = sys.argv[2:]
     if a:
+        if a[0] == "requeue":  # at the worker's start: a research cut off by a restart goes back in line
+            db.run("UPDATE requests SET status='received', steps=NULL WHERE status='researching'")
+            return
         if a[1] == "step":  # one more line on the request's page while it is researched
             rid = int(a[0])
             steps = json.loads((db.one("SELECT steps FROM requests WHERE id=?", (rid,)) or {}).get("steps") or "[]") + [x[:160] for x in a[2:]]
@@ -543,9 +546,6 @@ def requests():
             tok = secrets.token_urlsafe(9)
             db.run("INSERT INTO requests(token,text,status,created_at,parent,user,links) VALUES(?,?,?,?,?,?,?)", (tok, " ".join(a[2:])[:300], "received", db.now(), root["parent"] or root["id"], "tally", root.get("links")))
             print("/request/" + tok)
-            return
-        if a[0] == "requeue":  # at the worker's start: a research cut off by a restart goes back in line
-            db.run("UPDATE requests SET status='received', steps=NULL WHERE status='researching'")
             return
         if a[0] == "add":  # the operator's own queue: companies to research, without a visitor's limits
             import secrets
