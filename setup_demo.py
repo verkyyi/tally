@@ -544,6 +544,9 @@ def requests():
             db.run("INSERT INTO requests(token,text,status,created_at,parent,user,links) VALUES(?,?,?,?,?,?,?)", (tok, " ".join(a[2:])[:300], "received", db.now(), root["parent"] or root["id"], "tally", root.get("links")))
             print("/request/" + tok)
             return
+        if a[0] == "requeue":  # at the worker's start: a research cut off by a restart goes back in line
+            db.run("UPDATE requests SET status='received', steps=NULL WHERE status='researching'")
+            return
         if a[0] == "add":  # the operator's own queue: companies to research, without a visitor's limits
             import secrets
             for name in a[1:]:
@@ -576,7 +579,7 @@ def requests():
             html = f"<p>You asked Tally for: <b>{pp.esc(r['text'])}</b></p><p>{pp.esc(head)}</p><p>{pp.esc(note)}</p><p><a href=\"{url}\">See the result</a></p>"
             if alerts.send(r["email"], f"Tally: {r['text']}"[:120], text, html):
                 db.run("UPDATE requests SET email=NULL WHERE id=?", (rid,))
-    for r in db.q("SELECT * FROM requests WHERE status IN ('received','researching') OR id=? ORDER BY id", (int(a[0]) if a else 0,)):
+    for r in db.q("SELECT * FROM requests WHERE status IN ('received','researching') OR id=? ORDER BY (COALESCE(user,'')='tally'), id", (int(a[0]) if a else 0,)):
         root = db.one("SELECT session, text FROM requests WHERE id=?", (r["parent"],)) if r.get("parent") else None
         print(r["id"], r["status"], r["created_at"], "|", r["text"], "|", r["token"], *(["|", (root or {}).get("session") or "-", "|", (root or {}).get("text") or "-"] if r.get("parent") else []), flush=True)
 

@@ -248,7 +248,7 @@ def handle_all():
         if pair:
             compare(rid, pair.group(1), pair.group(2))
             print(datetime.datetime.now().isoformat(timespec="seconds"), "request", rid, text, flush=True)
-            continue
+            return
         out = os.path.join(WORK, f"req-{rid}.json") if WORK else os.path.join(tempfile.mkdtemp(prefix="tally-req-"), "result.json")
         got = {"done": 0, "written": [], "missed": [], "doc": None}
         if about and not resume:  # a follow-up on a research whose session was not kept: research the company again, with the wish
@@ -257,10 +257,12 @@ def handle_all():
             research(rid, text, out, got, resume, about)
         deliver(rid, text, out, got)
         print(datetime.datetime.now().isoformat(timespec="seconds"), "request", rid, text, flush=True)
+        return  # one at a time: the next look at the queue puts a visitor before the operator's own list
 
 
 if __name__ == "__main__":
     once = "--once" in sys.argv
+    server(f"{APP} setup_demo.py requests requeue")
     while True:
         if once or waiting():
             handle_all()
