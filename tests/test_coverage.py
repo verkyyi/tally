@@ -27,5 +27,11 @@ class Coverage(unittest.TestCase):
         self.assertNotIn("City", h)
 
 
+    def test_capitals_do_not_split_a_company(self):
+        ms = [{"id": 1, "title": "N8N · total funding raised"}, {"id": 2, "title": "n8n · latest valuation"}]
+        rows = coverage.table(ms, {1, 2})[0][3]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(sum(1 for c in rows[0][1] if c), 2)
+
 if __name__ == "__main__":
     unittest.main()

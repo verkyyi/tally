@@ -33,11 +33,11 @@ def kind_of(figures):
 def table(metrics, valued):
     """[(name, key, figures, rows, share)]: rows are (subject, [metric with '_has' or None per figure]), fullest first;
     share is the part of the cells that hold a value."""
-    by = {}
+    seen, by = {}, {}  # one row per company whatever the capitals ("N8N" and "n8n" are one subject)
     for m in metrics:
         who, sep, what = (m.get("title") or "").partition(" · ")
         if sep:
-            by.setdefault(who.strip(), {})[what.strip().lower()] = m
+            by.setdefault(seen.setdefault(who.strip().lower(), who.strip()), {})[what.strip().lower()] = m
     out = []
     for name, key, figures in SETS:
         rows = []
