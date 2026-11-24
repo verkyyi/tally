@@ -108,6 +108,33 @@ NOW = (' The reader also wants the share price as it stands now. Add a top-level
        "record: do NOT make a series for the share price. If no such page states it, leave \"now\" out.")
 
 
+PRICE_ONLY = re.compile(r"^price only:\s*(.{2,80})$", re.I)
+
+
+def price_only(rid, name, out):
+    """Look up one closing price for a listed company and hand it to the record's own check; nothing else is researched."""
+    today = datetime.date.today().isoformat()
+    ask = (f"Today is {today}. Company: {name} (listed)." + NOW.replace("The reader also wants", "Find")
+           + f' Write the JSON document {{"subject": "{name}", "series": [], "now": {{...}}}} to {out} . Use absolute paths. Read-only web research: no accounts, no posting, no logins.')
+    run = (["sudo", "-n", "-u", AGENT_USER, "-H"] if AGENT_USER else []) + [CLAUDE]
+    p = subprocess.Popen(run + ["-p", ask, "--output-format", "stream-json", "--verbose", "--allowedTools", "WebSearch,WebFetch,Read,Write", "--disallowedTools", "Bash,Edit,Agent",
+                                "--strict-mcp-config", "--add-dir", os.path.dirname(out)], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, cwd=os.path.dirname(out))
+    CHILD[0] = p
+    try:
+        p.communicate(timeout=900)
+    except subprocess.TimeoutExpired:
+        p.kill()
+    CHILD[0] = None
+    link = "/c/" + re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    try:
+        now = json.load(open(out)).get("now")
+    except (OSError, ValueError):
+        now = None
+    said = server(f"{APP} setup_demo.py requests {rid} now {shlex.quote(json.dumps(now)[:1500])} {shlex.quote('--for=' + name)}") if isinstance(now, dict) else "now: nothing found"
+    ok = "now: ok" in said
+    server(f"{APP} setup_demo.py requests {rid} {'delivered' if ok else 'unverified'} {shlex.quote(said.strip()[-300:])} {link if ok else ''}")
+
+
 def research(rid, text, out, got, resume=None, about=None, whole=False):
     now = bool(WANTS_NOW.search(text))
     if now and not resume:  # the price is not a figure to keep: what is left of the request decides the kind of research
@@ -285,6 +312,11 @@ def handle_all():
             return
         out = os.path.join(WORK, f"req-{rid}.json") if WORK else os.path.join(tempfile.mkdtemp(prefix="tally-req-"), "result.json")
         got = {"done": 0, "written": [], "missed": [], "doc": None}
+        only = PRICE_ONLY.match(text)
+        if only:  # the operator's monthly round: one closing price a dated report states, from which the company's market value is worked out
+            price_only(rid, only.group(1).strip(), out)
+            print(datetime.datetime.now().isoformat(timespec="seconds"), "request", rid, text, flush=True)
+            return
         if about and not resume:  # a follow-up on a research whose session was not kept: research the company again, with the wish
             research(rid, f"{about}. The reader also asks: {text}", out, got, whole=True)
         else:

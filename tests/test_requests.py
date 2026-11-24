@@ -115,5 +115,17 @@ class Requests(unittest.TestCase):
         self.assertIn("noindex", page.headers.get("x-robots-tag", ""))
         self.assertNotIn("12.5", self.c.get("/c/acme").text)  # the company's public page never carries it
 
+    def test_a_market_value_is_worked_out_from_a_stated_close_and_filed_shares(self):
+        import core
+        mid, _ = db.run("INSERT INTO metrics(question,title,kind,unit,created_by,created_at,curated,company) VALUES('q','Acme · shares outstanding','direct','shares','system',?,1,'Acme')", (db.now(),))
+        db.run("INSERT INTO observations(metric_id,value,as_of,origin,seeded) VALUES(?,?,?,?,0)", (mid, 2000000, "2026-09-30T00:00:00Z", "source_history"))
+        said = core.derived_market_cap("Acme", 12.5, "2026-11-20", "https://news.example/acme", "Acme closed at $12.50 on November 20, 2026")
+        self.assertIn("25,000,000 written", said)
+        o = db.one("SELECT o.* FROM observations o JOIN metrics m ON m.id=o.metric_id WHERE m.title='Acme · market capitalization'")
+        self.assertEqual((o["value"], o["as_of"][:10], o["label"]), (25000000.0, "2026-11-20", core.APPROX))
+        self.assertIn("closing price $12.50 x 2,000,000 shares", o["quote"])
+        self.assertIn("already on record", core.derived_market_cap("Acme", 13, "2026-11-20", "https://news.example/acme", "x"))
+        self.assertIn("no shares", core.derived_market_cap("Nobody", 13, "2026-11-20", "https://news.example/x", "x"))
+
 if __name__ == "__main__":
     unittest.main()

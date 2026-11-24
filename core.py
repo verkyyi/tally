@@ -971,6 +971,28 @@ def create_free(title, question, unit, spec, company, template_id):
     return mid, True
 
 
+def derived_market_cap(company, price, day, url, quote):
+    """A listed company's market value on a day, worked out from a closing price a dated page states and the shares it last
+    reported outstanding. Written as an approximate point of "<Company> · market capitalization", with the working in its note."""
+    sh = db.one("SELECT id FROM metrics WHERE lower(title)=?", (f"{company} · shares outstanding".lower(),))
+    last = db.one("SELECT value, as_of FROM observations WHERE metric_id=? AND value IS NOT NULL AND seeded=0 ORDER BY as_of DESC, id DESC LIMIT 1", (sh["id"],)) if sh else None
+    if not last or not last["value"] or price <= 0:
+        return "market value: no shares outstanding on record"
+    title, value = f"{company} · market capitalization", price * last["value"]
+    m = db.one("SELECT * FROM metrics WHERE lower(title)=?", (title.lower(),))
+    if not m:
+        q = f"What is {company}'s market capitalization?"
+        mid, _ = db.run("INSERT INTO metrics(question,title,kind,unit,source_url,search_query,monitor_query,created_by,created_at,last_checked_at,recipe_version,company,curated) VALUES(?,?,?,?,?,?,?,?,?,?,1,?,1)",
+                        (q, title, "direct", "USD", url, q, q, "tally", db.now(), db.now(), company))
+        m = metric(mid)
+    if db.one("SELECT 1 x FROM observations WHERE metric_id=? AND substr(as_of,1,10)=?", (m["id"], day)):
+        return f"market value: {day} already on record"
+    note = f"Worked out: closing price ${price:,.2f} x {last['value']:,.0f} shares outstanding (as filed for {last['as_of'][:10]}). The page says: {quote}"
+    db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version,collected_at,label) VALUES(?,?,?,?,?,0,?,?,?,?)",
+           (m["id"], value, day + "T00:00:00Z", url, "source_history", note[:300], m.get("recipe_version") or 1, db.now(), APPROX))
+    return f"market value: {value:,.0f} written to number {m['id']}"
+
+
 def backfill_free(m):
     """Fill a free-source number's past from the source's own records. Safe to run again: it replaces only its own points."""
     pts = free_sources.history(m["skill"])

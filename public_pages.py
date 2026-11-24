@@ -327,7 +327,7 @@ def delivery_page(r, state, name, rows):
         shares = next((t["value"] for m, t, _ in rows if m["title"].lower().endswith("· shares outstanding") and t.get("value")), None)
         worth = f' At {fmt(shares, "shares")[0]} shares outstanding, as last filed, that is a market value of about {fmt(n["value"] * shares, n["unit"])[0]}.' if shares else ""
         host = re.sub(r"^www\.", "", re.sub(r"^https?://([^/]+).*$", r"\1", n["url"]))
-        looked = (f'<div class="card" style="margin:14px 0"><b>Looked up for you: {esc(n["label"])} {esc(txt)}{(" " + esc(unit)) if unit else ""}</b> as of {esc(n["date"])}, '
+        looked = (f'<div class="card" style="margin:14px 0"><b>Looked up for you: {esc(n["label"])} {esc(txt)}{(" " + esc(unit)) if unit else ""}</b> <b style="color:#b54708">at the close of {esc(n["date"])}</b>, '
                   f'from <a href="{esc(n["url"])}" rel="nofollow noopener" target="_blank">{esc(host)}</a>.{esc(worth)}'
                   '<div class="meta" style="margin-top:6px">Read when you asked, for this page only. It is not part of Tally\'s public record and is not kept up to date.</div></div>')
     body = (f'<div class="crumb"><a href="/">Tally</a> / Research</div><h1>{esc(name)}: the numbers on record</h1>'

@@ -539,6 +539,18 @@ def period_history():
             print(m["id"], m["title"], core.period_label("month", start), "| found", len(found), "| dated in the month", len(kept), "| value", core.count_value(m["id"], start) if kept else None, flush=True)
 
 
+def market_caps():
+    """The monthly round for listed companies: one request each for a closing price a dated report states, from which the
+    market value is worked out (price x shares outstanding as last filed). Usage: market_caps [Name ...]   (default: every company with shares on record)"""
+    import secrets
+    names = sys.argv[2:] or [m["title"].split(" · ")[0] for m in db.q("SELECT title FROM metrics WHERE lower(title) LIKE '% · shares outstanding' ORDER BY id")]
+    for name in names:
+        text = f"price only: {name}"
+        if not db.one("SELECT 1 x FROM requests WHERE lower(text)=? AND status IN ('received','researching')", (text.lower(),)):
+            db.run("INSERT INTO requests(token,text,status,created_at,user) VALUES(?,?,?,?,?)", (secrets.token_urlsafe(9), text, "received", db.now(), "tally"))
+    print(len(names), "asked |", db.one("SELECT COUNT(*) n FROM requests WHERE status='received'")["n"], "waiting")
+
+
 def requests():
     """What visitors asked to have researched. `requests` lists the open ones; `requests ID STATUS "note" /path ...` closes or updates one."""
     a = sys.argv[2:]
@@ -571,18 +583,22 @@ def requests():
             return
         if a[1] == "now":  # a figure looked up for this reader alone: kept on the request only when its page states it and it is recent
             import research_import as ri
+            who = next((x[6:] for x in a[2:] if x.startswith("--for=")), None)  # the operator's round names the company: its market value is worked out from the price
+            a = [x for x in a if not x.startswith("--for=")]
             try:
                 n = json.loads(" ".join(a[2:]))
                 p = {"date": str(n.get("date") or "")[:10], "value": n.get("value"), "source_url": n.get("source_url") or "", "quote": n.get("quote") or ""}
-                fresh = (datetime.now(timezone.utc).date() - datetime.strptime(p["date"], "%Y-%m-%d").date()).days <= 7
+                fresh = (datetime.now(timezone.utc).date() - datetime.strptime(p["date"], "%Y-%m-%d").date()).days <= 10
                 portal = any(h in p["source_url"].lower() for h in ("finance.yahoo.", "google.com/finance", "marketwatch.com", "investing.com", "stockanalysis.com", "tradingview.com"))
-                verdict = "a finance portal, not the exchange, the company or a report" if portal else ri.check([p], ri._read)[0][1] if fresh else "older than a week"
+                verdict = "a finance portal, not the exchange, the company or a report" if portal else ri.check([p], ri._read)[0][1] if fresh else "older than ten days"
             except (ValueError, TypeError, AttributeError) as e:
                 verdict = f"unreadable ({type(e).__name__})"
             if verdict == "ok":
                 db.run("UPDATE requests SET now=? WHERE id=?", (json.dumps({"label": str(n.get("label") or "share price")[:40], "value": float(p["value"]), "unit": str(n.get("unit") or "USD")[:12],
                                                                             "date": p["date"], "url": p["source_url"][:400], "quote": p["quote"][:240]}), int(a[0])))
             print("now:", verdict)
+            if verdict == "ok" and who:
+                print(core.derived_market_cap(who, float(p["value"]), p["date"], p["source_url"], p["quote"]))
             return
         if a[1] == "analysis":
             db.run("UPDATE requests SET analysis=? WHERE id=?", (" ".join(a[2:])[:900], int(a[0])))
@@ -612,4 +628,4 @@ def requests():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "jobs": jobs, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "stocks": stocks, "growth": growth, "gsc": gsc, "requests": requests, "cited_history": cited_history, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "jobs": jobs, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "stocks": stocks, "growth": growth, "gsc": gsc, "requests": requests, "market_caps": market_caps, "cited_history": cited_history, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
