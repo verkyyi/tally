@@ -311,7 +311,28 @@ JOBS = [("Anduril", "greenhouse", "andurilindustries"), ("Brex", "greenhouse", "
         ("Cloudflare", "greenhouse", "cloudflare"), ("Datadog", "greenhouse", "datadog"), ("Coinbase", "greenhouse", "coinbase"), ("Airbnb", "greenhouse", "airbnb"),
         ("Palantir", "lever", "palantir"), ("Snowflake", "ashby", "snowflake"),
         ("Supabase", "ashby", "supabase"), ("PostHog", "ashby", "posthog"), ("ClickHouse", "ashby", "clickhouse"), ("Grafana", "greenhouse", "grafanalabs"),
-        ("Redis", "ashby", "redis"), ("Firecrawl", "ashby", "firecrawl"), ("Exa", "ashby", "exa"), ("Ollama", "ashby", "ollama")]
+        ("Redis", "ashby", "redis"), ("Firecrawl", "ashby", "firecrawl"), ("Exa", "ashby", "exa"), ("Ollama", "ashby", "ollama"),
+        # added 2026-11-24: boards whose own name matches the company (probed, ambiguous names left out)
+        ("Miro", "ashby", "miro"), ("OpenAI", "ashby", "openai"), ("Profound", "ashby", "profound"), ("Midjourney", "ashby", "midjourney"),
+        ("Suno", "ashby", "suno"), ("Together AI", "greenhouse", "togetherai"), ("Fireworks AI", "ashby", "fireworks"), ("Baseten", "ashby", "baseten"),
+        ("Figure AI", "greenhouse", "figureai"), ("Synthesia", "ashby", "synthesia"), ("CodeRabbit", "ashby", "coderabbit"), ("HeyGen", "greenhouse", "heygen"),
+        ("Snyk", "ashby", "snyk"), ("Abridge", "ashby", "abridge"), ("Wayve", "ashby", "wayve"), ("Crusoe", "ashby", "crusoe"),
+        ("Reflection AI", "ashby", "reflectionai"), ("Etched", "ashby", "etched"), ("Saronic", "ashby", "saronic"), ("Legora", "ashby", "legora"),
+        ("TypeSafe AI", "ashby", "typesafe-ai"), ("Fractile", "ashby", "fractile"), ("Tenstorrent", "greenhouse", "tenstorrent"), ("Lumilens", "ashby", "lumilens"),
+        ("Higgsfield", "ashby", "higgsfieldai"), ("Apptronik", "greenhouse", "apptronik"), ("Skydio", "ashby", "skydio"), ("Bedrock Robotics", "ashby", "bedrock-robotics"),
+        ("EliseAI", "ashby", "eliseai"), ("Chai Discovery", "ashby", "chaidiscovery"), ("Wispr Flow", "ashby", "wispr-flow"), ("TensorWave", "ashby", "tensorwave"),
+        ("Sarvam AI", "ashby", "sarvam"), ("Blitzy", "ashby", "blitzy"), ("Assort Health", "ashby", "assorthealth"), ("Fluidstack", "ashby", "fluidstack"),
+        ("Helsing", "greenhouse", "helsing"), ("OpenEvidence", "ashby", "openevidence"), ("Thinking Machines Lab", "ashby", "thinkingmachines"), ("Cribl", "greenhouse", "cribl"),
+        ("Mind Robotics", "ashby", "mindrobotics"), ("Black Forest Labs", "ashby", "black-forest-labs"), ("Genspark", "ashby", "genspark"), ("CuspAI", "ashby", "cuspai"),
+        ("Armadin", "ashby", "armadin"), ("webAI", "ashby", "webai"), ("PhysicsX", "greenhouse", "physicsx"), ("Rhoda AI", "ashby", "rhoda-ai"),
+        ("Periodic Labs", "ashby", "periodic-labs"), ("Deepgram", "ashby", "deepgram"), ("Goodfire", "greenhouse", "goodfire"), ("Code Metal", "ashby", "code-metal"),
+        ("Dash0", "ashby", "dash0"), ("Poolside", "ashby", "poolside"), ("Snorkel AI", "greenhouse", "snorkelai"), ("Braintrust", "ashby", "braintrust"),
+        ("Luma AI", "ashby", "lumaai"), ("Vanta", "ashby", "vanta"), ("Chainguard", "greenhouse", "chainguard"), ("Dataiku", "greenhouse", "dataiku"),
+        ("Cockroach Labs", "greenhouse", "cockroachlabs"), ("Webflow", "ashby", "webflow"), ("Docker", "ashby", "docker"), ("The Bot Company", "ashby", "thebotcompany"),
+        ("Resolve AI", "ashby", "resolveai"), ("Ambience Healthcare", "ashby", "ambiencehealthcare"), ("Pinecone", "ashby", "pinecone"), ("Tennr", "ashby", "tennr"),
+        ("Mirendil", "ashby", "mirendil"), ("Runpod", "ashby", "runpod"), ("Prime Intellect", "ashby", "primeintellect"), ("Gravis Robotics", "lever", "gravisrobotics"),
+        ("Otter.ai", "greenhouse", "otterai"), ("Inferact", "ashby", "inferact"), ("GMI Cloud", "ashby", "gmi-cloud"), ("Salience Labs", "ashby", "salience-labs"),
+        ("Labelbox", "greenhouse", "labelbox"), ("Scaled Cognition", "ashby", "scaled-cognition"), ("MatX", "ashby", "matx"), ("DensityAI", "greenhouse", "densityai")]
 
 
 def jobs_number(name, provider, slug):

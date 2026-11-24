@@ -236,6 +236,17 @@ def free():
     print("free numbers: created", made, "| switched existing to the free source", reused, "| source unavailable", failed, "| total", db.one("SELECT COUNT(*) n FROM metrics WHERE skill LIKE 'free|%'")["n"])
 
 
+def jobs():
+    """Open roles for every company in free_sources.JOBS, read from its public job board. No search or model cost."""
+    import free_sources as fs
+    made = failed = 0
+    for name, provider, slug in fs.JOBS:
+        mid, new = core.create_free(*fs.jobs_number(name, provider, slug))
+        made += 1 if new else 0
+        failed += 0 if mid else 1
+    print("open-roles numbers: created", made, "| source unavailable", failed, "| listed", len(fs.JOBS))
+
+
 def round_history():
     """History for funding, round-size and valuation numbers from dated rounds: each number's recipe gets a History section and is
     tried by the agent; verified past points are kept. Pass metric ids to limit the run; numbers that already have history are skipped."""
@@ -586,4 +597,4 @@ def requests():
 
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "stocks": stocks, "growth": growth, "gsc": gsc, "requests": requests, "cited_history": cited_history, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "jobs": jobs, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "stocks": stocks, "growth": growth, "gsc": gsc, "requests": requests, "cited_history": cited_history, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
