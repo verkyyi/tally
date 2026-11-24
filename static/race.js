@@ -67,9 +67,24 @@
     if (jump) { said = ''; } else if (now && lead && now !== lead) { said = now + ' takes the lead'; saidAt = i; }
     if (i - saidAt > 8 || i < saidAt) said = '';
     lead = now;
-    var p = dates[i].split('-');
-    lab.children[0].textContent = p[0]; lab.children[1].textContent = MON[+p[1] - 1]; lab.children[2].textContent = said;
+    lab.children[2].textContent = said;
+    run(jump || still ? 0 : Math.round(STEP / speed));
     at.value = i;
+  }
+  // The date runs on between two frames at an even pace; a new month or year slides in rather than jumping.
+  var shownT = Date.parse(dates[i] + 'T00:00:00Z'), raf = null;
+  function put(el, text) { if (el.textContent !== text) { el.textContent = text; if (!still) { el.classList.remove('race-in'); void el.offsetWidth; el.classList.add('race-in'); } } }
+  function show(ms) { var x = new Date(ms); put(lab.children[0], String(x.getUTCFullYear())); put(lab.children[1], MON[x.getUTCMonth()]); }
+  function run(ms) {
+    var to = Date.parse(dates[i] + 'T00:00:00Z'), from = shownT, t0 = null;
+    cancelAnimationFrame(raf);
+    if (!ms) { shownT = to; return show(to); }
+    raf = requestAnimationFrame(function tick(now) {
+      if (t0 === null) t0 = now;
+      var u = Math.min(1, (now - t0) / ms);
+      shownT = from + (to - from) * u; show(shownT);
+      if (u < 1) raf = requestAnimationFrame(tick);
+    });
   }
   function label() { play.textContent = timer ? '❚❚' : i >= dates.length - 1 ? '↻' : '▶'; play.setAttribute('aria-label', timer ? 'Pause' : i >= dates.length - 1 ? 'Replay' : 'Play'); }
   function stop() { clearInterval(timer); timer = null; label(); }

@@ -15,12 +15,15 @@ import tempfile
 import urllib.request
 import wave
 
+from datetime import date, timedelta
+
 from PIL import Image, ImageDraw, ImageFont
 
 SITE = os.environ.get("TALLY_SITE", "https://tallycatalog.com")
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 W, H, FPS, PER, HOLD = 1280, 720, 30, 12, 90  # frames per day-step; frames the last picture stays
 PAL = ["#2f6feb", "#e8590c", "#2b8a3e", "#c2255c", "#6741d9", "#0c8599", "#e67700", "#5f3dc4", "#087f5b", "#d6336c", "#1971c2", "#a61e4d", "#5c940d", "#862e9c"]
+BG = (246, 247, 249)
 MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 FONTS = "/System/Library/Fonts/Supplemental/"
 
@@ -111,7 +114,7 @@ def render(slug):
         music(wav, seconds)
         ff = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-i", wav,
                                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "24", "-preset", "medium", "-c:a", "aac", "-b:a", "96k", "-shortest", "-movflags", "+faststart", out], stdin=subprocess.PIPE)
-        lead, said, said_at = None, "", -99
+        lead, said, said_at, shown_date = None, "", -99, {}
         total = (len(dates) - 1) * PER + HOLD
         for fr in range(total):
             k = min(fr // PER, len(dates) - 1)
@@ -126,9 +129,20 @@ def render(slug):
             im.paste(mark, (W - 60 - 52, 30), mark)
             g.text((W - 60 - 64, 44), "Tally", font=f_b, fill="#0e1320", anchor="rm")
             g.text((W - 60 - 64, 72), "tallycatalog.com", font=f_d, fill="#667085", anchor="rm")
-            p = dates[k].split("-")
-            g.text((W - 60, H - 150), p[0], font=f_y, fill="#d5d9e0", anchor="rs")
-            g.text((W - 60, H - 104), MON[int(p[1]) - 1], font=f_m, fill="#98a2b3", anchor="rs")
+            # The date runs on between two frames at an even pace, and a new month or year slides in over the old one.
+            lin = (fr % PER) / PER if k < len(dates) - 1 else 0
+            da, db = date.fromisoformat(dates[k]), date.fromisoformat(dates[k2])
+            day = da + timedelta(days=round((db - da).days * lin))
+            for key, text, fnt, yy, ink in (("y", str(day.year), f_y, H - 150, (213, 217, 224)), ("m", MON[day.month - 1], f_m, H - 104, (152, 162, 179))):
+                was = shown_date.get(key)
+                if was is None or was[0] != text:
+                    shown_date[key] = was = (text, fr, was[0] if was else None)
+                a = min(1.0, (fr - was[1]) / 8) if was[2] else 1.0
+                a = a * a * (3 - 2 * a)
+                mix = lambda al: tuple(round(BG[c] + (ink[c] - BG[c]) * al) for c in range(3))
+                if a < 1:
+                    g.text((W - 60, yy - 14 * a), was[2], font=fnt, fill=mix(1 - a), anchor="rs")
+                g.text((W - 60, yy + 14 * (1 - a)), text, font=fnt, fill=mix(a), anchor="rs")
             step = 10 ** math.floor(math.log10(mx)) if mx > 0 else 1
             step *= 2 if mx / step >= 5 else 1 if mx / step >= 2 else 0.5
             x = step

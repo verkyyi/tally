@@ -947,6 +947,7 @@ RACE_CSS = """.race-bar{display:flex;gap:10px;align-items:center;margin:6px 0 0;
 .race-t{flex:1;height:24px;display:flex;align-items:center;gap:6px;min-width:0}.race-t i{display:block;height:100%;width:1%;border-radius:0 4px 4px 0;flex:none}.race-v{font:600 13px var(--mono);white-space:nowrap}
 #race-day{position:absolute;right:4px;bottom:6px;text-align:right;pointer-events:none;line-height:1}#race-day b{display:block;font:700 64px var(--display);color:#d0d5dd;letter-spacing:-2px}
 #race-day span{display:block;font:600 22px var(--display);color:#98a2b3;margin-top:2px}#race-day em{display:block;font:600 13px var(--mono);font-style:normal;color:#e8590c;margin-top:8px;min-height:1em}
+@keyframes race-in{from{opacity:.15;transform:translateY(10px)}to{opacity:1;transform:none}}.race-in{animation:race-in .28s ease-out}
 .race-note{font-size:12px;color:#667085;margin:10px 0 22px}@media(max-width:560px){.race-n{width:6.5em;font-size:12px}#race-ticks{left:8.6em}#race-day b{font-size:40px}}"""
 
 
@@ -956,7 +957,7 @@ def race_block(replay, unit):
         return ""
     data = json.dumps(replay | {"unit": unit or ""}, separators=(",", ":")).replace("</", "<\\/")
     return (f'<style>{RACE_CSS}</style><div id="race"></div><script type="application/json" id="race-data">{data}</script>'
-            '<script src="/static/race.js?v=4" defer></script>')
+            '<script src="/static/race.js?v=5" defer></script>')
 
 
 def race_embed(name, sl, replay, unit):
