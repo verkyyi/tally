@@ -1260,7 +1260,7 @@ def _rank_of(mid):
 def _rankings0():
     names = {t["title"].replace("{company} · ", "").lower(): t["title"].replace("{company} · ", "") for t in TEMPLATES if t.get("pack", "company") == "company"}
     names |= {"npm downloads, weekly": "npm downloads, weekly", "pypi downloads, weekly": "PyPI downloads, weekly"}
-    names |= {n: n for n in ("annual revenue", "quarterly revenue", "quarterly net income", "quarterly operating income (loss)", "shares outstanding")}  # the filings' figures of listed companies
+    names |= {n: n for n in ("annual revenue", "quarterly revenue", "quarterly net income", "quarterly operating income (loss)", "shares outstanding", "market capitalization")}  # the filings' figures of listed companies
     by = {}
     new_since = (datetime.now(timezone.utc) - timedelta(days=core.MIN_DAYS)).strftime("%Y-%m-%d")
     for m in db.q("SELECT * FROM metrics WHERE title LIKE '% · %'"):
@@ -1281,14 +1281,21 @@ def _rankings0():
         if not last or (t.get("as_of") or "") >= (last.get("as_of") or ""):
             pts = core.series(m["id"])
             day = next((p["at"] for i, p in enumerate(pts) if all(q["value"] == pts[-1]["value"] for q in pts[i:])), t.get("as_of") or "")[:10]  # the day the offering's valuation was first stated
-            by["latest valuation"] = [x for x in rounds if pp.subject(x) != who] + [t | {"_ipo": day, "_before": last["id"] if last else None}]
+            by["latest valuation"] = [x for x in rounds if pp.subject(x) != who] + [t | {"_ipo": day, "_joins": [last["id"]] if last else []}]
+    # Once listed, a company is worth what the market says: its market capitalization, where the record has one, takes over
+    # from the offering's valuation, so private and listed companies stand in one ranking.
+    for t in list(by.get("market capitalization", [])):
+        who = pp.subject(t)
+        rounds = by.setdefault("latest valuation", [])
+        last = next((x for x in rounds if pp.subject(x) == who), None)
+        by["latest valuation"] = [x for x in rounds if pp.subject(x) != who] + [t | {"_ipo": (last or {}).get("_ipo") or "listed", "_joins": ([last["id"]] + (last.get("_joins") or [])) if last else []}]
     out = []
     for tid, ts in by.items():
         if len(ts) >= 3:
             ts.sort(key=lambda t: -t["value"])
             out.append((names[tid], pp.slug(names[tid]), ts))
     free = ("github stars", "npm downloads, weekly", "pypi downloads, weekly")  # numbers anyone can get elsewhere go last
-    filed = ("annual revenue", "quarterly revenue", "quarterly net income", "quarterly operating income (loss)", "shares outstanding")  # after the private-company figures, which nobody else keeps
+    filed = ("annual revenue", "quarterly revenue", "quarterly net income", "quarterly operating income (loss)", "shares outstanding", "market capitalization")  # after the private-company figures, which nobody else keeps
     return sorted(out, key=lambda x: (2 if x[0].lower() in free else 1 if x[0].lower() in filed else 0, -len(x[2])))
 
 
@@ -1307,13 +1314,16 @@ def _replay(sl, ts):
     if not kept or time.time() - kept[0] > 600:
         def past(t):  # a listed company's line is its private rounds, then its valuation at the offering
             pts = [(p["at"], p["value"]) for p in _public_series(core.metric(t["id"]), t)]
-            if t.get("_before"):
-                b = core.metric(t["_before"])
-                pts += [(p["at"], p["value"]) for p in _public_series(b, tile(b, None)) if p["at"][:10] < t["_ipo"]]
+            first = min((d for d, _ in pts), default="9")
+            for i in t.get("_joins") or []:  # what the company was valued at before this figure begins
+                b = core.metric(i)
+                more = [(p["at"], p["value"]) for p in _public_series(b, tile(b, None)) if p["at"] < first]
+                pts += more
+                first = min([first] + [d for d, _ in more])
             return pts
         rows = [(pp.subject(t), pp.number_path(t), past(t)) for t in ts]
         f = race.frames(rows)
-        listed = {pp.subject(t): t["_ipo"] for t in ts if t.get("_ipo")}
+        listed = {pp.subject(t): ("1900-01-01" if t["_ipo"] == "listed" else t["_ipo"]) for t in ts if t.get("_ipo")}
         for r in (f or {}).get("rows", []):
             if r["n"] in listed:
                 r["ipo"] = listed[r["n"]]

@@ -971,7 +971,7 @@ def listed_tag(t):
     if not t.get("_ipo"):
         return ""
     return (' <small style="font:11px var(--mono);color:#667085;border:1px solid #d0d5dd;border-radius:4px;padding:1px 5px;margin-left:6px" '
-            f'title="Listed: valued here at its public offering">LISTED {esc(t["_ipo"])}</small>')
+            f'title="Listed: valued here by the market, or at its public offering">LISTED{"" if t["_ipo"] == "listed" else " " + esc(t["_ipo"])}</small>')
 
 
 def top_page(name, sl, rows, replay=None):
@@ -982,7 +982,7 @@ def top_page(name, sl, rows, replay=None):
     made = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "race", sl + ".mp4")  # rendered by infra/race_video.py
     video = f' <a href="/static/race/{sl}.mp4">Watch it as a video with music</a> (MP4, as of {datetime.fromtimestamp(os.path.getmtime(made), timezone.utc).strftime("%B %-d, %Y")}).' if os.path.exists(made) else ""
     desc = f"{subject(lead)} leads with {fmt(lead['value'], lead['unit'])[0]}. {len(rows)} companies ranked by {name}, each number with its source, kept current on Tally."
-    body = (f'<div class="crumb"><a href="/top">Rankings</a> / {esc(name)}</div><h1>Ranked by {esc(name)}</h1><p class="q">{len(rows)} tracked on Tally. Each number opens to its evidence.</p>'
+    body = (f'<div class="crumb"><a href="/top">Rankings</a> / {esc(name)}</div><h1>Ranked by {esc(name)}</h1><p class="q">{len(rows)} tracked on Tally. Each number opens to its evidence.{" A private company stands at its latest round; a listed one at its market capitalization, or at its valuation when it went public." if sl == "latest-valuation" else ""}</p>'
             f'{race_block(replay, rows[0]["unit"])}' + (f'<p class="q" style="margin-top:0">Replay how this ranking changed, or <a href="/top/{sl}?play=1">share it playing</a>.{video} Embed: <code>&lt;iframe src="{SITE}/embed/top/{sl}" width="640" height="520"&gt;&lt;/iframe&gt;</code></p>' if replay else "") +
             f'<ul class="rows">{lis}</ul><div class="cta"><a class="btn" href="/app?setup=1">Track the companies you watch</a><a class="btn ghost" href="/top">More rankings</a></div>')
     ld = ld_json(item_list(f"Companies ranked by {name}", [(f"{subject(t)}: {' '.join(x for x in fmt(t['value'], t['unit']) if x)}", number_path(t)) for t in rows]),
