@@ -939,11 +939,11 @@ def atom(rows, title, self_path):
     return out + "</feed>"
 
 
-RACE_CSS = """.race-bar{display:flex;gap:10px;align-items:center;margin:18px 0 12px}.race-bar input{flex:1;min-width:80px}
+RACE_CSS = """.race-bar{display:flex;gap:10px;align-items:center;margin:6px 0 0;opacity:.45;transition:opacity .2s}.race-bar:hover,.race-bar:focus-within{opacity:1}.race-bar input{flex:1;min-width:80px;height:3px;accent-color:#98a2b3}.race-bar button{border:0;background:none;padding:2px 6px;font:13px var(--mono);color:#475467;cursor:pointer;border-radius:6px}.race-bar button:hover{background:#eaecf0}#race-stage{margin-top:16px}.race-l{position:relative;flex:none;width:22px;height:22px;border-radius:6px;background:#eef0f4;color:#667085;font:600 11px var(--mono);display:flex;align-items:center;justify-content:center;overflow:hidden}.race-l img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff}
 #race-ticks{position:absolute;left:11.6em;right:0;top:0;bottom:0;pointer-events:none}#race-ticks u{position:absolute;top:0;bottom:0;border-left:1px solid #e3e6ec;padding-left:4px;font:11px var(--mono);color:#98a2b3;text-decoration:none}
 .race-row{position:absolute;left:0;right:0;top:0;height:28px;display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit}
 .race-k{width:1.4em;flex:none;text-align:right;font:12px var(--mono);color:#98a2b3}.race-n{width:9em;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:600;text-align:right}
-.race-t{flex:1;height:24px;display:flex;align-items:center;gap:8px;min-width:0}.race-t i{display:block;height:100%;width:1%;border-radius:0 4px 4px 0;flex:none}.race-v{font:600 13px var(--mono);white-space:nowrap}
+.race-t{flex:1;height:24px;display:flex;align-items:center;gap:6px;min-width:0}.race-t i{display:block;height:100%;width:1%;border-radius:0 4px 4px 0;flex:none}.race-v{font:600 13px var(--mono);white-space:nowrap}
 #race-day{position:absolute;right:4px;bottom:6px;text-align:right;pointer-events:none;line-height:1}#race-day b{display:block;font:700 64px var(--display);color:#d0d5dd;letter-spacing:-2px}
 #race-day span{display:block;font:600 22px var(--display);color:#98a2b3;margin-top:2px}#race-day em{display:block;font:600 13px var(--mono);font-style:normal;color:#e8590c;margin-top:8px;min-height:1em}
 .race-note{font-size:12px;color:#667085;margin:10px 0 22px}@media(max-width:560px){.race-n{width:6.5em;font-size:12px}#race-ticks{left:8.6em}#race-day b{font-size:40px}}"""
@@ -955,7 +955,7 @@ def race_block(replay, unit):
         return ""
     data = json.dumps(replay | {"unit": unit or ""}, separators=(",", ":")).replace("</", "<\\/")
     return (f'<style>{RACE_CSS}</style><div id="race"></div><script type="application/json" id="race-data">{data}</script>'
-            '<script src="/static/race.js?v=3" defer></script>')
+            '<script src="/static/race.js?v=4" defer></script>')
 
 
 def race_embed(name, sl, replay, unit):

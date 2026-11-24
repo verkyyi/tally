@@ -15,6 +15,23 @@ EXTRA = {  # names in the catalog that are not in the cached directory
     "cal.com": "cal.com", "miro": "miro.com", "ollama": "ollama.com", "next.js": "nextjs.org", "excalidraw": "excalidraw.com", "langfuse": "langfuse.com",
     "grafana": "grafana.com", "dify": "dify.ai", "yc": "ycombinator.com", "playwright": "playwright.dev", "qdrant": "qdrant.tech", "milvus": "milvus.io",
     "crewai": "crewai.com", "mem0": "mem0.ai", "mastra": "mastra.ai", "litellm": "litellm.ai", "aider": "aider.chat", "cline": "cline.bot", "unsloth": "unsloth.ai",
+    # the website each company's own job board names (2026-11-24)
+    "ambience healthcare": "ambiencehealthcare.com", "ami labs": "amilabs.xyz", "armadin": "armadin.com", "assort health": "assorthealth.com", "avoca": "avoca.ai",
+    "bedrock robotics": "bedrockrobotics.com", "black forest labs": "bfl.ai", "blacksmith": "blacksmith.sh", "blitzy": "blitzy.com", "braintrust": "braintrust.dev",
+    "chai discovery": "chaidiscovery.com", "clickhouse": "clickhouse.com", "code metal": "codemetal.ai", "coderabbit": "coderabbit.ai", "crusoe": "crusoe.ai",
+    "cuspai": "cusp.ai", "dash0": "dash0.com", "deepgram": "deepgram.com", "docker": "docker.com", "eliseai": "eliseai.com",
+    "etched": "etched.com", "factory": "factory.ai", "fluidstack": "fluidstack.io", "fractile": "fractile.ai", "fundamental": "fundamental.tech",
+    "genspark": "genspark.ai", "gmi cloud": "gmicloud.ai", "halter": "halterhq.com", "handshake": "joinhandshake.com", "higgsfield": "higgsfield.ai",
+    "humanoid": "thehumanoid.ai", "hume ai": "hume.ai", "inferact": "inferact.ai", "lambda": "lambda.ai", "legora": "legora.com",
+    "luma ai": "lumalabs.ai", "lumilens": "lumilens.com", "matx": "matx.com", "mind robotics": "mindrobotics.com", "mirendil": "mirendil.com",
+    "norm ai": "norm.ai", "openevidence": "openevidence.com", "parallel": "parallel.ai", "periodic labs": "periodic.com", "poolside": "poolside.ai",
+    "prime intellect": "primeintellect.ai", "profound": "tryprofound.com", "redis": "redis.io", "reflection ai": "reflection.ai", "resolve ai": "resolve.ai",
+    "rhoda ai": "rhoda.ai", "rogo": "rogo.com", "runpod": "runpod.io", "salience labs": "saliencelabs.ai", "sarvam ai": "sarvam.ai",
+    "scaled cognition": "scaledcognition.com", "serval": "serval.com", "shield ai": "shield.ai", "simile": "simile.ai", "skydio": "skydio.com",
+    "snyk": "snyk.io", "socket": "socket.dev", "synthesia": "synthesia.io", "temporal": "temporal.io", "tennr": "tennr.com",
+    "tensorwave": "tensorwave.com", "the bot company": "bot.co", "thinking machines lab": "thinkingmachines.ai", "typesafe ai": "typesafe.ai", "vanta": "vanta.com",
+    "vinci": "getvinci.ai", "wayve": "wayve.ai", "webai": "webai.com", "webflow": "webflow.com", "wispr flow": "wisprflow.ai",
+    "wonderful": "wonderful.ai",
 }
 
 

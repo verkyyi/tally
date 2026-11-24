@@ -28,6 +28,7 @@ import publication
 import telem
 import public_pages as pp
 import free_sources
+import brand
 import logos
 import recipes
 import interest
@@ -1292,7 +1293,12 @@ def _replay(sl, ts):
     kept = _replays.get(sl)
     if not kept or time.time() - kept[0] > 600:
         rows = [(pp.subject(t), pp.number_path(t), [(p["at"], p["value"]) for p in _public_series(core.metric(t["id"]), t)]) for t in ts]
-        kept = _replays[sl] = (time.time(), race.frames(rows))
+        f = race.frames(rows)
+        for r in (f or {}).get("rows", []):  # the colour people know the company by, where one is set
+            c = brand.KNOWN.get(r["n"].lower())
+            if c and c != brand.NEUTRAL:
+                r["c"] = c
+        kept = _replays[sl] = (time.time(), f)
     return kept[1]
 
 
