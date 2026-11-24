@@ -99,6 +99,8 @@ async def count_visit(request: Request, call_next):
             group = "/n" if path.startswith("/c/") and path.count("/") == 3 else next((g.rstrip("/") for g in _GROUPS if path.startswith(g)), path)  # /c/<subject>/<number> is a number's page
             ua = request.headers.get("user-agent", "")
             bot = _bot(ua)
+            if not bot and path.startswith("/compare") and not request.headers.get("referer"):
+                bot = "unnamed-scraper"  # /compare is reached only from a page of this site; with no referring page it is a script walking id pairs (15,000 a day from 12,000 addresses on 2026-11-23)
             host = (_urlsplit(request.headers.get("referer", "")).hostname or "").lower()
             if not host:  # assistants often send no referring page and tag the link instead (utm_source=chatgpt.com)
                 tag = _re.sub(r"[^a-z0-9.-]", "", (request.query_params.get("utm_source") or "").lower())[:40]
