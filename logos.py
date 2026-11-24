@@ -32,6 +32,13 @@ EXTRA = {  # names in the catalog that are not in the cached directory
     "tensorwave": "tensorwave.com", "the bot company": "bot.co", "thinking machines lab": "thinkingmachines.ai", "typesafe ai": "typesafe.ai", "vanta": "vanta.com",
     "vinci": "getvinci.ai", "wayve": "wayve.ai", "webai": "webai.com", "webflow": "webflow.com", "wispr flow": "wisprflow.ai",
     "wonderful": "wonderful.ai",
+    # listed companies and others that lead the value ranking
+    "apple": "apple.com", "nvidia": "nvidia.com", "microsoft": "microsoft.com", "alphabet": "abc.xyz", "broadcom": "broadcom.com",
+    "meta": "meta.com", "tesla": "tesla.com", "amd": "amd.com", "oracle": "oracle.com", "netflix": "netflix.com",
+    "palantir": "palantir.com", "adobe": "adobe.com", "snowflake": "snowflake.com", "coreweave": "coreweave.com", "amazon": "amazon.com",
+    "salesforce": "salesforce.com", "datadog": "datadoghq.com", "cloudflare": "cloudflare.com", "crowdstrike": "crowdstrike.com", "servicenow": "servicenow.com",
+    "xai": "x.ai", "deepseek": "deepseek.com", "figure ai": "figure.ai", "safe superintelligence": "ssi.inc", "moonshot ai": "moonshot.cn",
+    "grammarly / superhuman": "grammarly.com", "vast data": "vastdata.com",
 }
 
 
