@@ -332,7 +332,17 @@ JOBS = [("Anduril", "greenhouse", "andurilindustries"), ("Brex", "greenhouse", "
         ("Resolve AI", "ashby", "resolveai"), ("Ambience Healthcare", "ashby", "ambiencehealthcare"), ("Pinecone", "ashby", "pinecone"), ("Tennr", "ashby", "tennr"),
         ("Mirendil", "ashby", "mirendil"), ("Runpod", "ashby", "runpod"), ("Prime Intellect", "ashby", "primeintellect"), ("Gravis Robotics", "lever", "gravisrobotics"),
         ("Otter.ai", "greenhouse", "otterai"), ("Inferact", "ashby", "inferact"), ("GMI Cloud", "ashby", "gmi-cloud"), ("Salience Labs", "ashby", "salience-labs"),
-        ("Labelbox", "greenhouse", "labelbox"), ("Scaled Cognition", "ashby", "scaled-cognition"), ("MatX", "ashby", "matx"), ("DensityAI", "greenhouse", "densityai")]
+        ("Labelbox", "greenhouse", "labelbox"), ("Scaled Cognition", "ashby", "scaled-cognition"), ("MatX", "ashby", "matx"), ("DensityAI", "greenhouse", "densityai"),
+        # common-word names, each confirmed by the website its board names
+        ("Fundamental", "ashby", "fundamental"), ("Vinci", "ashby", "vinci"), ("Simile", "ashby", "simile"), ("Wonderful", "ashby", "wonderful"),
+        ("Factory", "ashby", "factory"), ("Humanoid", "ashby", "humanoid"), ("Shield AI", "ashby", "shield"), ("AMI Labs", "ashby", "ami"),
+        ("Norm AI", "ashby", "norm"), ("Serval", "ashby", "serval"), ("Blacksmith", "ashby", "blacksmith"), ("Parallel", "ashby", "parallel"),
+        ("Lambda", "ashby", "lambda"), ("Render", "ashby", "render"), ("Railway", "ashby", "railway"), ("Writer", "ashby", "writer"),
+        ("Socket", "ashby", "socket"), ("Sentry", "ashby", "sentry"), ("Temporal", "ashby", "temporal"), ("Modal", "ashby", "modal"),
+        ("Clay", "ashby", "claylabs"), ("Sierra", "ashby", "sierra"), ("Harvey", "ashby", "harvey"), ("Ramp", "ashby", "ramp"),
+        ("Pika", "ashby", "pika"), ("Handshake", "ashby", "handshake"), ("Avoca", "ashby", "avoca"), ("Rogo", "ashby", "rogo"),
+        ("Halter", "ashby", "halter"), ("Hume AI", "ashby", "hume-ai"), ("Granola", "ashby", "granola"), ("Venice", "greenhouse", "veniceai"),
+        ("River AI", "greenhouse", "riverai"), ("Upscale AI", "lever", "upscale-ai")]
 
 
 def jobs_number(name, provider, slug):
