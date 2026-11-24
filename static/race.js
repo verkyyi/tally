@@ -71,10 +71,16 @@
     run(jump || still ? 0 : Math.round(STEP / speed));
     at.value = i;
   }
-  // The date runs on between two frames at an even pace; a new month or year slides in rather than jumping.
-  var shownT = Date.parse(dates[i] + 'T00:00:00Z'), raf = null;
-  function put(el, text) { if (el.textContent !== text) { el.textContent = text; if (!still) { el.classList.remove('race-in'); void el.offsetWidth; el.classList.add('race-in'); } } }
-  function show(ms) { var x = new Date(ms); put(lab.children[0], String(x.getUTCFullYear())); put(lab.children[1], MON[x.getUTCMonth()]); }
+  // The date: the year, still, and under it the twelve months as a track that fills at an even pace. Nothing slides or
+  // changes width, so the corner stays calm while time runs.
+  var shownT = Date.parse(dates[i] + 'T00:00:00Z'), raf = null, track = lab.children[1];
+  track.innerHTML = '<i><u></u></i>' + MON.map(function (m) { return '<s>' + m.charAt(0) + '</s>'; }).join('');
+  function show(ms) {
+    var x = new Date(ms), y = x.getUTCFullYear(), a = Date.UTC(y, 0, 1), part = (ms - a) / (Date.UTC(y + 1, 0, 1) - a);
+    if (lab.children[0].textContent !== String(y)) lab.children[0].textContent = y;
+    track.firstChild.firstChild.style.width = (part * 100) + '%';
+    for (var m = 0; m < 12; m++) track.children[m + 1].style.opacity = 0.3 + 0.7 * Math.max(0, 1 - Math.abs(part * 12 - (m + 0.5)));
+  }
   function run(ms) {
     var to = Date.parse(dates[i] + 'T00:00:00Z'), from = shownT, t0 = null;
     cancelAnimationFrame(raf);

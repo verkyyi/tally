@@ -129,20 +129,29 @@ def render(slug):
             im.paste(mark, (W - 60 - 52, 30), mark)
             g.text((W - 60 - 64, 44), "Tally", font=f_b, fill="#0e1320", anchor="rm")
             g.text((W - 60 - 64, 72), "tallycatalog.com", font=f_d, fill="#667085", anchor="rm")
-            # The date runs on between two frames at an even pace, and a new month or year slides in over the old one.
+            # The date: the year, large and still (it fades to the next one in place), and under it the twelve months as a
+            # track that fills at an even pace. Nothing slides or changes width, so the corner stays calm while time runs.
             lin = (fr % PER) / PER if k < len(dates) - 1 else 0
             da, db = date.fromisoformat(dates[k]), date.fromisoformat(dates[k2])
-            day = da + timedelta(days=round((db - da).days * lin))
-            for key, text, fnt, yy, ink in (("y", str(day.year), f_y, H - 150, (213, 217, 224)), ("m", MON[day.month - 1], f_m, H - 104, (152, 162, 179))):
-                was = shown_date.get(key)
-                if was is None or was[0] != text:
-                    shown_date[key] = was = (text, fr, was[0] if was else None)
-                a = min(1.0, (fr - was[1]) / 8) if was[2] else 1.0
-                a = a * a * (3 - 2 * a)
-                mix = lambda al: tuple(round(BG[c] + (ink[c] - BG[c]) * al) for c in range(3))
-                if a < 1:
-                    g.text((W - 60, yy - 14 * a), was[2], font=fnt, fill=mix(1 - a), anchor="rs")
-                g.text((W - 60, yy + 14 * (1 - a)), text, font=fnt, fill=mix(a), anchor="rs")
+            at = da.toordinal() + (db.toordinal() - da.toordinal()) * lin
+            day = date.fromordinal(int(at))
+            y0 = date(day.year, 1, 1).toordinal()
+            part = (at - y0) / (date(day.year + 1, 1, 1).toordinal() - y0)
+            mix = lambda ink, al: tuple(round(BG[c] + (ink[c] - BG[c]) * al) for c in range(3))
+            year = str(day.year)
+            was = shown_date.get("y")
+            if was is None or was[0] != year:
+                shown_date["y"] = was = (year, fr, was[0] if was else None)
+            a = min(1.0, (fr - was[1]) / 10) if was[2] else 1.0
+            if a < 1:
+                g.text((W - 60, H - 150), was[2], font=f_y, fill=mix((213, 217, 224), 1 - a), anchor="rs")
+            g.text((W - 60, H - 150), year, font=f_y, fill=mix((213, 217, 224), a), anchor="rs")
+            TX0, TX1, TY = W - 60 - 264, W - 60, H - 128
+            g.rounded_rectangle((TX0, TY, TX1, TY + 6), radius=3, fill="#e3e6ec")
+            g.rounded_rectangle((TX0, TY, TX0 + max(6, (TX1 - TX0) * part), TY + 6), radius=3, fill="#98a2b3")
+            for mi in range(12):
+                near = max(0.0, 1 - abs(part * 12 - (mi + 0.5)))  # the month being crossed darkens and lightens gradually
+                g.text((TX0 + (TX1 - TX0) * (mi + 0.5) / 12, TY + 24), MON[mi][0], font=f_k, fill=mix((14, 19, 32), 0.3 + 0.7 * near), anchor="mm")
             step = 10 ** math.floor(math.log10(mx)) if mx > 0 else 1
             step *= 2 if mx / step >= 5 else 1 if mx / step >= 2 else 0.5
             x = step
