@@ -34,6 +34,19 @@ CLAUDE = os.environ.get("TALLY_CLAUDE", "claude")
 WORK = os.environ.get("TALLY_AGENT_DIR", "")  # where sessions write their results (the agent user's own directory)
 
 
+CHILD = [None]  # the session now running, so that stopping the worker stops it too (it runs as another user, outside this service's group)
+
+
+def _stop(*_):
+    if CHILD[0] and CHILD[0].poll() is None:
+        CHILD[0].terminate()  # sudo passes the signal on to the session
+        try:
+            CHILD[0].wait(timeout=15)
+        except Exception:
+            pass
+    sys.exit(0)
+
+
 def server(cmd, wait=True):
     """Run a shell command on the server as the app's user; its output."""
     if LOCAL:
@@ -100,6 +113,7 @@ def research(rid, text, out, got, resume=None, about=None, whole=False):
     p = subprocess.Popen(run + ["-p", more if resume else ask] + (["--resume", resume] if resume else []) + [ "--output-format", "stream-json", "--verbose", "--allowedTools", "WebSearch,WebFetch,Read,Write",
                           "--disallowedTools", "Bash,Edit,Agent", "--strict-mcp-config", "--add-dir", os.path.dirname(out)],
                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, cwd=os.path.dirname(out))
+    CHILD[0] = p
     start, last, waiting, wrote = time.time(), 0.0, [], False
     for line in p.stdout:
         try:
@@ -261,6 +275,8 @@ def handle_all():
 
 
 if __name__ == "__main__":
+    import signal
+    signal.signal(signal.SIGTERM, _stop)
     once = "--once" in sys.argv
     server(f"{APP} setup_demo.py requests requeue")
     while True:
