@@ -1,6 +1,7 @@
 """Public, crawlable pages: one per number, one per subject (company, accelerator, sector, investor), an index, a sitemap.
 They show what a signed-out visitor may see (live for featured numbers, delayed for the rest) and link into the app."""
 import html
+import json
 import re
 from datetime import datetime, timezone
 
@@ -938,13 +939,36 @@ def atom(rows, title, self_path):
     return out + "</feed>"
 
 
-def top_page(name, sl, rows):
-    """rows: tiles with a value, already ranked."""
+RACE_CSS = """.race-bar{display:flex;gap:12px;align-items:center;margin:18px 0 10px}.race-bar input{flex:1;min-width:80px}.race-bar b{font:600 15px var(--display);min-width:8.5em;text-align:right}
+.race-row{position:absolute;left:0;right:0;top:0;height:26px;display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;transition:transform .6s ease,opacity .4s}
+.race-n{width:9.5em;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}.race-t{flex:1;height:18px}.race-t i{display:block;height:100%;width:1%;background:#2f6feb;border-radius:3px;transition:width .6s ease}
+.race-v{width:5.5em;flex:none;text-align:right;font:600 13px var(--mono)}.race-note{font-size:12px;color:#667085;margin:8px 0 22px}"""
+
+
+def race_block(replay, unit):
+    """The replay of a ranking: the frames as data, drawn by /static/race.js. Empty when the record holds too little history."""
+    if not replay:
+        return ""
+    data = json.dumps(replay | {"unit": unit or ""}, separators=(",", ":")).replace("</", "<\\/")
+    return (f'<style>{RACE_CSS}</style><div id="race"></div><script type="application/json" id="race-data">{data}</script>'
+            '<script src="/static/race.js?v=1" defer></script>')
+
+
+def race_embed(name, sl, replay, unit):
+    """The replay alone, for another site's frame."""
+    return (f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">'
+            f'<title>{esc(name)} over time | Tally</title><style>{CSS}body{{margin:0;padding:14px}}</style></head><body><b style="font:600 16px var(--display)">Ranked by {esc(name)}, over time</b>'
+            f'{race_block(replay, unit)}<a href="{SITE}/top/{esc(sl)}" target="_blank" rel="noopener" style="font-size:12px">Sources for every figure on Tally</a></body></html>')
+
+
+def top_page(name, sl, rows, replay=None):
+    """rows: tiles with a value, already ranked. replay: race.frames() of the same ranking, or None."""
     lis = "".join(f'<li><span style="font:inherit;color:inherit"><b style="display:inline-block;width:2em;color:#667085">{i + 1}</b><a href="{number_path(t)}">{esc(subject(t))}</a></span>'
                   f'<span style="font:600 16px var(--display);color:#0e1320">{esc(fmt(t["value"], t["unit"])[0])} <small style="font:12px var(--mono);color:#667085">{esc(fmt(t["value"], t["unit"])[1])}</small></span></li>' for i, t in enumerate(rows))
     lead = rows[0]
     desc = f"{subject(lead)} leads with {fmt(lead['value'], lead['unit'])[0]}. {len(rows)} companies ranked by {name}, each number with its source, kept current on Tally."
     body = (f'<div class="crumb"><a href="/top">Rankings</a> / {esc(name)}</div><h1>Ranked by {esc(name)}</h1><p class="q">{len(rows)} tracked on Tally. Each number opens to its evidence.</p>'
+            f'{race_block(replay, rows[0]["unit"])}' + (f'<p class="q" style="margin-top:0">Replay how this ranking changed, or <a href="/top/{sl}?play=1">share it playing</a>. Embed: <code>&lt;iframe src="{SITE}/embed/top/{sl}" width="640" height="460"&gt;&lt;/iframe&gt;</code></p>' if replay else "") +
             f'<ul class="rows">{lis}</ul><div class="cta"><a class="btn" href="/app?setup=1">Track the companies you watch</a><a class="btn ghost" href="/top">More rankings</a></div>')
     ld = ld_json(item_list(f"Companies ranked by {name}", [(f"{subject(t)}: {' '.join(x for x in fmt(t['value'], t['unit']) if x)}", number_path(t)) for t in rows]),
                  crumbs(("Rankings", "/top"), (name, f"/top/{sl}")))

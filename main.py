@@ -1283,12 +1283,33 @@ def public_top():
     return HTMLResponse(pp.top_index([(n, sl, len(ts), pp.subject(ts[0])) for n, sl, ts in _rankings()]))
 
 
+_replays = {}
+
+
+def _replay(sl, ts):
+    """A ranking's history as frames (race.frames), from what a signed-out visitor may see. Kept for ten minutes."""
+    import race
+    kept = _replays.get(sl)
+    if not kept or time.time() - kept[0] > 600:
+        rows = [(pp.subject(t), pp.number_path(t), [(p["at"], p["value"]) for p in _public_series(core.metric(t["id"]), t)]) for t in ts]
+        kept = _replays[sl] = (time.time(), race.frames(rows))
+    return kept[1]
+
+
 @app.get("/top/{slug}")
 def public_top_one(slug: str):
     for n, sl, ts in _rankings():
         if sl == slug:
-            return HTMLResponse(pp.top_page(n, sl, ts))
+            return HTMLResponse(pp.top_page(n, sl, ts, _replay(sl, ts)))
     raise HTTPException(404, "no such ranking yet")
+
+
+@app.get("/embed/top/{slug}")
+def top_embed(slug: str):
+    for n, sl, ts in _rankings():
+        if sl == slug and _replay(sl, ts):
+            return HTMLResponse(pp.race_embed(n, sl, _replay(sl, ts), ts[0]["unit"]), headers={"Cache-Control": "public, max-age=600"})
+    raise HTTPException(404, "no replay for that ranking yet")
 
 
 # ---------- a board anyone can open: the owner shares a link, the reader can copy it ----------
