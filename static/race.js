@@ -57,7 +57,7 @@
       if (n !== undefined) {
         e.children[0].textContent = on ? n + 1 : '';
         e.children[2].firstChild.style.width = Math.max(0.5, Math.abs(rows[k].v[i]) / max * 86) + '%';
-        e.children[2].lastChild.textContent = fmt(rows[k].v[i]);
+        e.children[2].lastChild.textContent = fmt(rows[k].v[i]) + (rows[k].ipo && dates[i] >= rows[k].ipo ? '  · listed' : '');
       }
     });
     var step = nice(max), html = '';

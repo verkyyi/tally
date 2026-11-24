@@ -1269,6 +1269,19 @@ def _rankings0():
             t = tile(m, None)
             if t["value"] is not None:
                 by.setdefault(tid, []).append(t)
+    # A company that has gone public is no longer valued by its last private round: from the day of its offering its place
+    # in the valuation ranking is held by what it was valued at when it listed, and it is marked as listed.
+    for m in db.q("SELECT * FROM metrics WHERE lower(title) LIKE '% · valuation at ipo'"):
+        t = tile(m, None)
+        if t["value"] is None:
+            continue
+        who = pp.subject(t)
+        rounds = by.setdefault("latest valuation", [])
+        last = next((x for x in rounds if pp.subject(x) == who), None)
+        if not last or (t.get("as_of") or "") >= (last.get("as_of") or ""):
+            pts = core.series(m["id"])
+            day = next((p["at"] for i, p in enumerate(pts) if all(q["value"] == pts[-1]["value"] for q in pts[i:])), t.get("as_of") or "")[:10]  # the day the offering's valuation was first stated
+            by["latest valuation"] = [x for x in rounds if pp.subject(x) != who] + [t | {"_ipo": day, "_before": last["id"] if last else None}]
     out = []
     for tid, ts in by.items():
         if len(ts) >= 3:
@@ -1292,8 +1305,18 @@ def _replay(sl, ts):
     import race
     kept = _replays.get(sl)
     if not kept or time.time() - kept[0] > 600:
-        rows = [(pp.subject(t), pp.number_path(t), [(p["at"], p["value"]) for p in _public_series(core.metric(t["id"]), t)]) for t in ts]
+        def past(t):  # a listed company's line is its private rounds, then its valuation at the offering
+            pts = [(p["at"], p["value"]) for p in _public_series(core.metric(t["id"]), t)]
+            if t.get("_before"):
+                b = core.metric(t["_before"])
+                pts += [(p["at"], p["value"]) for p in _public_series(b, tile(b, None)) if p["at"][:10] < t["_ipo"]]
+            return pts
+        rows = [(pp.subject(t), pp.number_path(t), past(t)) for t in ts]
         f = race.frames(rows)
+        listed = {pp.subject(t): t["_ipo"] for t in ts if t.get("_ipo")}
+        for r in (f or {}).get("rows", []):
+            if r["n"] in listed:
+                r["ipo"] = listed[r["n"]]
         for r in (f or {}).get("rows", []):  # the colour people know the company by, where one is set
             c = brand.KNOWN.get(r["n"].lower())
             if c and c != brand.NEUTRAL:

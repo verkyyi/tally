@@ -956,7 +956,7 @@ def race_block(replay, unit):
         return ""
     data = json.dumps(replay | {"unit": unit or ""}, separators=(",", ":")).replace("</", "<\\/")
     return (f'<style>{RACE_CSS}</style><div id="race"></div><script type="application/json" id="race-data">{data}</script>'
-            '<script src="/static/race.js?v=6" defer></script>')
+            '<script src="/static/race.js?v=7" defer></script>')
 
 
 def race_embed(name, sl, replay, unit):
@@ -966,9 +966,17 @@ def race_embed(name, sl, replay, unit):
             f'{race_block(replay, unit)}<a href="{SITE}/top/{esc(sl)}" target="_blank" rel="noopener" style="font-size:12px">Sources for every figure on Tally</a></body></html>')
 
 
+def listed_tag(t):
+    """Beside a company that has gone public: its place is held by its valuation at the offering."""
+    if not t.get("_ipo"):
+        return ""
+    return (' <small style="font:11px var(--mono);color:#667085;border:1px solid #d0d5dd;border-radius:4px;padding:1px 5px;margin-left:6px" '
+            f'title="Listed: valued here at its public offering">LISTED {esc(t["_ipo"])}</small>')
+
+
 def top_page(name, sl, rows, replay=None):
     """rows: tiles with a value, already ranked. replay: race.frames() of the same ranking, or None."""
-    lis = "".join(f'<li><span style="font:inherit;color:inherit"><b style="display:inline-block;width:2em;color:#667085">{i + 1}</b><a href="{number_path(t)}">{esc(subject(t))}</a></span>'
+    lis = "".join(f'<li><span style="font:inherit;color:inherit"><b style="display:inline-block;width:2em;color:#667085">{i + 1}</b><a href="{number_path(t)}">{esc(subject(t))}</a>{listed_tag(t)}</span>'
                   f'<span style="font:600 16px var(--display);color:#0e1320">{esc(fmt(t["value"], t["unit"])[0])} <small style="font:12px var(--mono);color:#667085">{esc(fmt(t["value"], t["unit"])[1])}</small></span></li>' for i, t in enumerate(rows))
     lead = rows[0]
     made = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "race", sl + ".mp4")  # rendered by infra/race_video.py

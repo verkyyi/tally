@@ -186,6 +186,8 @@ def render(slug):
                     g.text((lx + 15, y + 19), r["n"][:1].upper(), font=f_k, fill="#667085", anchor="mm")
                 shown = va if (u < 0.5 or r["v"][k2] is None) and va is not None else vb
                 g.text((lx + 40, y + 19), money(shown, unit), font=f_v, fill="#0e1320", anchor="lm")
+                if r.get("ipo") and dates[k] >= r["ipo"]:  # from its offering on, a company is valued as listed
+                    g.text((lx + 48 + g.textlength(money(shown, unit), font=f_v), y + 19), "listed", font=f_k, fill="#667085", anchor="lm")
             now = next((rows[j]["n"] for j, n in pa.items() if n == 0), None)
             if fr % PER == 0:
                 if now and lead and now != lead:
