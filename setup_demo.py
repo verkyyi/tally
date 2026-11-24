@@ -575,7 +575,8 @@ def requests():
                 n = json.loads(" ".join(a[2:]))
                 p = {"date": str(n.get("date") or "")[:10], "value": n.get("value"), "source_url": n.get("source_url") or "", "quote": n.get("quote") or ""}
                 fresh = (datetime.now(timezone.utc).date() - datetime.strptime(p["date"], "%Y-%m-%d").date()).days <= 7
-                verdict = ri.check([p], ri._read)[0][1] if fresh else "older than a week"
+                portal = any(h in p["source_url"].lower() for h in ("finance.yahoo.", "google.com/finance", "marketwatch.com", "investing.com", "stockanalysis.com", "tradingview.com"))
+                verdict = "a finance portal, not the exchange, the company or a report" if portal else ri.check([p], ri._read)[0][1] if fresh else "older than a week"
             except (ValueError, TypeError, AttributeError) as e:
                 verdict = f"unreadable ({type(e).__name__})"
             if verdict == "ok":

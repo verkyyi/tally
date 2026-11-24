@@ -101,9 +101,11 @@ def is_figure(text):
 
 WANTS_NOW = re.compile(r"\b(?:stock|share) price\b|\b(?:current|latest|today'?s?) (?:stock |share )?price\b|\bprice (?:now|today)\b|股价|现价", re.I)
 NOW = (' The reader also wants the share price as it stands now. Add a top-level key "now": {"label": "share price", "value": <number>, "unit": "USD", '
-       '"date": "YYYY-MM-DD", "source_url": "<the page you opened>", "quote": "<the words on that page that state the price>"} taken from the company\'s own '
-       "investor-relations page, its exchange's page, or a dated news report you opened. It is shown to this reader only and never enters the record: "
-       "do NOT make a series for the share price.")
+       '"date": "YYYY-MM-DD", "source_url": "<the page you opened>", "quote": "<the sentence on that page, word for word, that CONTAINS the price as a number>"} '
+       "taken from the exchange's own page for the stock (nasdaq.com, nyse.com), the company's investor-relations page, or a dated news report that states the "
+       "closing price; not from a finance portal or data vendor (Yahoo Finance, Google Finance, MarketWatch, Investing.com, Stock Analysis, TradingView). "
+       "The quote is checked against the page: if it does not contain the number, the price is dropped. It is shown to this reader only and never enters the "
+       "record: do NOT make a series for the share price. If no such page states it, leave \"now\" out.")
 
 
 def research(rid, text, out, got, resume=None, about=None, whole=False):
