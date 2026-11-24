@@ -987,7 +987,7 @@ def derived_market_cap(company, price, day, url, quote):
         m = metric(mid)
     if db.one("SELECT 1 x FROM observations WHERE metric_id=? AND substr(as_of,1,10)=?", (m["id"], day)):
         return f"market value: {day} already on record"
-    note = f"Worked out: closing price ${price:,.2f} x {last['value']:,.0f} shares outstanding (as filed for {last['as_of'][:10]}). The page says: {quote}"
+    note = f"Worked out: closing price ${price:,.2f} x {last['value']:,.0f} shares outstanding (as last reported to the SEC). The page says: {quote}"
     db.run("INSERT INTO observations(metric_id,value,as_of,evidence_url,origin,seeded,quote,recipe_version,collected_at,label) VALUES(?,?,?,?,?,0,?,?,?,?)",
            (m["id"], value, day + "T00:00:00Z", url, "source_history", note[:300], m.get("recipe_version") or 1, db.now(), APPROX))
     return f"market value: {value:,.0f} written to number {m['id']}"
