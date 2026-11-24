@@ -11,13 +11,13 @@ class Race(unittest.TestCase):
                 ("D", "/c/d/x", [("2025-01-01T00:00:00Z", 1)])]
 
     def test_values_hold_until_the_next_disclosure_and_nothing_is_invented(self):
-        f = race.frames(self.rows())
-        self.assertEqual(f["dates"], ["2024-01-01", "2024-06-01", "2025-01-01"])  # starts when three have a figure; an unchanged reading adds no day
+        f = race.frames(self.rows(), most=5)
+        self.assertEqual(f["dates"], ["2024-01-01", "2024-04-02", "2024-07-02", "2024-10-01", "2025-01-01"])  # one pace, from when three have a figure
         by = {r["n"]: r["v"] for r in f["rows"]}
-        self.assertEqual(by["A"], [10, 10, 50])
-        self.assertEqual(by["B"], [20, 30, 30])
-        self.assertEqual(by["C"], [5, 40, 40])
-        self.assertEqual(by["D"], [None, None, 1])
+        self.assertEqual(by["A"], [10, 10, 10, 10, 50])
+        self.assertEqual(by["B"], [20, 20, 30, 30, 30])
+        self.assertEqual(by["C"], [5, 5, 40, 40, 40])
+        self.assertEqual(by["D"], [None, None, None, None, 1])
 
     def test_too_little_history_gives_no_replay(self):
         self.assertIsNone(race.frames(self.rows()[:2]))

@@ -939,10 +939,14 @@ def atom(rows, title, self_path):
     return out + "</feed>"
 
 
-RACE_CSS = """.race-bar{display:flex;gap:12px;align-items:center;margin:18px 0 10px}.race-bar input{flex:1;min-width:80px}.race-bar b{font:600 15px var(--display);min-width:8.5em;text-align:right}
-.race-row{position:absolute;left:0;right:0;top:0;height:26px;display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;transition:transform .6s ease,opacity .4s}
-.race-n{width:9.5em;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}.race-t{flex:1;height:18px}.race-t i{display:block;height:100%;width:1%;background:#2f6feb;border-radius:3px;transition:width .6s ease}
-.race-v{width:5.5em;flex:none;text-align:right;font:600 13px var(--mono)}.race-note{font-size:12px;color:#667085;margin:8px 0 22px}"""
+RACE_CSS = """.race-bar{display:flex;gap:10px;align-items:center;margin:18px 0 12px}.race-bar input{flex:1;min-width:80px}
+#race-ticks{position:absolute;left:11.6em;right:0;top:0;bottom:0;pointer-events:none}#race-ticks u{position:absolute;top:0;bottom:0;border-left:1px solid #e3e6ec;padding-left:4px;font:11px var(--mono);color:#98a2b3;text-decoration:none}
+.race-row{position:absolute;left:0;right:0;top:0;height:28px;display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit}
+.race-k{width:1.4em;flex:none;text-align:right;font:12px var(--mono);color:#98a2b3}.race-n{width:9em;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:600;text-align:right}
+.race-t{flex:1;height:24px;display:flex;align-items:center;gap:8px;min-width:0}.race-t i{display:block;height:100%;width:1%;border-radius:0 4px 4px 0;flex:none}.race-v{font:600 13px var(--mono);white-space:nowrap}
+#race-day{position:absolute;right:4px;bottom:6px;text-align:right;pointer-events:none;line-height:1}#race-day b{display:block;font:700 64px var(--display);color:#d0d5dd;letter-spacing:-2px}
+#race-day span{display:block;font:600 22px var(--display);color:#98a2b3;margin-top:2px}#race-day em{display:block;font:600 13px var(--mono);font-style:normal;color:#e8590c;margin-top:8px;min-height:1em}
+.race-note{font-size:12px;color:#667085;margin:10px 0 22px}@media(max-width:560px){.race-n{width:6.5em;font-size:12px}#race-ticks{left:8.6em}#race-day b{font-size:40px}}"""
 
 
 def race_block(replay, unit):
@@ -951,7 +955,7 @@ def race_block(replay, unit):
         return ""
     data = json.dumps(replay | {"unit": unit or ""}, separators=(",", ":")).replace("</", "<\\/")
     return (f'<style>{RACE_CSS}</style><div id="race"></div><script type="application/json" id="race-data">{data}</script>'
-            '<script src="/static/race.js?v=1" defer></script>')
+            '<script src="/static/race.js?v=2" defer></script>')
 
 
 def race_embed(name, sl, replay, unit):
@@ -968,7 +972,7 @@ def top_page(name, sl, rows, replay=None):
     lead = rows[0]
     desc = f"{subject(lead)} leads with {fmt(lead['value'], lead['unit'])[0]}. {len(rows)} companies ranked by {name}, each number with its source, kept current on Tally."
     body = (f'<div class="crumb"><a href="/top">Rankings</a> / {esc(name)}</div><h1>Ranked by {esc(name)}</h1><p class="q">{len(rows)} tracked on Tally. Each number opens to its evidence.</p>'
-            f'{race_block(replay, rows[0]["unit"])}' + (f'<p class="q" style="margin-top:0">Replay how this ranking changed, or <a href="/top/{sl}?play=1">share it playing</a>. Embed: <code>&lt;iframe src="{SITE}/embed/top/{sl}" width="640" height="460"&gt;&lt;/iframe&gt;</code></p>' if replay else "") +
+            f'{race_block(replay, rows[0]["unit"])}' + (f'<p class="q" style="margin-top:0">Replay how this ranking changed, or <a href="/top/{sl}?play=1">share it playing</a>. Embed: <code>&lt;iframe src="{SITE}/embed/top/{sl}" width="640" height="520"&gt;&lt;/iframe&gt;</code></p>' if replay else "") +
             f'<ul class="rows">{lis}</ul><div class="cta"><a class="btn" href="/app?setup=1">Track the companies you watch</a><a class="btn ghost" href="/top">More rankings</a></div>')
     ld = ld_json(item_list(f"Companies ranked by {name}", [(f"{subject(t)}: {' '.join(x for x in fmt(t['value'], t['unit']) if x)}", number_path(t)) for t in rows]),
                  crumbs(("Rankings", "/top"), (name, f"/top/{sl}")))
