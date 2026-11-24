@@ -544,6 +544,14 @@ def requests():
             db.run("INSERT INTO requests(token,text,status,created_at,parent,user,links) VALUES(?,?,?,?,?,?,?)", (tok, " ".join(a[2:])[:300], "received", db.now(), root["parent"] or root["id"], "tally", root.get("links")))
             print("/request/" + tok)
             return
+        if a[0] == "add":  # the operator's own queue: companies to research, without a visitor's limits
+            import secrets
+            for name in a[1:]:
+                name = " ".join(name.split())[:200]
+                if name and not db.one("SELECT 1 x FROM requests WHERE lower(text)=? AND status IN ('received','researching')", (name.lower(),)):
+                    db.run("INSERT INTO requests(token,text,status,created_at,user) VALUES(?,?,?,?,?)", (secrets.token_urlsafe(9), name, "received", db.now(), "tally"))
+            print(db.one("SELECT COUNT(*) n FROM requests WHERE status='received'")["n"], "waiting")
+            return
         if a[1] == "session":
             db.run("UPDATE requests SET session=? WHERE id=?", (a[2][:80], int(a[0])))
             return
