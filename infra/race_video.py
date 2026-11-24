@@ -92,6 +92,8 @@ def render(slug):
     title = re.search(r"<h1>(.*?)</h1>", page).group(1)
     dates, rows, top, unit = d["dates"], d["rows"], d["top"], d.get("unit", "")
     logos = [logo(r["n"]) for r in rows]
+    mark = Image.open(os.path.join(HERE, "static", "img", "logo-512.png")).convert("RGBA").resize((52, 52), Image.LANCZOS)  # Tally's own mark, on every frame
+    f_b, f_d = font(34, True), font(19)
     cols = [r.get("c") or PAL[k % len(PAL)] for k, r in enumerate(rows)]
     f_t, f_n, f_v, f_k, f_y, f_m, f_s, f_c = font(40, True), font(22, True), font(21, True), font(16), font(120, True), font(40, True), font(17), font(22, True)
     X0, X1, Y0, RH = 300, W - 60, 130, 50  # where bars start and may end; first row; row height
@@ -121,6 +123,9 @@ def render(slug):
             im = Image.new("RGB", (W, H), "#f6f7f9")
             g = ImageDraw.Draw(im)
             g.text((60, 44), title, font=f_t, fill="#0e1320")
+            im.paste(mark, (W - 60 - 52, 30), mark)
+            g.text((W - 60 - 64, 44), "Tally", font=f_b, fill="#0e1320", anchor="rm")
+            g.text((W - 60 - 64, 72), "tallycatalog.com", font=f_d, fill="#667085", anchor="rm")
             p = dates[k].split("-")
             g.text((W - 60, H - 150), p[0], font=f_y, fill="#d5d9e0", anchor="rs")
             g.text((W - 60, H - 104), MON[int(p[1]) - 1], font=f_m, fill="#98a2b3", anchor="rs")
@@ -167,7 +172,13 @@ def render(slug):
                 lead = now
             if said:
                 g.text((W - 60, H - 64), said, font=f_c, fill="#e8590c", anchor="rs")
-            g.text((60, H - 34), "Each bar changes only on the day a new figure was stated. Sources for every figure: tallycatalog.com/top/" + slug, font=f_s, fill="#667085")
+            g.text((60, H - 34), "Each bar changes only on the day a new figure was stated. Every figure with its source: tallycatalog.com/top/" + slug, font=f_s, fill="#667085")
+            if fr >= total - 45:  # the closing second and a half: where to find the sources
+                g.rounded_rectangle((W / 2 - 330, H / 2 - 70, W / 2 + 330, H / 2 + 70), radius=18, fill="#0e1320")
+                big = mark.resize((84, 84), Image.LANCZOS)
+                im.paste(big, (int(W / 2 - 300), int(H / 2 - 42)), big)
+                g.text((W / 2 - 196, H / 2 - 20), "Tally", font=font(46, True), fill="#ffffff", anchor="lm")
+                g.text((W / 2 - 196, H / 2 + 26), "tallycatalog.com · every number with its source", font=font(21), fill="#c6ccd8", anchor="lm")
             ff.stdin.write(im.tobytes())
         ff.stdin.close()
         ff.wait()
