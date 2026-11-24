@@ -955,7 +955,7 @@ def race_block(replay, unit):
         return ""
     data = json.dumps(replay | {"unit": unit or ""}, separators=(",", ":")).replace("</", "<\\/")
     return (f'<style>{RACE_CSS}</style><div id="race"></div><script type="application/json" id="race-data">{data}</script>'
-            '<script src="/static/race.js?v=2" defer></script>')
+            '<script src="/static/race.js?v=3" defer></script>')
 
 
 def race_embed(name, sl, replay, unit):
