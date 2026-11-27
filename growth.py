@@ -5,7 +5,7 @@ Three parts:
   fetched because a person asked it something. Page and referring site only, per day: nothing about the visitor, the same
   rule as the visit counts (privacy.html).
 - Search Console: once a day, the last days of clicks, impressions and positions, in total and by query and page, read with a
-  service account (TALLY_GSC_KEY, the path of its JSON key; TALLY_GSC_SITE, the property). No key, no read: nothing breaks.
+  service account or an owner's read-only consent (TALLY_GSC_KEY, the path of its JSON; TALLY_GSC_SITE, the property). No key, no read: nothing breaks.
   A query Google shows Tally for, that the record cannot answer, becomes an ask like a search on the site (demand.py).
 - snapshot(): one JSON of the above for a person or a scheduled agent to read, at /ops/traffic.json behind TALLY_OPS_TOKEN.
 """
@@ -67,7 +67,13 @@ def _key():
 
 
 def _token(key):
-    """An access token for the service account, from a signed request (RFC 7523): no Google client library needed."""
+    """An access token. The key is either a service account (a signed request, RFC 7523) or an owner's read-only consent
+    ("type": "authorized_user": client id, secret and refresh token, as Google's own tools write it). No Google library needed."""
+    if key.get("type") == "authorized_user":
+        r = httpx.post(key.get("token_uri") or "https://oauth2.googleapis.com/token", data={"grant_type": "refresh_token", "refresh_token": key["refresh_token"],
+                       "client_id": key["client_id"], "client_secret": key["client_secret"]}, timeout=30)
+        r.raise_for_status()
+        return r.json()["access_token"]
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import padding
     aud = key.get("token_uri") or "https://oauth2.googleapis.com/token"

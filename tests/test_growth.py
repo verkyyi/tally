@@ -56,6 +56,16 @@ class GrowthTests(unittest.TestCase):
         self.assertEqual(json.loads(pad(claim))["scope"], growth.SCOPE)
         self.assertEqual(sent["url"], "https://oauth2.googleapis.com/token")
 
+    def test_token_from_an_owners_consent(self):
+        sent = {}
+
+        def post(url, data, timeout):
+            sent.update(url=url, **data)
+            return MagicMock(json=lambda: {"access_token": "tok2"}, raise_for_status=lambda: None)
+        with patch("growth.httpx.post", post):
+            self.assertEqual(growth._token({"type": "authorized_user", "client_id": "c", "client_secret": "s", "refresh_token": "r"}), "tok2")
+        self.assertEqual((sent["grant_type"], sent["refresh_token"]), ("refresh_token", "r"))
+
     def test_pull_stores_days_and_rows_and_unanswered_queries_become_asks(self):
         key = self.tmp + "/k.json"
         with open(key, "w") as f:
