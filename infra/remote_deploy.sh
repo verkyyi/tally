@@ -16,7 +16,7 @@ else git clone -q https://github.com/verkyyi/tally.git "$APP"; fi
 umask 077
 aws ssm get-parameter --region $REGION --name /tally/env --with-decryption --query Parameter.Value --output text > "$APP/.env"
 echo "TALLY_DB=$DATA/tally.db" >> "$APP/.env"
-# Search Console's read-only service account key, when one is stored (growth.py). Readable by the app's user only.
+# Search Console's read-only credential (a service account key or the owner's read-only consent), when one is stored (growth.py). Readable by the app's user only.
 if aws ssm get-parameter --region $REGION --name /tally/gsc-key --with-decryption --query Parameter.Value --output text > "$DATA/gsc-key.json" 2>/dev/null; then
   chown tally "$DATA/gsc-key.json"; chmod 600 "$DATA/gsc-key.json"; echo "TALLY_GSC_KEY=$DATA/gsc-key.json" >> "$APP/.env"
 else rm -f "$DATA/gsc-key.json"; fi
