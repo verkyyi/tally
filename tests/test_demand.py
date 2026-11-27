@@ -40,14 +40,20 @@ class DemandTests(unittest.TestCase):
         self.assertIsNone(demand.due(lambda q: False, lambda q: self.fail("tried again too soon")))
         self.assertEqual(made, ["telem ai latest valuation"])
 
-    def test_an_assistant_asking_counts_at_once_and_found_numbers_are_skipped(self):
-        self.ask("langfuse funding", "agent", 1)
-        self.ask("notion funding", "agent", 1)
+    def test_an_assistant_asking_twice_counts_at_once_and_found_numbers_are_skipped(self):
+        self.ask("langfuse funding", "agent", 2)
+        self.ask("notion funding", "agent", 2)
+        self.ask("qwen users", "agent", 1)  # one assistant's sweep asks each name once: not enough
         self.assertEqual([q for q, _ in demand.waiting(lambda q: q.startswith("notion"))], ["langfuse funding"])
+
+    def test_a_figure_without_whose_it_is_is_not_looked_up(self):
+        for q in ("monthly users", "monthly active users", "weekly active users", "paying users"):
+            self.assertFalse(demand.wellformed(q), q)
+        self.assertTrue(demand.wellformed("meta ai monthly active users"))
 
     def test_daily_allowance(self):
         for i in range(8):
-            self.ask(f"company{chr(97 + i)} valuation", "agent", 1)
+            self.ask(f"company{chr(97 + i)} valuation", "agent", 2)
         with patch.dict(os.environ, {"TALLY_DEMAND_PER_DAY": "2"}):
             done = [demand.due(lambda q: False, lambda q: ("published", {"id": 1})) for _ in range(4)]
         self.assertEqual(sum(1 for d in done if d), 2)
