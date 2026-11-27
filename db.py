@@ -105,6 +105,8 @@ MIGRATIONS = [
     "CREATE TABLE IF NOT EXISTS aliases(alias TEXT PRIMARY KEY, subject TEXT, kind TEXT)",  # other names people search a company by: its stock ticker, a former or common name
     "CREATE TABLE IF NOT EXISTS views(day TEXT, metric_id INTEGER, n INTEGER DEFAULT 0, PRIMARY KEY(day, metric_id))",  # people opening a number's page, per day; no IPs, no cookies
     "CREATE TABLE IF NOT EXISTS interest(subject TEXT PRIMARY KEY, article TEXT, week REAL, base REAL, at TEXT)",  # how much each subject is being read about this week (Wikipedia page views)  # the recipe version that produced this reading (empty for readings older than this column)
+    "CREATE TABLE IF NOT EXISTS landings(day TEXT, path TEXT, ref TEXT, n INTEGER DEFAULT 0, PRIMARY KEY(day, path, ref))",  # the exact page reached from another site, or fetched by an assistant for a person (growth.py); no visitor details
+    "CREATE TABLE IF NOT EXISTS gsc_rows(day TEXT, query TEXT, path TEXT, clicks INTEGER, impressions INTEGER, position REAL, PRIMARY KEY(day, query, path))",  # Search Console by query and page (growth.py)
     "CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY, metric_id INTEGER, change_id INTEGER, user TEXT, action TEXT, at TEXT)",
 ]
 

@@ -37,6 +37,7 @@ import popular
 import lifecycle
 import demand
 import alerts
+import growth
 
 HERE = os.path.dirname(__file__)
 app = FastAPI(title="Tally")
@@ -96,6 +97,8 @@ async def count_visit(request: Request, call_next):
             if bot:
                 db.run("INSERT INTO visits(day,path,ref,n) VALUES(?,?,?,1) ON CONFLICT(day,path,ref) DO UPDATE SET n=n+1",
                        (db.now()[:10], "*data" if path.endswith((".json", ".md", ".csv")) else "*" + path[1:], "bot:" + bot))
+                if growth.counts_as_landing("bot:" + bot):
+                    growth.land(db.now()[:10], path, "bot:" + bot)
         elif request.method == "GET" and response.status_code == 200 and not path.startswith(("/api/", "/static/")) and "." not in path.rsplit("/", 1)[-1]:
             group = "/n" if path.startswith("/c/") and path.count("/") == 3 else next((g.rstrip("/") for g in _GROUPS if path.startswith(g)), path)  # /c/<subject>/<number> is a number's page
             ua = request.headers.get("user-agent", "")
@@ -109,6 +112,8 @@ async def count_visit(request: Request, call_next):
             ref = ("bot:" + bot) if bot else ("" if host in ("", "tallycatalog.com", "www.tallycatalog.com", "127.0.0.1", "localhost") else host[:60])
             day = db.now()[:10]
             db.run("INSERT INTO visits(day,path,ref,n) VALUES(?,?,?,1) ON CONFLICT(day,path,ref) DO UPDATE SET n=n+1", (day, group[:60], ref))
+            if growth.counts_as_landing(ref) and not path.startswith("/compare"):  # the exact page, for arrivals from elsewhere and for assistants
+                growth.land(day, path, ref)
             if not bot:
                 ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "").split(",")[0].strip()
                 fp = _hashlib.blake2b((ip + "|" + ua).encode(), key=_SALT, digest_size=8).digest()
@@ -1147,7 +1152,8 @@ def public_number_year(slug: str, name: str, year: int, request: Request):
         raise HTTPException(404, "the record of this number does not cover that year")
     asked = core.value_on(m, series, min(f"{year}-12-31", today))
     ev = {"observation": None if publication.pending(m["id"]) else core.latest_obs(m["id"])} if m["kind"] != "count" else {"entries": []}
-    return HTMLResponse(pp.number_page(m, t, ev, [], series, "all", recipes.live(m), [], _comparable(m), None, _rank_of(m["id"]), asked=asked, year=year))
+    html = pp.number_page(m, t, ev, [], series, "all", recipes.live(m), [], _comparable(m), None, _rank_of(m["id"]), asked=asked, year=year)
+    return HTMLResponse(html, headers={} if (m["id"], year) in _indexed_years() else {"X-Robots-Tag": "noindex, follow"})
 
 
 @app.get("/c/{slug}/{name}")
@@ -1503,6 +1509,37 @@ def _changed():
     return out
 
 
+YEAR_POINTS = int(os.environ.get("TALLY_YEAR_POINTS", "3"))
+_years = {"at": 0.0, "set": set()}
+
+
+def _indexed_years():
+    """{(number id, year)} whose year page is offered to search engines: a year with at least YEAR_POINTS dated values of its
+    own, or one Google already shows. On 2026-11-26 year pages were 7,164 of the site map's 9,938 addresses, most of them one
+    or two values long, while Google showed the whole site about a thousand times a day: thin pages spend the crawl and the
+    site's standing. The others are still served, linked and followed, marked noindex. Kept for fifteen minutes."""
+    if time.time() - _years["at"] < 900 and _years["at"]:
+        return _years["set"]
+    out = {(r["id"], int(r["y"])) for r in db.q("SELECT metric_id id, substr(as_of,1,4) y FROM observations WHERE seeded=0 AND value IS NOT NULL "
+                                                 "GROUP BY metric_id, y HAVING COUNT(*)>=?", (YEAR_POINTS,))}
+    shown = {r["path"] for r in db.q("SELECT DISTINCT path FROM gsc_rows WHERE impressions>0 AND path GLOB '/c/*/*/[0-9][0-9][0-9][0-9]'")}
+    if shown:
+        for p, mid in pp.paths()["by_path"].items():
+            for y in range(2000, int(db.now()[:4]) + 1):
+                if f"{p}/{y}" in shown:
+                    out.add((mid, y))
+    _years.update(at=time.time(), set=out)
+    return out
+
+
+def _gsc_totals():
+    """The clicks and impressions numbers on /growth, after a Search Console read (as `setup_demo.py gsc` does by hand)."""
+    for what in ("clicks", "impressions"):
+        r = db.one("SELECT id FROM metrics WHERE skill=?", (f"free|tally|{what}",))
+        if r:
+            core.record_direct(core.metric(r["id"]), free_sources.read(f"free|tally|{what}"), "monitor")
+
+
 _sitemap = {"at": 0.0, "body": ""}
 _sitemap_lock = threading.Lock()
 
@@ -1520,7 +1557,7 @@ def _sitemap_body():
     groups = pp.groups()
     of = lambda name: max((changed.get(i, "") for i in groups.get(name, [])), default="")
     today = db.now()[:10]
-    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/growth", today), ("/findings", today), ("/coverage", today), ("/findings/ai-hiring", today), ("/findings/open-source-stars", today), ("/findings/ai-valuations", today), ("/track", ""), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
+    urls = [("/", today), ("/numbers", today), ("/changes", today), ("/this-week", today), ("/corrections", today), ("/growth", today), ("/findings", today), ("/coverage", today), ("/findings/ai-hiring", today), ("/findings/open-source-stars", today), ("/findings/ai-valuations", today), ("/top", today)] + [(f"/top/{sl}", max((changed.get(t["id"], "") for t in ts), default="")) for _, sl, ts in _rankings()]
     urls += [(pp.subject_path(n), of(n)) for n in groups]
     urls += [(pp.versus_path(a, b), max(of(a), of(b))) for a, b in _pairs()]
     names = {n.lower(): n for n in groups}
@@ -1535,11 +1572,21 @@ def _sitemap_body():
     many = {r["id"]: r["n"] for r in db.q("SELECT metric_id id, COUNT(DISTINCT substr(as_of,1,4)) n FROM observations WHERE seeded=0 AND value IS NOT NULL GROUP BY metric_id")}
     for r in db.q("SELECT o.metric_id id, substr(o.as_of,1,4) y, m.title, m.update_json FROM observations o JOIN metrics m ON m.id=o.metric_id "
                   f"WHERE o.seeded=0 AND o.value IS NOT NULL AND m.kind='direct' AND NOT ({core.FOLDED}) GROUP BY o.metric_id, y"):
-        if not publication.pending(r["id"]) and many.get(r["id"], 0) >= 2:  # each year of a number with a past is a page people look for ("langchain github stars 2024")
+        if not publication.pending(r["id"]) and many.get(r["id"], 0) >= 2 and (r["y"] or "").isdigit() and (r["id"], int(r["y"])) in _indexed_years():  # each year of a number with a past is a page people look for ("langchain github stars 2024")
             urls.append((f'{pp.number_path(r)}/{r["y"]}', changed.get(r["id"], "") if r["y"] == today[:4] else ""))
     body = ('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
             + "".join(f"<url><loc>{pp.SITE}{pp.esc(u)}</loc>{f'<lastmod>{d}</lastmod>' if d else ''}</url>" for u, d in urls) + "</urlset>")
     return body
+
+
+@app.get("/ops/traffic.json")
+def ops_traffic(request: Request, days: int = 7):
+    """growth.snapshot() for the operator or a scheduled agent. Only with TALLY_OPS_TOKEN set, and only to a request carrying it."""
+    want = os.environ.get("TALLY_OPS_TOKEN", "")
+    got = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    if not want or not secrets.compare_digest(want, got):
+        raise HTTPException(404, "not found")
+    return JSONResponse(growth.snapshot(max(1, min(days, 90))), headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
 
 
 @app.get("/indexnow.txt")
@@ -2217,6 +2264,9 @@ def _autosync():
                     looked = demand.due(_in_record, lambda q: lifecycle.create_curated(q)[:2])
                     if looked:
                         print("demand, looked up:", looked, flush=True)
+                grew = growth.daily(_in_record, _gsc_totals)
+                if grew:
+                    print("growth, daily:", grew, flush=True)
                 added = popular.daily()
                 if added:
                     print("popular, added today:", added)

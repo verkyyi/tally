@@ -8,10 +8,12 @@ import re
 import db
 
 ASKS, DAYS = 3, 2            # asked at least this many times, on at least this many different days
+AGENT_ASKS = 2               # an assistant searching on someone's behalf needs only this many asks, on any days
 WINDOW, RETRY = 14, 14       # days of asks counted; days before a failed attempt is tried again
 KINDS = {"valuation", "valued", "worth", "funding", "raised", "round", "headcount", "employees", "employee", "staff", "stars", "price", "pricing",
          "revenue", "arr", "downloads", "users", "customers"}
 NOT_THESE = {"vs", "versus", "stock", "share", "shares", "ticker", "symbol", "pdf", "10k", "10-k", "tutorial", "login", "free"}
+GENERIC = {"monthly", "weekly", "daily", "annual", "quarterly", "active", "paying", "paid", "unique", "global", "worldwide", "total"}  # describe a figure, never whose it is
 SMALL = {"the", "of", "a", "an", "how", "many", "much", "does", "do", "have", "has", "what", "is", "are", "for", "in", "at", "s", "latest", "current", "total", "count", "counts", "number"}
 
 
@@ -28,7 +30,7 @@ def wellformed(q):
     words = [w.strip("'") for w in re.split(r"[ .]+", re.sub(r"'s\b", "", q)) if w.strip("'")]
     if len(words) > 7 or any(w in NOT_THESE for w in words) or not any(w in KINDS for w in words):
         return False
-    subject = [w for w in words if w not in KINDS and w not in SMALL]
+    subject = [w for w in words if w not in KINDS and w not in SMALL and w not in GENERIC]  # "monthly active users" names no one
     return any(len(w) >= 2 and w.isalpha() for w in subject)
 
 
@@ -46,7 +48,9 @@ def waiting(found, limit=20):
     tried = {r["q"] for r in db.q("SELECT q FROM demand WHERE status='published' OR at>=date('now', ?)", (f"-{RETRY} days",))}
     out = []
     for r in rows:
-        earned = (r["n"] >= ASKS and r["days"] >= DAYS) or r["agents"] >= 1  # an assistant searching for someone counts at once
+        # An assistant asking twice counts at once. Once was not enough evidence: on 2026-11-24 and 25 one assistant's sweep of
+        # "<name> users" started ten look-ups in a row, and nine failed.
+        earned = (r["n"] >= ASKS and r["days"] >= DAYS) or r["agents"] >= AGENT_ASKS
         if earned and r["q"] not in tried and wellformed(r["q"]) and not found(r["q"]):
             out.append((r["q"], r["n"]))
     return out[:limit]

@@ -626,6 +626,22 @@ def requests():
         print(r["id"], r["status"], r["created_at"], "|", r["text"], "|", r["token"], *(["|", (root or {}).get("session") or "-", "|", (root or {}).get("text") or "-"] if r.get("parent") else []), flush=True)
 
 
+def gsc_pull():
+    """Read the last ten days from Search Console now (TALLY_GSC_KEY), as the daily loop does. Usage: gsc_pull"""
+    os.environ["TALLY_AUTOSYNC"] = "0"  # importing the app must not start a second background loop
+    import growth
+    import main
+    print("days, query rows:", growth.pull())
+    main._gsc_totals()
+    print("asks added:", growth.to_asks(main._in_record))
+
+
+def snapshot():
+    """Where readers came from, as JSON (growth.snapshot). Usage: snapshot [DAYS]"""
+    import growth
+    print(json.dumps(growth.snapshot(int(sys.argv[2]) if len(sys.argv) > 2 else 7), separators=(",", ":"), default=str))  # compact: SSM returns at most 24,000 characters
+
+
 if __name__ == "__main__":
     db.init()
-    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "jobs": jobs, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "stocks": stocks, "growth": growth, "gsc": gsc, "requests": requests, "market_caps": market_caps, "cited_history": cited_history, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
+    {"monitors": monitors, "build": build, "presets": presets, "seed": seed, "tick": tick, "rehold": rehold, "reset": reset, "curate": curate, "prewarm": prewarm, "yc": yc, "aggregates": aggregates, "free": free, "jobs": jobs, "round_history": round_history, "price_history": price_history, "archive_history": price_history, "periods": periods, "stocks": stocks, "growth": growth, "gsc": gsc, "gsc_pull": gsc_pull, "snapshot": snapshot, "requests": requests, "market_caps": market_caps, "cited_history": cited_history, "resource": resource, "create_numbers": create_numbers, "scout": scout, "add_popular": add_popular, "yc_history": yc_history, "retire": retire, "period_history": period_history}[sys.argv[1]]()
